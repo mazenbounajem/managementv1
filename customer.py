@@ -1,5 +1,5 @@
 
-from tkinter import messagebox
+
 from tkinter.ttk import Treeview
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
@@ -11,6 +11,7 @@ from ttkbootstrap.constants import *
 from ttkbootstrap.scrolled import ScrolledFrame
 from connection import connection
 from customerprint import CustomerPrint
+from ttkbootstrap.dialogs import Messagebox
 
 
 class CustomerClass():
@@ -87,7 +88,7 @@ class CustomerClass():
     def create_table(self):
             getdatacustomer= connection.contogetrows
             getdatacustomerall=[]
-            getdatacustomer('select * from customer',getdatacustomerall)
+            getdatacustomer('select * from customer order by id desc',getdatacustomerall)
            # print(getdatacustomerall)
             self.datafromdatabase.append(getdatacustomerall)
             #row_data = [
@@ -97,7 +98,7 @@ class CustomerClass():
 
             getcolumnnames=connection.contogetheaders
             getheaderscustomers=[]
-            getheaders=getcolumnnames('select * from customer',getheaderscustomers)
+            getheaders=getcolumnnames('select * from customer ',getheaderscustomers)
           
             columns=getheaderscustomers
             self.table =Tableview(
@@ -205,18 +206,42 @@ class CustomerClass():
             customer_vat=self.var_vat.get()
             customer_project=self.var_project.get()
             customer_referenceby=self.var_referenceby.get()
-            if self.var_name.get()=="":
-                messagebox.showerror("Error",f"please enter customer Name",parent=self.root)
+            insertingdatacustomer=connection.insertingtodatabase
+            if self.varid!='' :
+                   int(self.varid)
+                   try:
+                        sql2="""update customer SET customerName=?,Address=?,phone=?,Email=?,refernceBy=?,mof=?,vat=?,project=? where id=? """                
+                        
+                        inputs=(customer_name,customer_address,customer_phone,customer_email,customer_referenceby,customer_mof,customer_vat,customer_project,self.varid)
+                        
+                        messagebox1=Messagebox.yesno(title='Question',message='Are you sure you want to update Data')
+                        print(messagebox1)
+                        if  messagebox1=="No":
+                                 print('no')
+                                 return
+                        else:          
+                                insertingdatacustomer(sql2,inputs) 
+                                messagebox=Messagebox.show_info('update','Data updated successfuly',self.root) 
+                                 
+                   except Exception as ex:
+                          messagebox=Messagebox.show_error('Error',f'Could not connect to database:{str(ex)}',self.root)     
+                   finally:
+                          return
+            
             else:
-                 print(customer_name,customer_mof,customer_address,customer_email,customer_vat,customer_project,customer_referenceby)
+                 print (self.varid,'self far id == null')
+                 #print(customer_name,customer_mof,customer_address,customer_email,customer_vat,customer_project,customer_referenceby)
                  self.data.append((customer_name,customer_address,customer_phone,customer_email,customer_referenceby,customer_mof,customer_vat,customer_project,'','','','',''))
-                 print(self.data)
+                # print(self.data)
                  #self.table.destroy()
                  #self.table=self.create_table()
-                 sql="""insert into customer (customerName,Address,phone,Email,refernceBy,mof,vat,project,firstsalesdate,lastpaymentdate,lastsalesdate,balanceLL,balanceusd) 
-                 Values(?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)"""
-                 values=(customer_name,customer_mof,customer_address,customer_phone,customer_email,customer_vat,customer_project,customer_referenceby)
-                 insertingdatacustomer=connection.insertingtodatabase
+                 try:
+                     sql="""insert into customer (customerName,Address,phone,Email,refernceBy,mof,vat,project,firstsalesdate,lastpaymentdate,lastsalesdate,balanceLL,balanceusd) 
+                     Values(?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)"""
+                     values=(customer_name,customer_mof,customer_address,customer_phone,customer_email,customer_vat,customer_project,customer_referenceby)
+                 except Exception as ex :
+                      messagebox=Messagebox.show_error('Error',f'Could not connect to database:{str(ex)}',self.root)    
+                 
                  insertingdatacustomer(sql,values)
                  self.table.delete_rows()
                  self.datafromdatabase.clear()
@@ -240,7 +265,7 @@ class CustomerClass():
                     deletingcustomerrow=connection.deleterow
                     deletingcustomerrow(sql,customername)
               except:
-                   messagebox.showerror("Error","please enter customer name",parent=self.root)
+                   Messagebox.showerror("Error","please enter customer name",parent=self.root)
               else:     
                     self.table.delete_rows()
                     self.datafromdatabase.clear()

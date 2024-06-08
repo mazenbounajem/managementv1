@@ -64,7 +64,8 @@ class CategoryClass():
         
         lbl_companyid=tb.Label(third_frame,bootstyle="info",text="Company Identity:")
         lbl_companyid.grid(row=2,column=0,padx=0,pady=5)
-        self.companyidentity=tb.Combobox(third_frame,values=['fabrics','finished products','glass','socialmedia'],textvariable=self.var_companyidentetiy)
+        self.companyidentity=tb.Combobox(third_frame,values=['Default','fabrics','finished products','glass','socialmedia'],textvariable=self.var_companyidentetiy,state=DISABLED)
+        self.companyidentity.current(0)
         self.companyidentity.grid(row=2,column=1,padx=10,pady=5)
 
         lbl_discription=tb.Label(third_frame,bootstyle="info",text="Discription:")
@@ -95,10 +96,12 @@ class CategoryClass():
                 
                 self.tableview.pack(fill='x',expand=100)    
     def add(self):
+                 self.companyidentity.configure(state=ACTIVE)
+                 self.companyidentity.current(0)
                  self.varid=''
                  self.var_Categorycode.set('')
                  self.var_CategoryName.set('')
-                 self.var_companyidentetiy.set('')
+                # self.var_companyidentetiy.set(0)
                  self.entry_Discription.delete('0.0','end')
     def save(self):
             print("you click save")
@@ -115,15 +118,20 @@ class CategoryClass():
                         sql2="""update category SET category_code=?,category_name=?,discription=?,company_id=? where id=? """                
                         
                         inputs=(ccode,categoryname,cdiscription,companyidentity,self.varid)
-                        entercategory(sql2,inputs)
+                        
+                        messagebox1=Messagebox.yesno(title='Question',message='Are you sure you want to update Data')
+                        print(messagebox1)
+                        if  messagebox1=="No":
+                                 print('no')
+                                 return
+                        else:          
+                                entercategory(sql2,inputs) 
+                                messagebox=Messagebox.show_info('update','Data updated successfuly',self.root) 
+                                 
                    except Exception as ex:
                           messagebox=Messagebox.show_error('Error',f'Could not connect to database:{str(ex)}',self.root)     
                    finally:
-                          messagebox=Messagebox.yesnocancel('Are you sure you want to update Data','Question',self.root)
-                          if not messagebox:
-                                 return 
-                          else:
-                                 messagebox=Messagebox.show_info('update','Data updated successfuly',self.root)
+                          return
 
             else:  
                         print(self.varid,'it is equal to null') 
