@@ -81,9 +81,11 @@ class CategoryClass():
     def tabletouse(self):
                 datafromdatabase=[]
                 columns=[]
+                sqltoselectheaders= 'select * from category'
+                sqltoselectcolumns='select * from category order by id desc'
+                
 
-
-                self.createtablenew.create_table(datafromdatabase,columns)
+                self.createtablenew.create_table(datafromdatabase,columns,sqltoselectheaders,sqltoselectcolumns)
                 self.datafromdatabase=datafromdatabase
                 self.columns=columns
                 

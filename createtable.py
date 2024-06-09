@@ -9,14 +9,14 @@ class CreateTableClass():
           
         
           
-    def create_table(datafromdatabase=[],columns=[]):
+    def create_table(datafromdatabase=[],columns=[],sql1='',sql2=''):
             
             
             
             
             getdatacategory= connection.contogetrows
             getdatacategoryall=[]
-            getdatacategory('select * from category order by id desc',getdatacategoryall)
+            getdatacategory(sql1,getdatacategoryall)
            # print(getdatacustomerall)
             datafromdatabase.append(getdatacategoryall)
             #row_data = [
@@ -26,7 +26,7 @@ class CreateTableClass():
 
             getcolumnnames=connection.contogetheaders
             getheaderscategory=[]
-            getheaders=getcolumnnames('select * from category',getheaderscategory)
+            getheaders=getcolumnnames(sql2,getheaderscategory)
           
             for row in getheaderscategory:
                   columns.append(row)
