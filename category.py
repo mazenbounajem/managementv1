@@ -91,7 +91,7 @@ class CategoryClass():
                 
                 
                 #print(type(self.table))
-                self.tableview =Tableview( master=self.frame2, coldata=self.columns, rowdata=self.datafromdatabase[0], paginated=True, pagesize=12, height=12, searchable=True,            autofit=False,
+                self.tableview =Tableview( master=self.frame2, coldata=self.columns, rowdata=self.datafromdatabase[0], paginated=True, pagesize=12, height=12, searchable=True, autofit=False,
                         bootstyle=PRIMARY,
                         stripecolor=(None, None),                  
                 )

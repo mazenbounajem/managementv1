@@ -115,7 +115,7 @@ class SupplierClass():
                 )
                 print(self.columns)
                 
-                self.tableview.pack(fill='x',expand=100) 
+                self.tableview.pack(fill='both',expand=1) 
 
     def getData(self,event):
           if event:
