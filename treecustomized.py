@@ -32,7 +32,7 @@ class tabledrop(tk.Toplevel):
             
             getcustomername=connection.contogetrows
             getnames=[]
-            getcustomername('select customerName,phone from customer',getnames)
+            getcustomername('select id,customerName,phone from customer',getnames)
             #print(getnames)
 
             #print(getnames[0][0])
@@ -40,11 +40,11 @@ class tabledrop(tk.Toplevel):
             self.namevar=[]
             
             #print(self.namevar)
-            self.newtable=ttk.Treeview(self.frame_second,columns=('Name','Phone'),show='headings',style='success.Treeview',height=5)
+            self.newtable=ttk.Treeview(self.frame_second,columns=( 'id','Name','Phone'),show='headings',style='success.Treeview',height=5)
             self.newtable.heading('Name',text='Name')
             self.newtable.heading('Phone',text='Phone')
             for i in range(len(getnames)):
-                    self.newtable.insert('',index=i,values=(getnames[i][0],getnames[i][1]))
+                    self.newtable.insert('',index=i,values=(getnames[i][0],getnames[i][1],getnames[i][2]))
             self.newtable.grid(row=2,column=0)
             query=entry_name.get().lower()
             for item in self.newtable.get_children():

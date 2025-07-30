@@ -34,6 +34,7 @@ class TableCanvasEdit(TableCanvas):
             self.rowandquantity()
             self.sumquantity()
             self.row=0
+            self.row1=1
             
     def do_bindings(self): 
              
@@ -211,8 +212,8 @@ class TableCanvasEdit(TableCanvas):
                     self.setSelectedCol(4)
                 noofrows=self.model.getRowCount()
                # print(self.row,noofrows)
-                if   (noofrows-self.row)==0:
-                        self.row=self.row +1
+                if   (noofrows-self.row1)==1:
+                        self.row1=self.row1 +1
                         self.model.addRow()
                     
                    # self.model.addRow()
@@ -345,7 +346,7 @@ class TableCanvasEdit(TableCanvas):
           if col == 6:
                if self.model.getValueAt(row,col) !='':
                     noofrows=self.model.getRowCount()
-                    print(self.row,noofrows)
+                    print('number of rows',self.row ,'number of row count',noofrows)
                     if   (noofrows-self.row)==1:
                         self.row=self.row +1
                        
@@ -494,7 +495,10 @@ class TableCanvasEdit(TableCanvas):
          self.model.addRow()
          self.redraw()
          self.gotonextRow()
+         
+         
          self.focus_set()
+         self.drawCellEntry(self.row,self.cols)
     def rowandquantity(self):
          rowcount=self.model.getRowCount() 
          
@@ -507,7 +511,7 @@ class TableCanvasEdit(TableCanvas):
     def sumquantity(self):
          self.values=self.model.getAllCells()
        #  print('the sum of quantity is=')  
-        # print(self.values)
+         print(self.values)
          getsumofsubtotal=[]
          for row in self.values:
               getsumofsubtotal.append(self.values[row][6])      
@@ -529,4 +533,35 @@ class TableCanvasEdit(TableCanvas):
               return
          
          return salesvalues
+    def cleardata(self):
+         x=self.model.getRowCount()
+
+         print(x)
+         self.model.deleteRows()
          
+         self.entrysummation.configure(text=0)
+         
+         
+         self.redraw()
+         
+        
+        
+         self.addRow()
+        
+
+
+         
+         self.setSelectedRow(0)
+         
+         self.row=0
+         self.row1=0
+    def getallvalues(self):
+         if self.model.getAllCells !='':
+              
+            alldata=self.model.getAllCells()
+            #print(alldata)
+
+            return alldata
+         else:
+              return
+            

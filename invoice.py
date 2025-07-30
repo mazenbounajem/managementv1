@@ -3,6 +3,8 @@ import ttkbootstrap as tb
 from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
 from ttkbootstrap.constants import * 
+from tkinter import messagebox
+ 
 
 from controls import ControlsClass
 from createtable import CreateTableClass
@@ -57,6 +59,7 @@ class InvoiceClass():
         lbl_name.pack(side='left',padx=20)
 
         self.var_option_value=StringVar()
+        self.varcustomerid=StringVar()
         
         self.var_customername=StringVar() 
         self.var_phone=StringVar()       
@@ -67,9 +70,9 @@ class InvoiceClass():
             
             
             fillnameandphone = mycustomizedtable.valueofentry
-
-            self.var_customername.set(fillnameandphone[0])
-            self.var_phone.set(fillnameandphone[1])
+            self.varcustomerid.set(fillnameandphone[0])
+            self.var_customername.set(fillnameandphone[1])
+            self.var_phone.set(fillnameandphone[2])
         
         self.entry_name=tb.Entry(self.frame3,textvariable=self.var_customername,bootstyle="Success")
         self.entry_name.pack(side='left',padx=20)
@@ -196,16 +199,66 @@ class InvoiceClass():
 ###### functions ########################
         
     def add(self):
-        print('add')
+        print("add")
+
+        self.var_customername.set('Cash Client')
+       
+        #self.table.table.bind_class("<Return>",'Tablesales',self.table.table.drawCellEntry(0,0))
+        self.table.table.drawCellEntry(0,0)
+
+        
     def save(self):
         print('save')
+        wholetablecells=self.table.table.getallvalues()
+       # print(wholetablecells)
+       # print(type(wholetablecells))
+
+        wholetablecells.pop(len(wholetablecells)-1)
+        print(wholetablecells)
+
+        #print(self.var_customername.get())
+        customername=self.var_customername.get()
+        customerphone=self.var_phone.get()
+        currency=self.currency_cmb.get()
+        total=self.salesamount.get()
+
+        print(customername,customerphone,currency,total)
+
+        insertingsales=connection.insertingtodatabase
+        try:
+            messagebox.askquestion('Question','here you are what you want to do')
+
+        except:
+            messagebox.askyesnocancel('your answer','I was not satisfied with your answer')    
+        
         
        
         
     def duplicate(self):
         print('add')
     def undo(self):
-        print('add')
+        print('undo')
+        if True: 
+           ask= messagebox.askyesno('Undo',"Are you sure you want to undo")
+           print(ask)
+           if ask==True:
+               print('yes')
+               self.table.table.cleardata()
+               self.var_customername.set('')
+               self.salesamount.set(0)
+               self.table.table.redraw()
+               
+               self.table.table.drawSelectedRect(0,0)
+               
+               
+               
+               
+               
+           else:
+               print('No')    
+
+            
+    
     def delete(self):
         print('add')
     def print(self):

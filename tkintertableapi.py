@@ -23,7 +23,7 @@ class Tablesales(Frame):
         
 
         self.table.show()
-        self.table.focus("")
+#        self.table.focus("")
         
             
     
