@@ -3,3 +3,4 @@ ttkbootstrap
 pyodbc
 pynput
 tkintertable
+reportlab
