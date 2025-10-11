@@ -704,3 +704,4 @@
 2025-10-11 11:23:37,894 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2025-10-11 11:27:25,713 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2025-10-11 11:32:17,739 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
+2025-10-11 11:33:32,330 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}

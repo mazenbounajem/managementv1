@@ -1420,3 +1420,5 @@
 2025-10-11 11:27:25,724 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 1602}
 2025-10-11 11:32:17,738 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2025-10-11 11:32:17,747 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 1603}
+2025-10-11 11:33:32,329 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
+2025-10-11 11:33:32,344 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 1604}
