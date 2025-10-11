@@ -2,6 +2,8 @@ from nicegui import ui
 from datetime import date as dt
 from connection import connection
 from datetime import datetime
+from loading_indicator import loading_indicator
+import asyncio
 class SalesUI:
     
     def __init__(self):
@@ -462,44 +464,52 @@ class SalesUI:
             if not self.rows:
                 ui.notify('No items to save!')
                 return
-            
+
+            # Get ledger id for sales (7011)
+            ledger_data = []
+            connection.contogetrows("SELECT Id FROM Ledger WHERE AccountNumber='7011'", ledger_data)
+            if not ledger_data:
+                ui.notify('Sales ledger not found', color='red')
+                return
+            ledger_id = ledger_data[0][0]
+
             # Get current date and timestamp
             sale_date = str(self.date_input.value)
             created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
+
             # Get customer info
             customer_name = self.customer_input.value or 'Cash Client'
             customer_id = connection.getid('select id from customers where customer_name = ?', [customer_name])
-            
+
             # Calculate totals
             subtotal = sum(row['subtotal'] for row in self.rows)
             discount_percent = float(self.discount_percent_input.value or 0)
             discount_amount = float(self.discount_amount_input.value or 0)
             total_after_percent = subtotal * (1 - discount_percent / 100)
             final_total = total_after_percent - discount_amount
-            
+
             if hasattr(self, 'current_sale_id') and self.current_sale_id:
                 # Update existing sale
                 sale_sql = """
-                    UPDATE sales 
-                    SET sale_date = ?, customer_id = ?, subtotal = ?, discount_amount = ?, 
+                    UPDATE sales
+                    SET sale_date = ?, customer_id = ?, subtotal = ?, discount_amount = ?,
                         total_amount = ?, created_at = ?
                     WHERE id = ?
                 """
                 sale_values = (sale_date, customer_id, subtotal, discount_amount, final_total, created_at, self.current_sale_id)
                 connection.insertingtodatabase(sale_sql, sale_values)
-                
+
                 # Delete existing sale items for this sale
                 delete_items_sql = "DELETE FROM sale_items WHERE sales_id = ?"
                 connection.insertingtodatabase(delete_items_sql, [self.current_sale_id])
-                
+
                 # Insert updated sale items
                 for row in self.rows:
                     product_id = connection.getid('select id from products where product_name = ?', [row['product']])
                     barcode = row['barcode']
                     product_id_from_barcode = connection.getid('select id from products where barcode = ?', [barcode])
                     final_product_id = product_id_from_barcode or product_id
-                    
+
                     sale_item_sql = """
                         INSERT INTO sale_items (sales_id, barcode, product_id, quantity, unit_price, total_price, discount_amount)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -510,34 +520,52 @@ class SalesUI:
                         final_product_id,
                         row['quantity'],
                         row['price'],
-                        row['subtotal'], 
+                        row['subtotal'],
                         row['discount']
                     )
                     connection.insertingtodatabase(sale_item_sql, sale_item_values)
-                
+
                 ui.notify(f'Sale updated successfully! ID: {self.current_sale_id}')
-                
+
             else:
                 # Create new sale
                 invoice_number = self.generate_invoice_number()
-                
+
                 sale_sql = """
                     INSERT INTO sales (sale_date, customer_id, subtotal, discount_amount, total_amount, invoice_number, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
                 sale_values = (sale_date, customer_id, subtotal, discount_amount, final_total, invoice_number, created_at)
                 connection.insertingtodatabase(sale_sql, sale_values)
-                
+
                 # Get the last inserted sale ID
                 last_sale_id = connection.getid("SELECT MAX(id) FROM sales", [])
-                
+
+                # Get next subnumber for auxiliary
+                sub_data = []
+                connection.contogetrows("SELECT COUNT(*) FROM Auxiliary WHERE LedgerId=?", sub_data, (ledger_id,))
+                next_sub = sub_data[0][0] + 1
+                account_number = f"7011.{next_sub:06d}"
+
+                # Create auxiliary
+                aux_sql = "INSERT INTO Auxiliary (LedgerId, AccountNumber, Name, Status) VALUES (?, ?, ?, 1)"
+                connection.insertingtodatabase(aux_sql, (ledger_id, account_number, invoice_number))
+
+                # Get auxiliary id
+                aux_id_data = []
+                connection.contogetrows("SELECT @@IDENTITY", aux_id_data)
+                aux_id = aux_id_data[0][0]
+
+                # Update sale with auxiliary_id
+                connection.insertingtodatabase("UPDATE sales SET auxiliary_id=? WHERE id=?", (aux_id, last_sale_id))
+
                 # Insert sale items
                 for row in self.rows:
                     product_id = connection.getid('select id from products where product_name = ?', [row['product']])
                     barcode = row['barcode']
                     product_id_from_barcode = connection.getid('select id from products where barcode = ?', [barcode])
                     final_product_id = product_id_from_barcode or product_id
-                    
+
                     sale_item_sql = """
                         INSERT INTO sale_items (sales_id, barcode, product_id, quantity, unit_price, total_price, discount_amount)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -548,16 +576,16 @@ class SalesUI:
                         final_product_id,
                         row['quantity'],
                         row['price'],
-                        row['subtotal'], 
+                        row['subtotal'],
                         row['discount']
                     )
                     connection.insertingtodatabase(sale_item_sql, sale_item_values)
-                
+
                 ui.notify(f'Sale saved successfully! Invoice: {invoice_number}')
-            
+
             # Refresh the sales table
             self.refresh_sales_table()
-            
+
         except Exception as e:
             ui.notify(f'Error saving sale: {str(e)}')
 

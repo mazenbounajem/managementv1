@@ -1,12 +1,13 @@
 from nicegui import ui
 from connection import connection
 from uiaggridtheme import uiAggridTheme
+from navigation_improvements import EnhancedNavigation
+from session_storage import session_storage
+import hashlib
+import datetime
 
-def employee_page():
+def employee_content():
     uiAggridTheme.addingtheme()
-    with ui.header().classes('items-center justify-between'):
-        ui.label('Employee Management').classes('text-2xl font-bold')
-        ui.button('Back to Dashboard', on_click=lambda: ui.navigate.to('/dashboard')).props('flat color=white')
 
     # Store references to input fields
     input_refs = {}
@@ -23,7 +24,21 @@ def employee_page():
     department_options = [
         'Operations', 'Sales', 'Management', 'Marketing', 'Content Creator'
     ]
-    
+
+    # Roles options will be fetched from database
+    roles_options = []
+
+    # Function to load roles from database
+    def load_roles():
+        nonlocal roles_options
+        roles = connection.get_all_roles()
+        print(f"DEBUG: Roles from database: {roles}")
+        # Convert to format: [(label1, value1), (label2, value2), ...]
+        roles_options = [(role[1], role[0]) for role in roles]
+        print(f"DEBUG: Roles options: {roles_options}")
+        if 'role_id' in input_refs:
+            input_refs['role_id'].set_options(roles_options)
+
     # Function to clear all input fields
     def clear_input_fields():
         for key in input_refs:
@@ -36,6 +51,8 @@ def employee_page():
             elif key == 'position':
                 input_refs[key].set_value(None)
             elif key == 'department':
+                input_refs[key].set_value(None)
+            elif key == 'role_id':
                 input_refs[key].set_value(None)
             else:
                 input_refs[key].set_value('')
@@ -58,6 +75,10 @@ def employee_page():
         department = input_refs['department'].value
         salary = input_refs['salary'].value
         role_id = input_refs['role_id'].value
+        # Debug: Check what value is being retrieved
+        print(f"DEBUG: Role ID value: {role_id}, Type: {type(role_id)}")
+        username = input_refs['username'].value
+        password = input_refs['password'].value
         is_active = bool(input_refs['is_active'].value)
         termination_date = input_refs['termination_date'].value
         id_value = input_refs['id'].value
@@ -66,6 +87,47 @@ def employee_page():
         if not first_name or not last_name:
             ui.notify('Please enter both First Name and Last Name', color='red')
             return
+        if not username:
+            ui.notify('Please enter a username', color='red')
+            return
+        if not password:
+            ui.notify('Please enter a password', color='red')
+            return
+        
+        # Check if username already exists
+        if connection.username_exists(username):
+            ui.notify('Username already exists. Please choose another.', color='red')
+            return
+        
+        # Validate role_id exists in roles table
+        print(f"DEBUG: Validating role_id: {role_id}, type: {type(role_id)}")
+        
+        # Check if role_id is None or empty
+        if role_id is None or role_id == '':
+            ui.notify('Please select a role', color='red')
+            return
+            
+        try:
+            # Convert to int if it's a string
+            if isinstance(role_id, str):
+                role_id = int(role_id)
+            
+            # Get valid role IDs
+            roles = connection.get_all_roles()
+            valid_role_ids = [role[0] for role in roles]
+            print(f"DEBUG: Valid role IDs: {valid_role_ids}")
+            role_id=int(role_id[1])
+            
+            if role_id not in valid_role_ids:
+                ui.notify('Invalid role selected', color='red')
+                return
+        except (ValueError, TypeError) as e:
+            print(f"DEBUG: Error validating role_id: {e}")
+            ui.notify('Invalid role selected - please select a valid role', color='red')
+            return
+        
+        # Hash the password using MD5
+        password_hash = hashlib.md5(password.encode('utf-8')).hexdigest()
         
         # Insert or update data in database using connection
         try:
@@ -77,6 +139,10 @@ def employee_page():
                 values = (first_name, last_name, email, phone, address, city, state, zip_code, 
                          hire_date, position, department, salary, role_id, is_active, 
                          termination_date if termination_date else None, id_value)
+                connection.insertingtodatabase(sql, values)
+                
+                # Update user account - pass role_id instead of role_name
+                connection.update_user_account(username, password_hash, role_id)
             else:  # Insert new record
                 sql = """INSERT INTO employees (first_name, last_name, email, phone, address, 
                         city, state, zip_code, hire_date, position, department, salary, role_id, 
@@ -85,8 +151,11 @@ def employee_page():
                 values = (first_name, last_name, email, phone, address, city, state, zip_code, 
                          hire_date, position, department, salary, role_id, is_active, 
                          termination_date if termination_date else None)
+                connection.insertingtodatabase(sql, values)
+                
+                # Create user account - pass role_id instead of role_name
+                connection.create_user_account(username, password_hash, role_id)
             
-            connection.insertingtodatabase(sql, values)
             ui.notify('Employee saved successfully', color='green')
             # Remove dimming and refresh the table to show the new employee
             table.classes(remove='dimmed')
@@ -106,6 +175,8 @@ def employee_page():
                 'department': department,
                 'salary': salary,
                 'role_id': role_id,
+                'username': username,
+                'password': password,
                 'is_active': is_active,
                 'termination_date': termination_date,
                 'id': id_value
@@ -130,6 +201,7 @@ def employee_page():
     # Function to delete employee
     def delete_employee():
         id_value = input_refs['id'].value
+        username = input_refs['username'].value
         if not id_value:
             ui.notify('Please select an employee to delete', color='red')
             return
@@ -137,6 +209,9 @@ def employee_page():
         try:
             sql = "DELETE FROM employees WHERE id=?"
             connection.deleterow(sql, id_value)
+            # Also delete user account
+            if username:
+                connection.deleterow("DELETE FROM users WHERE username=?", username)
             ui.notify('Employee deleted successfully', color='green')
             # Remove dimming, clear input fields, and refresh the table
             table.classes(remove='dimmed')
@@ -327,24 +402,30 @@ def employee_page():
                         with ui.column().classes('w-1/4 mr-2'):
                             ui.label('Position')
                             input_refs['position'] = ui.select(
-                                options=position_options, 
-                                with_input=True,
-                                on_change=lambda e: ui.notify(e.value) if e.value else None
+                                options=position_options
                             ).classes('w-full')
                         
                         # Enhanced Department dropdown
                         with ui.column().classes('w-1/4 mr-2'):
                             ui.label('Department')
                             input_refs['department'] = ui.select(
-                                options=department_options, 
-                                with_input=True,
-                                on_change=lambda e: ui.notify(e.value) if e.value else None
+                                options=department_options
                             ).classes('w-full')
                         
                         input_refs['salary'] = ui.input('Salary').classes('w-1/4 mr-2')
-                        input_refs['role_id'] = ui.input('Role ID').classes('w-1/4 mr-2')
+                        
+                        # Roles dropdown (replacing role_id input)
+                        with ui.column().classes('w-1/4 mr-2'):
+                            ui.label('Role *')
+                            input_refs['role_id'] = ui.select(
+                                options=roles_options
+                            ).classes('w-full')
                     
                     with ui.row().classes('w-full mb-4'):
+                        # Username and password fields
+                        input_refs['username'] = ui.input('Username *').classes('w-1/4 mr-2')
+                        input_refs['password'] = ui.input('Password *', password=True).classes('w-1/4 mr-2')
+                        
                         # Enhanced Termination Date with calendar picker
                         with ui.column().classes('w-1/4 mr-2'):
                             input_refs['termination_date'] = ui.input('Termination Date').props('readonly')
@@ -356,6 +437,49 @@ def employee_page():
                                 ui.icon('edit_calendar').on('click', term_date_menu.open).classes('cursor-pointer')
                         
                         input_refs['is_active'] = ui.switch('Active', value=True).classes('w-1/4')
+
+    # Footer with system time, company name, and username
+    with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
+        # System time
+        def update_time():
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            time_label.set_text(f'System Time: {now}')
+        time_label = ui.label()
+        update_time()
+        ui.timer(1.0, update_time)
+
+        # Company name from database
+        company_info = connection.get_company_info()
+        company_name = company_info.get('company_name') if company_info else 'Company Name'
+        ui.label(f'Company: {company_name}')
+
+        # Username from session
+        from app import session_storage
+        user = session_storage.get('user')
+        username = user.get('username') if user else 'Guest'
+        ui.label(f'User: {username}')
+
+    # Load roles after UI is created
+    load_roles()
+
+def employee_page():
+    # Check if user is logged in
+    user = session_storage.get('user')
+    if not user:
+        ui.notify('Please login to access this page', color='red')
+        ui.run_javascript('window.location.href = "/login"')
+        return
+
+    # Get user permissions
+    permissions = connection.get_user_permissions(user['role_id'])
+    allowed_pages = {page for page, can_access in permissions.items() if can_access}
+
+    # Create enhanced navigation instance
+    navigation = EnhancedNavigation(permissions, user)
+    navigation.create_navigation_drawer()  # Create drawer first
+    navigation.create_navigation_header()  # Then create header with toggle button
+
+    employee_content()
 
 # Register the page route
 @ui.page('/employees')

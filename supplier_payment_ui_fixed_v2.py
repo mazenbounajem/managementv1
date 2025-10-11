@@ -2,6 +2,7 @@ from nicegui import ui
 from connection import connection
 from datetime import datetime
 from uiaggridtheme import uiAggridTheme
+from navigation_improvements import EnhancedNavigation
 
 class SupplierPayment:
     def __init__(self):
@@ -13,9 +14,55 @@ class SupplierPayment:
         self.supplier_input = None  # Initialize to avoid AttributeError
         self.max_id = 0  # Store the maximum ID
         
+        self.max_supplier_payment_id = self.get_max_supplier_payment_id()
         self.setup_ui()
-        self.get_max_id()  # Get max ID on load
+          # Get max ID on load
+        self.get_max_supplier_payment_id
+    def get_max_supplier_payment_id(self):
+        try:
+            max_id_result = []
+            connection.contogetrows("SELECT MAX(id) FROM supplier_payment", max_id_result)
+            return max_id_result[0][0] if max_id_result and max_id_result[0][0] else 0
+        except Exception as e:
+            return 0
     
+    def load_max_supplier_payment(self):
+        try:
+            max_id_result = []
+            connection.contogetrows("SELECT MAX(id) FROM supplier_payment", max_id_result)
+            max_id = max_id_result[0][0] if max_id_result and max_id_result[0][0] else 0
+            if max_id > 0:
+                payment_data = []
+                connection.contogetrows(
+                    f"SELECT sp.id, sp.manual_reference, sp.payment_date, s.name, sp.amount, sp.payment_method, sp.status FROM supplier_payment sp INNER JOIN suppliers s ON s.id = sp.supplier_id WHERE sp.id = {max_id}",
+                    payment_data
+                )
+                
+                if payment_data:
+                    row_data = {
+                        'id': payment_data[0][0],
+                        'manual_reference': payment_data[0][1],
+                        'payment_date': payment_data[0][2],
+                        'supplier_name': payment_data[0][3],
+                        'amount': payment_data[0][4],
+                        'payment_method': payment_data[0][5],
+                        'status': payment_data[0][6]
+                    }
+                    
+                    # Update UI fields with the loaded payment data
+                    self.supplier_input.value = row_data['supplier_name']
+                    self.input_refs['total_amount'].set_value(f'{row_data["amount"]:.2f}')
+                    self.input_refs['payment_method'].set_value(row_data['payment_method'])
+                    
+                    ui.notify(f'✅ Automatically loaded payment ID: {max_id} - Amount: ${row_data["amount"]:.2f} - Status: {row_data["status"]}')
+                else:
+                    ui.notify('No payments found in database')
+            else:
+                ui.notify('No payments found in database')
+                
+        except Exception as e:
+            ui.notify(f'Error loading max supplier payment: {str(e)}')
+
     def setup_ui(self):
         uiAggridTheme.addingtheme()
         with ui.header().classes('items-center justify-between'):
@@ -42,7 +89,7 @@ class SupplierPayment:
                     
                     # Top section - Pending Invoices Grid
                     with main_splitter.before:
-                        ui.label('Pending Invoices').classes('text-xl font-bold mb-2')
+                        
                         
                         # Search functionality
                         search_input = ui.input('Search Invoices').classes('w-full mb-2')
@@ -103,7 +150,7 @@ class SupplierPayment:
                                     row_dict[header] = row[i]
                                 rows.append(row_dict)
                             
-                            table = ui.table(columns=columns, rows=rows, pagination=5).classes('w-full')
+                            table = ui.table(columns=columns, rows=rows, pagination=5, row_key='id').classes('w-full')
                             ui.input('Search').bind_value(table, 'filter').classes('text-xs')
                             
                             def on_row_click(row_data):
@@ -133,7 +180,8 @@ class SupplierPayment:
                                 'columnDefs': column_defs,
                                 'rowData': [],
                                 'rowSelection': 'multiple',
-                                'rowMultiSelectWithClick': True
+                                'rowMultiSelectWithClick': True,
+                                'getRowId': 'function(params) { return params.data.id; }'
                             }).classes('w-full').style('height: 400px')
                             
                             self.total_label = ui.label('Total: $0.00').classes('text-lg font-bold mt-4')
@@ -174,6 +222,9 @@ class SupplierPayment:
                         
                         # Add row selection functionality for AG Grid after supplier input is defined
                         self.table.on('cellClicked', self.on_row_click)
+        
+        # Load max supplier payment after UI setup
+        self.load_max_supplier_payment()
     
     def clear_input_fields(self):
         # Clear supplier input with error handling
@@ -256,28 +307,78 @@ class SupplierPayment:
             return
         
         try:
-            # Insert payment record into supplier_payment table
-            payment_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # Insert payment record into supplier_payment table and get the payment id
             supplier_id = self.selected_supplier['id']
-            
+            payment_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            manual_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            # Get notes from selected invoices
+            invoice_notes = []
+            for invoice in self.selected_invoices:
+                check_notes_sql = "SELECT notes FROM purchases WHERE invoice_number = ?"
+                notes_result = []
+                connection.contogetrows_with_params(check_notes_sql, notes_result, (invoice['invoice_number'],))
+                if notes_result and notes_result[0][0]:
+                    invoice_notes.append(f"Invoice {invoice['invoice_number']}: {notes_result[0][0]}")
+            combined_notes = 'Payment processed for selected invoices. ' + '; '.join(invoice_notes) if invoice_notes else 'Payment processed for selected invoices'
+
             insert_payment_sql = """
             INSERT INTO supplier_payment (manual_reference, payment_date, supplier_id, amount, payment_method, status, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, 'completed', 'Payment processed for selected invoices', ?)
+            VALUES (?, ?, ?, ?, ?, 'completed', ?, ?)
             """
-            
-            # Generate a reference number
-            reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            values=(self.ManualReference_input.value,payment_date,supplier_id,float(amount),payment_method,payment_date)
-            connection.insertingtodatabase(insert_payment_sql, values=values)
-            # Update purchase status to completed for selected invoices
+            connection.insertingtodatabase(insert_payment_sql, (manual_reference, payment_date, supplier_id, float(amount), payment_method, combined_notes, payment_date))
+
+            # Get the payment id using MAX(id) after insert
+            payment_id_result = []
+            connection.contogetrows("SELECT MAX(id) FROM supplier_payment", payment_id_result)
+            payment_id = payment_id_result[0][0] if payment_id_result and payment_id_result[0][0] else None
+
+            if not payment_id:
+                raise Exception("Failed to retrieve payment id")
+
+            # Insert records into purchase_payment table for each selected invoice
+            for invoice in self.selected_invoices:
+                # Get notes for purchase_payment
+                check_notes_sql = "SELECT notes FROM purchases WHERE invoice_number = ?"
+                notes_result = []
+                connection.contogetrows_with_params(check_notes_sql, notes_result, (invoice['invoice_number'],))
+                notes_pp = notes_result[0][0] if notes_result and notes_result[0][0] else 'Payment processed'
+
+                insert_purchase_payment_sql = """
+                INSERT INTO purchase_payment (purchase_id, purchase_invoice_number, total_amount, purchase_date, created_date, supplier_id, status, amount_paid, payment_method, debit, credit, notes)
+                VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?)
+                """
+                connection.insertingtodatabase(insert_purchase_payment_sql, (
+                    invoice['id'],
+                    invoice['invoice_number'],
+                    invoice['total_amount'],
+                    invoice['purchase_date'],
+                    payment_date,
+                    supplier_id,
+                    invoice['total_amount'],  # amount_paid
+                    payment_method,
+                    0,  # debit
+                    float(invoice['total_amount']),  # credit
+                    notes_pp
+                ))
+
+            # Update purchase status to completed and notes with payment id for selected invoices
             for invoice in self.selected_invoices:
                 update_purchase_sql = """
-                UPDATE purchases 
-                SET payment_status = 'completed', payment_method = ?
+                UPDATE purchases
+                SET payment_status = 'completed', payment_method = ?, notes = ?
                 WHERE invoice_number = ?
                 """
-                connection.insertingtodatabase(update_purchase_sql, (payment_method, invoice['invoice_number']))
-            
+                notes = f"Payment ID: {payment_id}"
+                # Debug: Check current notes before update
+                check_sql = "SELECT notes FROM purchases WHERE invoice_number = ?"
+                current_notes_result = []
+                connection.contogetrows_with_params(check_sql, current_notes_result, (invoice['invoice_number'],))
+                current_notes = current_notes_result[0][0] if current_notes_result else "No record found"
+
+                connection.insertingtodatabase(update_purchase_sql, (payment_method, notes, invoice['invoice_number']))
+                ui.notify(f"✅ Updated invoice {invoice['invoice_number']} with payment ID {payment_id}", color='green')
+
             # Deduct from supplier balance
             update_supplier_sql = """
             UPDATE suppliers 
@@ -285,13 +386,13 @@ class SupplierPayment:
             WHERE id = ?
             """
             connection.insertingtodatabase(update_supplier_sql, (float(amount), supplier_id))
-            
-            ui.notify(f'Payment of ${float(amount):.2f} processed successfully for {supplier_name}.', color='green')
-            
+
+            ui.notify(f'Payment of ${float(amount):.2f} processed successfully for {supplier_name}. Payment ID: {payment_id}', color='green')
+
             # Reset the form after successful payment
             self.clear_input_fields()
             self.refresh_table()
-                
+
         except Exception as e:
             ui.notify(f'Error processing payment: {str(e)}', color='red')
     

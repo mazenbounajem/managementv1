@@ -2,6 +2,7 @@ import cairo
 from io import BytesIO
 import os
 from datetime import datetime
+from connection import connection
 
 class CairoInvoiceGenerator:
     def __init__(self):
@@ -35,47 +36,103 @@ class CairoInvoiceGenerator:
         return buffer
     
     def draw_header(self, ctx, invoice_data):
-        """Draw company header"""
+        """Draw company header using database information"""
         ctx.set_source_rgb(0.2, 0.2, 0.8)  # Blue color
         ctx.set_font_size(24)
         ctx.move_to(self.margin, 50)
         ctx.show_text("INVOICE")
         
+        # Get company information from database
+        company_info = connection.get_company_info()
+        
         ctx.set_source_rgb(0, 0, 0)
         ctx.set_font_size(12)
-        ctx.move_to(self.margin, 80)
-        ctx.show_text("Your Company Name")
-        ctx.move_to(self.margin, 100)
-        ctx.show_text("123 Business Street")
-        ctx.move_to(self.margin, 120)
-        ctx.show_text("City, State 12345")
-        ctx.move_to(self.margin, 140)
-        ctx.show_text("Phone: (555) 123-4567")
+        
+        y_position = 80
+        
+        if company_info:
+            # Use database company information
+            if company_info.get('company_name'):
+                ctx.move_to(self.margin, y_position)
+                ctx.show_text(company_info['company_name'])
+                y_position += 20
+            
+            if company_info.get('address'):
+                ctx.move_to(self.margin, y_position)
+                ctx.show_text(company_info['address'])
+                y_position += 20
+            
+            # Build city/state/zip line
+            location_parts = []
+            if company_info.get('city'):
+                location_parts.append(company_info['city'])
+            if company_info.get('state'):
+                location_parts.append(company_info['state'])
+            if company_info.get('zip_code'):
+                location_parts.append(company_info['zip_code'])
+            
+            if location_parts:
+                ctx.move_to(self.margin, y_position)
+                ctx.show_text(', '.join(location_parts))
+                y_position += 20
+            
+            if company_info.get('phone'):
+                ctx.move_to(self.margin, y_position)
+                ctx.show_text(f"Phone: {company_info['phone']}")
+                y_position += 20
+        else:
+            # Fallback to hardcoded values if no company info in database
+            ctx.move_to(self.margin, y_position)
+            ctx.show_text("Your Company Name")
+            y_position += 20
+            
+            ctx.move_to(self.margin, y_position)
+            ctx.show_text("123 Business Street")
+            y_position += 20
+            
+            ctx.move_to(self.margin, y_position)
+            ctx.show_text("City, State 12345")
+            y_position += 20
+            
+            ctx.move_to(self.margin, y_position)
+            ctx.show_text("Phone: (555) 123-4567")
         
     def draw_invoice_details(self, ctx, invoice_data):
         """Draw invoice details section"""
         ctx.set_source_rgb(0, 0, 0)
         ctx.set_font_size(12)
-        
+
         # Invoice details
         x = self.width - 200
         y = 100
-        
+
         ctx.move_to(x, y)
         ctx.show_text(f"Invoice #: {invoice_data['invoice_number']}")
         ctx.move_to(x, y + 20)
         ctx.show_text(f"Date: {invoice_data['date']}")
-        ctx.move_to(x, y + 40)
-        ctx.show_text(f"Customer: {invoice_data['customer_name']}")
-        
-        # Customer details
+        if invoice_data.get('is_purchase', False):
+            ctx.move_to(x, y + 40)
+            ctx.show_text(f"Supplier: {invoice_data['supplier_name']}")
+        else:
+            ctx.move_to(x, y + 40)
+            ctx.show_text(f"Customer: {invoice_data['customer_name']}")
+
+        # Bill To / From details
         ctx.move_to(self.margin, 200)
-        ctx.show_text("Bill To:")
-        ctx.move_to(self.margin, 220)
-        ctx.show_text(invoice_data['customer_name'])
-        if invoice_data.get('customer_phone'):
-            ctx.move_to(self.margin, 240)
-            ctx.show_text(f"Phone: {invoice_data['customer_phone']}")
+        if invoice_data.get('is_purchase', False):
+            ctx.show_text("From Supplier:")
+            ctx.move_to(self.margin, 220)
+            ctx.show_text(invoice_data['supplier_name'])
+            if invoice_data.get('supplier_phone'):
+                ctx.move_to(self.margin, 240)
+                ctx.show_text(f"Phone: {invoice_data['supplier_phone']}")
+        else:
+            ctx.show_text("Bill To:")
+            ctx.move_to(self.margin, 220)
+            ctx.show_text(invoice_data['customer_name'])
+            if invoice_data.get('customer_phone'):
+                ctx.move_to(self.margin, 240)
+                ctx.show_text(f"Phone: {invoice_data['customer_phone']}")
             
     def draw_items_table(self, ctx, items):
         """Draw items table"""
@@ -167,8 +224,30 @@ def generate_sales_invoice_pdf(rows, customer_name, invoice_number, total_amount
         'subtotal': total_amount,
         'items': rows
     }
-    
+
     generator = CairoInvoiceGenerator()
     pdf_buffer = generator.create_invoice_pdf(invoice_data)
-    
+
+    return pdf_buffer
+
+# Integration function for purchaseui.py
+def generate_purchase_invoice_pdf(rows, supplier_name, invoice_number, total_amount, subtotal, supplier_phone='', purchase_date=None):
+    """Generate PDF from purchase data"""
+    if purchase_date is None:
+        purchase_date = datetime.now().strftime('%Y-%m-%d')
+
+    invoice_data = {
+        'invoice_number': invoice_number,
+        'date': purchase_date,
+        'supplier_name': supplier_name,
+        'supplier_phone': supplier_phone,
+        'total_amount': total_amount,
+        'subtotal': subtotal,
+        'items': rows,
+        'is_purchase': True
+    }
+
+    generator = CairoInvoiceGenerator()
+    pdf_buffer = generator.create_invoice_pdf(invoice_data)
+
     return pdf_buffer

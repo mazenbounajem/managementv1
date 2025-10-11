@@ -5,7 +5,7 @@ def create_tables():
     
     try:
         conn_str = (
-            "Driver={SQL Server};"
+            "Driver={SQL Server Native Client 11.0};"
             "Server=DESKTOP-Q7U1STD;"
             "Database=POSDB;"
             "Trusted_Connection=yes;"
@@ -40,11 +40,18 @@ def create_tables():
                 min_stock_level INT DEFAULT 0,
                 max_stock_level INT DEFAULT 0,
                 supplier_id INT,
+                photo NVARCHAR(500),
                 created_at DATETIME DEFAULT GETDATE(),
                 updated_at DATETIME DEFAULT GETDATE(),
                 is_active BIT DEFAULT 1,
                 FOREIGN KEY (category_id) REFERENCES categories(id)
             )
+        ''')
+
+        # Add photo column to existing products table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('products') AND name = 'photo')
+            ALTER TABLE products ADD photo NVARCHAR(500)
         ''')
         
         # Create suppliers table
@@ -84,6 +91,30 @@ def create_tables():
                 is_active BIT DEFAULT 1
             )
         ''')
+
+        # Add auxiliary_id column to customers table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('customers') AND name = 'auxiliary_id')
+            ALTER TABLE customers ADD auxiliary_id NVARCHAR(10)
+        ''')
+
+        # Add auxiliary_number column to customers table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('customers') AND name = 'auxiliary_number')
+            ALTER TABLE customers ADD auxiliary_number NVARCHAR(10)
+        ''')
+
+        # Add auxiliary_id column to suppliers table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('suppliers') AND name = 'auxiliary_id')
+            ALTER TABLE suppliers ADD auxiliary_id NVARCHAR(10)
+        ''')
+
+        # Add auxiliary_number column to suppliers table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('suppliers') AND name = 'auxiliary_number')
+            ALTER TABLE suppliers ADD auxiliary_number NVARCHAR(10)
+        ''')
         
         # Create sales table
         cursor.execute('''
@@ -117,6 +148,7 @@ def create_tables():
                 total_price DECIMAL(10,2) NOT NULL,
                 discount_amount DECIMAL(10,2) DEFAULT 0,
                 created_at DATETIME DEFAULT GETDATE(),
+                
                 FOREIGN KEY (sale_id) REFERENCES sales(id),
                 FOREIGN KEY (product_id) REFERENCES products(id)
             )
@@ -138,8 +170,22 @@ def create_tables():
                 invoice_number NVARCHAR(50) UNIQUE,
                 notes NVARCHAR(1000),
                 created_at DATETIME DEFAULT GETDATE(),
+                account_code NVARCHAR(10) DEFAULT '6011',
+                auxiliary_number NVARCHAR(10),
                 FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
             )
+        ''')
+
+        # Drop auxiliary_id column from purchases table if it exists
+        cursor.execute('''
+            IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('purchases') AND name = 'auxiliary_id')
+            ALTER TABLE purchases DROP COLUMN auxiliary_id
+        ''')
+
+        # Add auxiliary_number column to purchases table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('purchases') AND name = 'auxiliary_number')
+            ALTER TABLE purchases ADD auxiliary_number NVARCHAR(10)
         ''')
         
         # Create purchase_items table
@@ -161,6 +207,22 @@ def create_tables():
             )
         ''')
 
+        # Create price_cost_date_history table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='price_cost_date_history' AND xtype='U')
+            CREATE TABLE price_cost_date_history (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                product_id INT NOT NULL,
+                old_price DECIMAL(10,2),
+                new_price DECIMAL(10,2),
+                old_cost_price DECIMAL(10,2),
+                new_cost_price DECIMAL(10,2),
+                change_date DATETIME DEFAULT GETDATE(),
+                changed_by NVARCHAR(100),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+
         # Create supplier_payment table
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='supplier_payment' AND xtype='U')
@@ -175,6 +237,47 @@ def create_tables():
                 notes NVARCHAR(1000),
                 created_at DATETIME DEFAULT GETDATE(),
                 FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+
+        # Create purchase_payment table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='purchase_payment' AND xtype='U')
+            CREATE TABLE purchase_payment (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                purchase_id INT NOT NULL,
+                purchase_invoice_number NVARCHAR(50) NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                purchase_date DATETIME NOT NULL,
+                created_date DATETIME DEFAULT GETDATE(),
+                supplier_id INT NOT NULL,
+                status NVARCHAR(50) DEFAULT 'pending',
+                amount_paid DECIMAL(10,2) NOT NULL,
+                payment_method NVARCHAR(50),
+                debit DECIMAL(10,2) NOT NULL,
+                credit  DECIMAL(10,2) NOT NULL,
+                notes NVARCHAR(1000),
+                FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+            )
+        ''')
+
+        # Create sales_payment table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sales_payment' AND xtype='U')
+            CREATE TABLE sales_payment (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                sales_id INT NOT NULL,
+                customer_id INT NOT NULL,
+                invoice_number NVARCHAR(50) NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                sale_date DATETIME NOT NULL,
+                payment_status NVARCHAR(50) DEFAULT 'pending',
+                debit DECIMAL(10,2) NOT NULL DEFAULT 0,
+                credit DECIMAL(10,2) NOT NULL DEFAULT 0,
+                notes NVARCHAR(1000),
+                FOREIGN KEY (sales_id) REFERENCES sales(id),
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
             )
         ''')
         
@@ -202,6 +305,59 @@ def create_tables():
                 updated_at DATETIME DEFAULT GETDATE()
             )
         ''')
+
+        # Create Ledger table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Ledger' AND xtype='U')
+            CREATE TABLE Ledger (
+                Id INT IDENTITY(1,1) PRIMARY KEY,
+                AccountNumber NVARCHAR(50) NOT NULL,
+                SubNumber NVARCHAR(50),
+                ParentId INT,
+                Name_en NVARCHAR(200) NOT NULL,
+                Name_fr NVARCHAR(200),
+                Name_ar NVARCHAR(200),
+                UpdateDate DATETIME DEFAULT GETDATE(),
+                Status INT DEFAULT 1
+            )
+        ''')
+
+        # Create auxiliary table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='auxiliary' AND xtype='U')
+            CREATE TABLE auxiliary (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                auxiliary_id INT,
+                account_name NVARCHAR(200) NOT NULL,
+                number NVARCHAR(50)
+            )
+        ''')
+
+        # Add status column to auxiliary table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('auxiliary') AND name = 'status')
+            ALTER TABLE auxiliary ADD status INT DEFAULT 1
+        ''')
+
+        # Add update_date column to auxiliary table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('auxiliary') AND name = 'update_date')
+            ALTER TABLE auxiliary ADD update_date DATETIME DEFAULT GETDATE()
+        ''')
+
+        # Add ledger_id column to auxiliary table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('auxiliary') AND name = 'ledger_id')
+            ALTER TABLE auxiliary ADD ledger_id INT
+        ''')
+
+        # Add short_cut column to auxiliary table if it doesn't exist
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('auxiliary') AND name = 'short_cut')
+            ALTER TABLE auxiliary ADD short_cut NVARCHAR(200)
+        ''')
+
+        
         
         # Insert sample data
         cursor.execute("IF NOT EXISTS (SELECT 1 FROM categories WHERE category_name='Electronics') INSERT INTO categories (category_name, description) VALUES ('Electronics', 'Electronic devices and accessories')")
@@ -221,6 +377,22 @@ def create_tables():
         cursor.execute("IF NOT EXISTS (SELECT 1 FROM employees WHERE email='cashier1@store.com') INSERT INTO employees (first_name, last_name, email, phone, address, city, state, zip_code, hire_date, position, department, salary, role_id) VALUES ('Mike', 'Chen', 'cashier1@store.com', '555-234-5678', '456 Cashier St', 'Retail Town', 'NY', '10002', '2023-03-10', 'Cashier', 'Sales', 32000.00, 2)")
         cursor.execute("IF NOT EXISTS (SELECT 1 FROM employees WHERE email='cashier2@store.com') INSERT INTO employees (first_name, last_name, email, phone, address, city, state, zip_code, hire_date, position, department, salary, role_id) VALUES ('Emily', 'Rodriguez', 'cashier2@store.com', '555-345-6789', '123 Sales Rd', 'Commerce City', 'NY', '10003', '2023-05-20', 'Cashier', 'Sales', 31500.00, 2)")
         cursor.execute("IF NOT EXISTS (SELECT 1 FROM employees WHERE email='inventory@store.com') INSERT INTO employees (first_name, last_name, email, phone, address, city, state, zip_code, hire_date, position, department, salary, role_id) VALUES ('David', 'Wilson', 'inventory@store.com', '555-456-7890', '321 Stock Ave', 'Warehouse City', 'NY', '10004', '2023-02-28', 'Inventory Manager', 'Operations', 48000.00, 3)")
+
+        # Insert main ledger accounts
+        cursor.execute("IF NOT EXISTS (SELECT 1 FROM Ledger WHERE AccountNumber='4111') INSERT INTO Ledger (AccountNumber, Name_en, Status) VALUES ('4111', 'Customers', 1)")
+        cursor.execute("IF NOT EXISTS (SELECT 1 FROM Ledger WHERE AccountNumber='4011') INSERT INTO Ledger (AccountNumber, Name_en, Status) VALUES ('4011', 'Suppliers', 1)")
+        cursor.execute("IF NOT EXISTS (SELECT 1 FROM Ledger WHERE AccountNumber='7011') INSERT INTO Ledger (AccountNumber, Name_en, Status) VALUES ('7011', 'Sales', 1)")
+        cursor.execute("IF NOT EXISTS (SELECT 1 FROM Ledger WHERE AccountNumber='6011') INSERT INTO Ledger (AccountNumber, Name_en, Status) VALUES ('6011', 'Purchases', 1)")
+        cursor.execute("IF NOT EXISTS (SELECT 1 FROM Ledger WHERE AccountNumber='6261') INSERT INTO Ledger (AccountNumber, Name_en, Status) VALUES ('6261', 'Expenses', 1)")
+
+        # Fill auxiliary table from Ledger where AccountNumber has more than 3 characters
+        cursor.execute('''
+            INSERT INTO auxiliary (auxiliary_id, account_name, update_date)
+            SELECT AccountNumber, Name_en, GETDATE()
+            FROM Ledger
+            WHERE LEN(AccountNumber) > 3
+            AND NOT EXISTS (SELECT 1 FROM auxiliary WHERE auxiliary_id = Ledger.AccountNumber)
+        ''')
         
         conn.commit()
         conn.close()

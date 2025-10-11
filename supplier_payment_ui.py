@@ -115,7 +115,7 @@ class SupplierPayment:
                                     row_dict[header] = row[i]
                                 rows.append(row_dict)
                             
-                            table = ui.table(columns=columns, rows=rows, pagination=5).classes('w-full')
+                            table = ui.table(columns=columns, rows=rows, pagination=5, row_key='id').classes('w-full')
                             ui.input('Search').bind_value(table, 'filter').classes('text-xs')
                             
                             def on_row_click(row_data):
@@ -193,7 +193,8 @@ class SupplierPayment:
                 'columnDefs': column_defs,
                 'rowData': invoices,
                 'rowSelection': 'multiple',
-                'rowMultiSelectWithClick': True
+                'rowMultiSelectWithClick': True,
+                'getRowId': 'function(params) { return params.data.id; }'
             }).classes('w-full').style('height: 400px')
             
             total_label = ui.label('Total: $0.00').classes('text-lg font-bold mt-4')

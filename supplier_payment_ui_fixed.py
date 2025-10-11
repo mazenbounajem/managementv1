@@ -11,7 +11,10 @@ class SupplierPayment:
         self.selected_supplier = None
         self.selected_invoices = []
         
+        
         self.setup_ui()
+        self.load_max_supplier_payment()
+         
     
     def setup_ui(self):
         uiAggridTheme.addingtheme()
@@ -46,9 +49,12 @@ class SupplierPayment:
                         
                         # Column definitions for AG Grid
                         column_defs = [
-                            {'headerName': 'Invoice ID', 'field': 'invoice_id', 'sortable': True, 'filter': True, 'width': 150},
+                            {'headerName': 'ID', 'field': 'id', 'sortable': True, 'filter': True, 'width': 100},
+                            {'headerName': 'Invoice ID', 'field': 'invoice_number', 'sortable': True, 'filter': True, 'width': 150},
                             {'headerName': 'Supplier', 'field': 'supplier_name', 'sortable': True, 'filter': True, 'width': 200},
                             {'headerName': 'Amount', 'field': 'amount', 'sortable': True, 'filter': True, 'width': 120},
+                            {'headerName': 'Purchase Date', 'field': 'purchase_date', 'sortable': True, 'filter': True, 'width': 150},
+                            {'headerName': 'Creation Date', 'field': 'creation_date', 'sortable': True, 'filter': True, 'width': 150},
                             {'headerName': 'Status', 'field': 'status', 'sortable': True, 'filter': True, 'width': 120}
                         ]
                         
@@ -76,12 +82,18 @@ class SupplierPayment:
                                         self.input_refs['supplier_name'].set_value(selected_row['supplier_name'])
                                     if 'total_amount' in self.input_refs and 'amount' in selected_row:
                                         self.input_refs['total_amount'].set_value(selected_row['amount'])
+                                    if 'date' in self.input_refs and 'purchase_date' in selected_row:
+                                        self.input_refs['date'].set_value(str(selected_row['purchase_date']))
+                                    
+                                    # Set selected invoices for payment processing
+                                    self.selected_invoices = [selected_row]
                                     
                                     # Store initial values for undo functionality
                                     self.initial_values.update({
                                         'supplier_name': self.input_refs['supplier_name'].value,
                                         'total_amount': self.input_refs['total_amount'].value,
-                                        'payment_method': self.input_refs['payment_method'].value
+                                        'payment_method': self.input_refs['payment_method'].value,
+                                        'date': self.input_refs['date'].value
                                     })
                             except Exception as e:
                                 ui.notify(f'Error selecting row: {str(e)}')
@@ -96,18 +108,18 @@ class SupplierPayment:
                         with ui.row().classes('w-full mb-4'):
                             self.input_refs['date'] = ui.input('Date', value=str(datetime.now().date())).classes('w-1/3')
                             
-                            self.supplier_input = ui.input('Supplier', placeholder='Supplier').classes('w-28 h-7 text-xs')
-                            self.supplier_input.on('click', lambda: self.supplier_dialog.open())
-                            self.balance_input=ui.input('balance', placeholder='balance').classes('w-20 h-7 text-xs')
+                            self.input_refs['supplier_name'] = ui.input('Supplier', placeholder='Supplier').classes('w-28 h-7 text-xs')
+                            self.input_refs['supplier_name'].on('click', lambda: self.supplier_dialog.open())
+                            self.balance_input = ui.input('balance', placeholder='balance').classes('w-20 h-7 text-xs')
                             ui.button('Select Invoice', icon='receipt', on_click=self.open_invoice_dialog).classes('w-1/4 mr-2 bg-green-500 text-white')
                         self.supplier_dialog = ui.dialog()
                         with self.supplier_dialog, ui.card().classes('w-750'):
                             headers = []
-                            connection.contogetheaders("SELECT id, name, phone,balance FROM suppliers", headers)
+                            connection.contogetheaders("SELECT id, name, phone, balance FROM suppliers", headers)
                             columns = [{'name': header, 'label': header.title(), 'field': header, 'sortable': True} for header in headers]
                             
                             data = []
-                            connection.contogetrows("SELECT id, name, phone,balance FROM suppliers", data)
+                            connection.contogetrows("SELECT id, name, phone, balance FROM suppliers", data)
                             rows = []
                             for row in data:
                                 row_dict = {}
@@ -115,12 +127,12 @@ class SupplierPayment:
                                     row_dict[header] = row[i]
                                 rows.append(row_dict)
                             
-                            table = ui.table(columns=columns, rows=rows, pagination=5).classes('w-full')
+                            table = ui.table(columns=columns, rows=rows, pagination=5, row_key='id').classes('w-full')
                             ui.input('Search').bind_value(table, 'filter').classes('text-xs')
                             
                             def on_row_click(row_data):
                                 selected_row = row_data.args[1]
-                                self.supplier_input.value = selected_row['name']
+                                self.input_refs['supplier_name'].set_value(selected_row['name'])
                                 self.balance_input.value = selected_row['balance']
                                 self.selected_supplier = selected_row
                                 self.supplier_dialog.close()
@@ -138,6 +150,43 @@ class SupplierPayment:
                                 label='Payment Method'
                             ).classes('w-1/4')
     
+    def load_max_supplier_payment(self):
+        try:
+            max_id_result = []
+            connection.contogetrows("SELECT MAX(id) FROM supplier_payment", max_id_result)
+            max_id = max_id_result[0][0] if max_id_result and max_id_result[0][0] else 0
+            if max_id > 0:
+                payment_data = []
+                connection.contogetrows(
+                    f"SELECT sp.id, sp.manual_reference, sp.payment_date, s.name, sp.amount, sp.payment_method, sp.status FROM supplier_payment sp INNER JOIN suppliers s ON s.id = sp.supplier_id WHERE sp.id = {max_id}",
+                    payment_data
+                )
+                
+                if payment_data:
+                    row_data = {
+                        'id': payment_data[0][0],
+                        'manual_reference': payment_data[0][1],
+                        'payment_date': payment_data[0][2],
+                        'supplier_name': payment_data[0][3],
+                        'amount': payment_data[0][4],
+                        'payment_method': payment_data[0][5],
+                        'status': payment_data[0][6]
+                    }
+                    
+                    # Update UI fields with the loaded payment data
+                    self.input_refs['supplier_name'].set_value(row_data['supplier_name'])
+                    self.input_refs['total_amount'].set_value(f'{row_data["amount"]:.2f}')
+                    self.input_refs['payment_method'].set_value(row_data['payment_method'])
+                    
+                    ui.notify(f'✅ Automatically loaded payment ID: {max_id} - Amount: ${row_data["amount"]:.2f} - Status: {row_data["status"]}')
+                else:
+                    ui.notify('No payments found in database')
+            else:
+                ui.notify('No payments found in database')
+                
+        except Exception as e:
+            ui.notify(f'Error loading max supplier payment: {str(e)}')
+
     def clear_input_fields(self):
         if 'supplier_name' in self.input_refs:
             self.input_refs['supplier_name'].set_value('')
@@ -202,7 +251,8 @@ class SupplierPayment:
                 'columnDefs': column_defs,
                 'rowData': invoices,
                 'rowSelection': 'multiple',
-                'rowMultiSelectWithClick': True
+                'rowMultiSelectWithClick': True,
+                'getRowId': 'function(params) { return params.data.id; }'
             }).classes('w-full').style('height: 400px')
             
             total_label = ui.label('Total: $0.00').classes('text-lg font-bold mt-4')
@@ -236,37 +286,84 @@ class SupplierPayment:
         supplier_name = self.input_refs['supplier_name'].value
         amount = self.input_refs['total_amount'].value
         payment_method = self.input_refs['payment_method'].value
-        
+
         # Check if all required data is entered
         if not supplier_name or not amount or not self.selected_invoices:
             ui.notify('Please select a supplier and at least one invoice', color='red')
             return
-        
+
         try:
-            # Update purchase status to completed for selected invoices
+            # Insert payment record into supplier_payment table and get the payment id
+            supplier_id = self.selected_supplier['id']
+            payment_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            manual_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            insert_payment_sql = """
+            INSERT INTO supplier_payment (manual_reference, payment_date, supplier_id, amount, payment_method, status, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, 'completed', 'Payment processed for selected invoices', ?)
+            """
+            connection.insertingtodatabase(insert_payment_sql, (manual_reference, payment_date, supplier_id, float(amount), payment_method, payment_date))
+
+            # Get the payment id using MAX(id) after insert
+            payment_id_result = []
+            connection.contogetrows("SELECT MAX(id) FROM supplier_payment", payment_id_result)
+            payment_id = payment_id_result[0][0] if payment_id_result and payment_id_result[0][0] else None
+
+            if not payment_id:
+                raise Exception("Failed to retrieve payment id")
+
+            # Insert records into purchase_payment table for each selected invoice
+            for invoice in self.selected_invoices:
+                insert_purchase_payment_sql = """
+                INSERT INTO purchase_payment (purchase_id, purchase_invoice_number, total_amount, purchase_date, created_date, supplier_id, status, amount_paid, payment_method)
+                VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?)
+                """
+                connection.insertingtodatabase(insert_purchase_payment_sql, (
+                    invoice['id'],
+                    invoice['invoice_number'],
+                    invoice['total_amount'],
+                    invoice['purchase_date'],
+                    payment_date,
+                    supplier_id,
+                    invoice['total_amount'],  # amount_paid
+                    payment_method
+                ))
+
+            # Update purchase status to completed and notes with payment id for selected invoices
             for invoice in self.selected_invoices:
                 update_purchase_sql = """
-                UPDATE purchases 
-                SET payment_status = 'completed', payment_method = ?
+                UPDATE purchases
+                SET payment_status = 'completed', payment_method = ?, notes = ?
                 WHERE invoice_number = ?
                 """
-                connection.insertingtodatabase(update_purchase_sql, (payment_method, invoice['invoice_number']))
-            
+                notes = f"Payment ID: {payment_id}"
+                # Debug: Check current notes before update
+                check_sql = "SELECT notes FROM purchases WHERE invoice_number = ?"
+                current_notes_result = []
+                connection.contogetrows_with_params(check_sql, current_notes_result, (invoice['invoice_number'],))
+                current_notes = current_notes_result[0][0] if current_notes_result else "No record found"
+
+                # Fix: Use execute_update to ensure update is committed properly
+                rows_affected = connection.db_manager.execute_update(update_purchase_sql, (payment_method, notes, invoice['invoice_number']))
+                if rows_affected == 0:
+                    ui.notify(f"Warning: No rows updated for invoice {invoice['invoice_number']} (current notes: {current_notes})", color='orange')
+                else:
+                    ui.notify(f"✅ Updated invoice {invoice['invoice_number']} with payment ID {payment_id}", color='green')
+
             # Deduct from supplier balance
-            supplier_id = self.selected_supplier['id']
             update_supplier_sql = """
-            UPDATE suppliers 
-            SET balance = balance - ? 
+            UPDATE suppliers
+            SET balance = balance - ?
             WHERE id = ?
             """
             connection.insertingtodatabase(update_supplier_sql, (float(amount), supplier_id))
-            
-            ui.notify(f'Payment of ${float(amount):.2f} processed successfully for {supplier_name}.', color='green')
-            
+
+            ui.notify(f'Payment of ${float(amount):.2f} processed successfully for {supplier_name}. Payment ID: {payment_id}', color='green')
+
             # Reset the form after successful payment
             self.clear_input_fields()
             self.refresh_table()
-                
+
         except Exception as e:
             ui.notify(f'Error processing payment: {str(e)}', color='red')
     
@@ -277,6 +374,8 @@ class SupplierPayment:
             self.input_refs['total_amount'].set_value(self.initial_values['total_amount'])
         if 'payment_method' in self.input_refs and 'payment_method' in self.initial_values:
             self.input_refs['payment_method'].set_value(self.initial_values['payment_method'])
+        if 'date' in self.input_refs and 'date' in self.initial_values:
+            self.input_refs['date'].set_value(self.initial_values['date'])
         # Remove dimming when undoing changes
         if self.table:
             self.table.classes(remove='dimmed')
@@ -286,25 +385,32 @@ class SupplierPayment:
         """Delete payment functionality - placeholder for future implementation"""
         ui.notify('Delete functionality not yet implemented', color='warning')
     
+    
+    
     def refresh_table(self):
         # Query to fetch pending invoices (purchases with payment_status = 'pending')
         sql = """
-        SELECT p.invoice_number as invoice_id, s.name as supplier_name, p.total_amount as amount, p.payment_status as status 
-        FROM purchases p 
-        INNER JOIN suppliers s ON p.supplier_id = s.id 
+        SELECT p.id, p.invoice_number, s.name, p.total_amount, p.purchase_date, p.creation_date, p.payment_status
+        FROM purchases p
+        INNER JOIN suppliers s ON p.supplier_id = s.id
         WHERE p.payment_status = 'pending'
         """
+        if self.selected_supplier:
+            sql += f" AND p.supplier_id = {self.selected_supplier['id']}"
         pending_invoices_data = []
         connection.contogetrows(sql, pending_invoices_data)
-        
+
         # Convert pyodbc.Row objects to dictionaries to avoid JSON serialization issues
         pending_invoices = []
         for row in pending_invoices_data:
             invoice_dict = {
-                'invoice_id': row[0],
-                'supplier_name': row[1],
-                'amount': row[2],
-                'status': row[3]
+                'id': row[0],
+                'invoice_number': row[1],
+                'supplier_name': row[2],
+                'amount': row[3],
+                'purchase_date': row[4],
+                'creation_date': row[5],
+                'status': row[6]
             }
             pending_invoices.append(invoice_dict)
 
@@ -312,7 +418,7 @@ class SupplierPayment:
         if self.table:
             self.table.options['rowData'] = pending_invoices
             self.table.update()
-        
+
         # Remove dimming and clear input fields
         if self.table:
             self.table.classes(remove='dimmed')

@@ -4,3 +4,9 @@ pyodbc
 pynput
 tkintertable
 reportlab
+nicegui
+barcode
+plotly
+pandas
+jinja2
+matplotlib

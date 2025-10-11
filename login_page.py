@@ -29,6 +29,8 @@ class LoginPage:
         user_info = connection.check_user_login(username, password_hash)
         
         if user_info:
+            from session_storage import session_storage
+            session_storage.set('user', {'username': username, 'role_id': user_info['role']})
             ui.notify(f'Login successful. Welcome {username}!', color='green')
             # Redirect to the main application
             # Since we're in a separate app, we'll redirect to the main app's URL

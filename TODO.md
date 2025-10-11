@@ -1,0 +1,5 @@
+- [x] Modify purchase_service.py: Change next_sub calculation in _create_new_purchase to use last_purchase_id instead of auxiliary count
+- [x] Add account_code and auxiliary_id columns to purchases table in create_pos_tables.py
+- [x] Modify purchaseui.py: Add auxiliary_number column to purchases grid
+- [x] Remove auxiliary_id from purchases table and update code accordingly
+- [x] Add Auxiliary and Aux Number columns to purchaseui.py grid
