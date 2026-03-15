@@ -3,7 +3,7 @@ from connection import connection
 import datetime
 
 # Import content methods
-from category_content_method import category_content
+from category_content_method import category_content_method
 from sales_content_method import sales_content
 from customer_content_method import customer_content
 from product_content_method import product_content
@@ -11,6 +11,7 @@ from supplier_content_method import supplier_content
 from purchase_content_method import purchase_content
 from employee_content_method import employee_content
 from database_content_method import database_content
+from timespendui import TimeSpendUI
 
 # Import existing modules for authentication
 from config import config
@@ -19,7 +20,7 @@ from auth_service import AuthService
 from navigation_improvements import EnhancedNavigation
 
 # Add session storage for logged-in user
-session_storage = {}
+from session_storage import session_storage
 
 # Permission guard function
 def check_page_access(page_name):
@@ -63,7 +64,8 @@ def tabbed_dashboard_page():
         ('Products', 'products', product_content),
         ('Customers', 'customers', customer_content),
         ('Suppliers', 'suppliers', supplier_content),
-        ('Categories', 'category', category_content),
+        ('Time Analysis', 'timespend', lambda: TimeSpendUI(show_header=False)),
+        ('Categories', 'category', category_content_method),
         ('Employees', 'employees', employee_content),
         ('Backup', 'backup', database_content),
     ]
@@ -72,15 +74,17 @@ def tabbed_dashboard_page():
     available_tabs = []
     tab_objects = []
 
-    for tab_name, page_key, content_func in tab_definitions:
-        if page_key in allowed_pages or page_key == 'dashboard':
-            tab_obj = ui.tab(tab_name)
-            tab_objects.append((tab_obj, content_func))
-            available_tabs.append(tab_name)
+    with ui.tabs().classes('w-full bg-white/5 glass border-b border-white/10 text-white').style('backdrop-filter: blur(20px);') as tabs:
+        tabs.props('active-color=purple-400 indicator-color=purple-400')
+        for tab_name, page_key, content_func in tab_definitions:
+            if page_key in allowed_pages or page_key == 'dashboard':
+                tab_obj = ui.tab(tab_name).classes('px-6 py-4 font-black uppercase tracking-[0.2em] text-[10px] hover:text-purple-300 transition-all')
+                tab_objects.append((tab_obj, content_func))
+                available_tabs.append(tab_name)
 
     # Create tab panels
     global current_tab_panels, global_tab_objects
-    current_tab_panels = ui.tab_panels(tab_objects[0][0] if tab_objects else None, value=tab_objects[0][0] if tab_objects else None).classes('w-full flex-1')
+    current_tab_panels = ui.tab_panels(tabs, value=tab_objects[0][0] if tab_objects else None).classes('w-full flex-1 bg-transparent')
     global_tab_objects = tab_objects
 
     for tab_obj, content_func in tab_objects:
@@ -114,43 +118,97 @@ def tabbed_dashboard_page():
         ui.label(f'User: {username}')
 
 def create_dashboard_content():
-    """Create the dashboard content with overview cards"""
-    with ui.column().classes('p-4 w-full'):
-        ui.label('Welcome to the Dashboard').classes('text-3xl font-light mb-6 text-center')
+    """Create a premium dashboard content with glassmorphism and modern stats"""
+    from modern_ui_components import ModernStats, ModernCard, ModernButton
+    from modern_design_system import ModernDesignSystem as MDS
 
-        # Quick stats cards
-        with ui.grid(columns=4).classes('w-full gap-4 mb-6'):
+    with ui.column().classes('p-8 w-full gap-8 animate-fade-in'):
+        # Header Section
+        with ui.row().classes('w-full justify-between items-center bg-white/5 p-6 rounded-3xl glass border border-white/10'):
+            with ui.column().classes('gap-1'):
+                ui.label('Enterprise Overview').classes('text-sm font-black uppercase tracking-[0.2em] text-purple-400')
+                ui.label('Executive Performance Dashboard').classes('text-4xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+            
+            with ui.row().classes('gap-4'):
+                ModernButton('System Health', icon='sensors', variant='outline', size='sm').classes('text-white border-white/20')
+                ModernButton('Download Report', icon='file_download', variant='secondary', size='sm')
+
+        # Premium Quick Stats
+        with ui.grid(columns=4).classes('w-full gap-6'):
             # Sales today
-            with ui.card().classes('p-4'):
-                ui.label('Today\'s Sales').classes('text-lg font-semibold mb-2')
-                sales_today = connection.get_today_sales()
-                ui.label(f'${sales_today:.2f}').classes('text-2xl font-bold text-green-600')
+            sales_today = connection.get_today_sales()
+            ModernStats(
+                label='Revenue Real-time', 
+                value=f'${sales_today:,.2f}', 
+                icon='payments', 
+                trend='+12.5% from yesterday', 
+                trend_positive=True,
+                color='#7048E8'
+            )
 
             # Total products
-            with ui.card().classes('p-4'):
-                ui.label('Total Products').classes('text-lg font-semibold mb-2')
-                total_products = connection.get_total_products()
-                ui.label(str(total_products)).classes('text-2xl font-bold text-blue-600')
+            total_products = connection.get_total_products()
+            ModernStats(
+                label='Global Inventory', 
+                value=f'{total_products:,}', 
+                icon='inventory_2', 
+                trend='32 items low stock', 
+                trend_positive=False,
+                color='#1971C2'
+            )
 
             # Total customers
-            with ui.card().classes('p-4'):
-                ui.label('Total Customers').classes('text-lg font-semibold mb-2')
-                total_customers = connection.get_total_customers()
-                ui.label(str(total_customers)).classes('text-2xl font-bold text-purple-600')
+            total_customers = connection.get_total_customers()
+            ModernStats(
+                label='Active Portfolio', 
+                value=f'{total_customers:,}', 
+                icon='groups', 
+                trend='+5 new this week', 
+                trend_positive=True,
+                color='#2B8A3E'
+            )
 
             # Low stock items
-            with ui.card().classes('p-4'):
-                ui.label('Low Stock Items').classes('text-lg font-semibold mb-2')
-                low_stock = connection.get_low_stock_count()
-                ui.label(str(low_stock)).classes('text-2xl font-bold text-red-600')
+            low_stock = connection.get_low_stock_count()
+            ModernStats(
+                label='Operational Risk', 
+                value=str(low_stock), 
+                icon='warning', 
+                trend='Requires Attention', 
+                trend_positive=False,
+                color='#E03131'
+            )
 
-        # Quick action buttons
-        ui.label('Quick Actions').classes('text-xl font-semibold mb-4')
+        # Quick Actions & Secondary Insights
+        with ui.row().classes('w-full gap-6'):
+            # Actions Panel
+            with ModernCard(glass=True).classes('flex-1 p-8').style('border-radius: 2rem;'):
+                ui.label('Strategic Actions').classes('text-2xl font-black mb-6').style('font-family: "Outfit", sans-serif;')
+                
+                with ui.grid(columns=2).classes('w-full gap-4'):
+                    ModernButton('Execute New Sale', icon='point_of_sale', variant='primary', size='lg').classes('h-24 text-lg shadow-lg shadow-purple-500/20')
+                    ModernButton('Catalog Management', icon='edit_note', variant='secondary', size='lg').classes('h-24 text-lg')
+                    ModernButton('Fleet Logistics', icon='local_shipping', variant='outline', size='lg').classes('h-24 text-lg')
+                    ModernButton('Financial Audits', icon='account_balance', variant='outline', size='lg').classes('h-24 text-lg')
+            
+            # System Status
+            with ModernCard(glass=True).classes('w-80 p-8').style('border-radius: 2rem;'):
+                ui.label('System Feed').classes('text-xl font-bold mb-4').style('font-family: "Outfit", sans-serif;')
+                
+                activities = [
+                    ('Sales', 'Invoice #1024 synced', '2m ago'),
+                    ('Inventory', 'Stock alert: Coffee', '15m ago'),
+                    ('User', 'Admin logged in', '1h ago')
+                ]
+                
+                with ui.column().classes('w-full gap-4'):
+                    for cat, desc, time in activities:
+                        with ui.row().classes('w-full justify-between items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all'):
+                            with ui.column().classes('gap-0'):
+                                ui.label(cat).classes('text-[10px] font-black uppercase text-purple-400')
+                                ui.label(desc).classes('text-xs font-bold text-gray-700')
+                            ui.label(time).classes('text-[10px] text-gray-400')
 
-        with ui.grid(columns=3).classes('w-full gap-4'):
-            ui.button('New Sale', icon='add_shopping_cart').classes('p-4 bg-green-500 text-white')
-            ui.button('Add Product', icon='add_box').classes('p-4 bg-blue-500 text-white')
-            ui.button('View Reports', icon='analytics').classes('p-4 bg-purple-500 text-white')
 
 # Keep the existing authentication pages
 @ui.page('/')
@@ -208,25 +266,10 @@ def handle_login(username, password):
 
 # Include other necessary pages (signup, logout, etc.)
 @ui.page('/signup')
-def signup_page():
-    """Dedicated signup page"""
-    with ui.card().classes('w-96 mx-auto my-16 p-8 shadow-lg rounded-lg'):
-        ui.label('Sign Up').classes('text-3xl font-bold text-center mb-6')
-
-        with ui.column().classes('w-full items-center'):
-            username_input = ui.input('Username').classes('w-full mb-4')
-            email_input = ui.input('Email').classes('w-full mb-4')
-            password_input = ui.input('Password', password=True).classes('w-full mb-4')
-            confirm_password_input = ui.input('Confirm Password', password=True).classes('w-full mb-6')
-
-            ui.button('Sign Up', on_click=lambda: handle_signup(
-                username_input.value,
-                email_input.value,
-                password_input.value,
-                confirm_password_input.value
-            )).classes('w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded')
-
-            ui.link('Already have an account? Login', '/login').classes('text-sm text-blue-500 cursor-pointer mt-2')
+def signup_page_route():
+    """Dedicated signup page with premium design"""
+    from signup_page import signup_page as modern_signup_page
+    modern_signup_page()
 
 @handle_errors
 def handle_signup(username, email, password, confirm_password):

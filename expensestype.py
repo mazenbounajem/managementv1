@@ -2,246 +2,177 @@ from nicegui import ui
 from connection import connection
 from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput
+from modern_design_system import ModernDesignSystem as MDS
 
+@ui.page('/expensestype')
 def expensestype_page():
-    uiAggridTheme.addingtheme()
-    with ui.header().classes('items-center justify-between'):
-        ui.label('Expense Types Management').classes('text-2xl font-bold')
-        ui.button('Back to Dashboard', on_click=lambda: ui.navigate.to('/dashboard')).props('flat color=white')
+    with ModernPageLayout("Expense Categories"):
+        ExpenseTypeUI()
 
-    # Store references to input fields
-    input_refs = {}
-    
-    # Store the initial values for undo functionality
-    initial_values = {}
-    
-    # Function to clear all input fields
-    def clear_input_fields():
-        input_refs['expense_type_name'].set_value('')
-        input_refs['description'].set_value('')
-        input_refs['id'].set_value('')
-        # Dim the grid when creating new record
-        table.classes('dimmed')
-    
-    # Function to save expense type data
-    def save_expense_type():
-        # Get values from input fields
-        expense_type_name = input_refs['expense_type_name'].value
-        description = input_refs['description'].value
-        id_value = input_refs['id'].value
+class ExpenseTypeUI:
+    def __init__(self):
+        self.input_refs = {}
+        self.initial_values = {}
+        self.row_data = []
+        self.table = None
+        self.create_ui()
+
+    def clear_input_fields(self):
+        self.input_refs['expense_type_name'].value = ''
+        self.input_refs['description'].value = ''
+        self.input_refs['id'].value = ''
+        if self.table:
+            self.table.classes('dimmed')
+        ui.notify('Ready for new category', color='info')
+
+    def save_expense_type(self):
+        expense_type_name = self.input_refs['expense_type_name'].value
+        description = self.input_refs['description'].value
+        id_value = self.input_refs['id'].value
         
-        # Check if all required data is entered
         if not expense_type_name:
-            ui.notify('Please enter Expense Type Name', color='red')
+            ui.notify('Expense category name is required', color='warning')
             return
         
-        # Insert or update data in database using connection
         try:
-            if id_value:  # Update existing record
+            if id_value:
                 sql = "UPDATE expense_types SET expense_type_name=?, description=? WHERE id=?"
                 values = (expense_type_name, description, id_value)
-            else:  # Insert new record
+            else:
                 sql = "INSERT INTO expense_types (expense_type_name, description, created_at) VALUES (?, ?, GETDATE())"
                 values = (expense_type_name, description)
             
             connection.insertingtodatabase(sql, values)
-            ui.notify('Expense type saved successfully', color='green')
-            # Remove dimming and refresh the table to show the new expense type
-            table.classes(remove='dimmed')
-            refresh_table()
-            # Update initial values
-            initial_values.update({
-                'expense_type_name': expense_type_name,
-                'description': description,
-                'id': id_value
-            })
+            ui.notify('Expense category saved successfully', color='positive')
+            if self.table:
+                self.table.classes(remove='dimmed')
+            self.refresh_table()
         except Exception as e:
-            ui.notify(f'Error saving expense type: {str(e)}', color='red')
-    
-    # Function to undo changes
-    def undo_changes():
-        if 'expense_type_name' in input_refs and 'expense_type_name' in initial_values:
-            input_refs['expense_type_name'].set_value(initial_values['expense_type_name'])
-        if 'description' in input_refs and 'description' in initial_values:
-            input_refs['description'].set_value(initial_values['description'])
-        if 'id' in input_refs and 'id' in initial_values:
-            input_refs['id'].set_value(initial_values['id'])
-        # Remove dimming when undoing changes
-        table.classes(remove='dimmed')
-        ui.notify('Changes undone', color='blue')
-    
-    # Function to delete expense type
-    def delete_expense_type():
-        id_value = input_refs['id'].value
+            ui.notify(f'Error saving category: {str(e)}', color='negative')
+
+    def undo_changes(self):
+        for field in ['expense_type_name', 'description', 'id']:
+            if field in self.initial_values:
+                self.input_refs[field].value = self.initial_values[field]
+        if self.table:
+            self.table.classes(remove='dimmed')
+        ui.notify('Changes reverted', color='info')
+
+    def delete_expense_type(self):
+        id_value = self.input_refs['id'].value
         if not id_value:
-            ui.notify('Please select an expense type to delete', color='red')
+            ui.notify('Please select a category to delete', color='warning')
             return
         
         try:
             sql = "DELETE FROM expense_types WHERE id=?"
             connection.deleterow(sql, id_value)
-            ui.notify('Expense type deleted successfully', color='green')
-            # Remove dimming, clear input fields, and refresh the table
-            table.classes(remove='dimmed')
-            clear_input_fields()
-            refresh_table()
+            ui.notify('Category deleted successfully', color='positive')
+            if self.table:
+                self.table.classes(remove='dimmed')
+            self.clear_input_fields()
+            self.refresh_table()
         except Exception as e:
-            ui.notify(f'Error deleting expense type: {str(e)}', color='red')
-    
-    # Function to refresh the table
-    def refresh_table():
-        # Re-fetch data from database
-        headers = []
-        connection.contogetheaders("SELECT id, expense_type_name, description, created_at FROM expense_types", headers)
-        
-        # Convert to AG Grid column format
-        column_defs = [
-            {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 150}
-            for header in headers
-        ]
-        
-        # Fetch data from database
-        data = []
-        connection.contogetrows("SELECT id, expense_type_name, description, created_at FROM expense_types", data)
-        
-        # Convert data to list of dictionaries for AG Grid
-        new_row_data = []
-        for row in data:
-            row_dict = {}
-            for i, header in enumerate(headers):
-                row_dict[header] = row[i]
-            new_row_data.append(row_dict)
-        
-        # Update AG Grid with new data
-        table.options['columnDefs'] = column_defs
-        table.options['rowData'] = new_row_data
-        table.update()
-        
-        # Update global row_data for search functionality
-        nonlocal row_data
-        row_data = new_row_data
-        
-        # Remove dimming and clear input fields
-        table.classes(remove='dimmed')
-        clear_input_fields()
+            ui.notify(f'Error deleting category: {str(e)}', color='negative')
 
-    # Main content area with splitter layout
-    with ui.element('div').classes('flex w-full h-screen'):
-        # Left drawer for action buttons
-        with ui.column().classes('w-48 p-4 bg-gray-100 flex-shrink-0'):
-            ui.label('Actions').classes('text-lg font-bold mb-4')
-            ui.button('New', icon='add', on_click=clear_input_fields).classes('bg-blue-500 text-white w-full mb-2')
-            ui.button('Save', icon='save', on_click=save_expense_type).classes('bg-green-500 text-white w-full mb-2')
-            ui.button('Undo', icon='undo', on_click=undo_changes).classes('bg-yellow-500 text-white w-full mb-2')
-            ui.button('Delete', icon='delete', on_click=delete_expense_type).classes('bg-red-500 text-white w-full mb-2')
-            ui.button('Refresh', icon='refresh', on_click=refresh_table).classes('bg-purple-500 text-white w-full mb-2')
-        
-        # Main content area with splitter
-        with ui.column().classes('flex-1 p-4 overflow-y-auto'):
-            # Splitter for grid and form sections
-            with ui.splitter(horizontal=True, value=40).classes('w-full h-full') as main_splitter:
-                with main_splitter.separator:
-                    ui.icon('drag_handle').classes('text-gray-400 text-sm')
-                
-                # Top section - Expense Types List Grid
-                with main_splitter.before:
-                    ui.label('Expense Types List').classes('text-xl font-bold mb-2')
-                    
-                    # Search functionality
-                    search_input = ui.input('Search Expense Types').classes('w-full mb-2')
-                    
-                    # Get column headers from database
-                    headers = []
-                    connection.contogetheaders("SELECT id, expense_type_name, description, created_at FROM expense_types", headers)
-                    
-                    # Convert to AG Grid column format
-                    column_defs = [
-                        {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 150}
-                        for header in headers
-                    ]
-                    
-                    # Fetch data from database
-                    data = []
-                    connection.contogetrows("SELECT id, expense_type_name, description, created_at FROM expense_types", data)
-                    
-                    # Convert data to list of dictionaries for AG Grid
-                    row_data = []
-                    for row in data:
-                        row_dict = {}
-                        for i, header in enumerate(headers):
-                            row_dict[header] = row[i]
-                        row_data.append(row_dict)
-                    
-                    # Create AG Grid table with scroll functionality
-                    table = ui.aggrid({
-                        'columnDefs': column_defs,
-                        'rowData': row_data,
-                        'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
-                        'rowSelection': 'single',
-                        'domLayout': 'normal',
-                        'pagination': True,
-                        'paginationPageSize': 5
-                    }).classes('w-full ag-theme-quartz-custom').style('height: 200px; overflow-y: auto;')
-                    
-                    # Add row selection functionality for AG Grid
-                    async def on_row_click():
-                        try:
-                            selected_row = await table.get_selected_row()
-                            if selected_row:
-                                if 'id' in input_refs and 'id' in selected_row:
-                                    input_refs['id'].set_value(selected_row['id'])
-                                if 'expense_type_name' in input_refs and 'expense_type_name' in selected_row:
-                                    input_refs['expense_type_name'].set_value(selected_row['expense_type_name'])
-                                if 'description' in input_refs and 'description' in selected_row:
-                                    input_refs['description'].set_value(selected_row['description'])
-                                
-                                # Store initial values for undo functionality
-                                initial_values.update({
-                                    'expense_type_name': input_refs['expense_type_name'].value,
-                                    'description': input_refs['description'].value,
-                                    'id': input_refs['id'].value
-                                })
-                        except Exception as e:
-                            ui.notify(f'Error selecting row: {str(e)}')
-                    
-                    table.on('cellClicked', on_row_click)
-                    
-                    # Add search functionality for AG Grid
-                    def filter_rows(search_text):
-                        if not search_text:
-                            # Reset to all data
-                            table.options['rowData'] = row_data
-                        else:
-                            # Filter rows based on search text
-                            filtered_rows = [row for row in row_data if any(
-                                search_text.lower() in str(value).lower() for value in row.values()
-                            )]
-                            table.options['rowData'] = filtered_rows
-                        table.update()
-                        
-                        # Select the first row of the filtered results if available
-                        if filtered_rows:
-                            first_row = filtered_rows[0]
-                            if 'id' in input_refs and 'id' in first_row:
-                                input_refs['id'].set_value(first_row['id'])
-                            if 'expense_type_name' in input_refs and 'expense_type_name' in first_row:
-                                input_refs['expense_type_name'].set_value(first_row['expense_type_name'])
-                            if 'description' in input_refs and 'description' in first_row:
-                                input_refs['description'].set_value(first_row['description'])
-                    
-                    search_input.on('keydown.enter', lambda e: filter_rows(e.sender.value))
-                
-                # Bottom section - Input fields
-                with main_splitter.after:
-                    ui.label('Expense Type Details').classes('text-xl font-bold mb-2')
-                    
-                    # Input fields for expense type data
-                    with ui.row().classes('w-full mb-4'):
-                        input_refs['expense_type_name'] = ui.input('Expense Type Name').classes('w-1/3 mr-2')
-                        input_refs['description'] = ui.input('Description').classes('w-1/3 mr-2')
-                        input_refs['id'] = ui.input('Expense Type ID').classes('w-1/3').props('readonly')
+    def refresh_table(self):
+        try:
+            data = []
+            connection.contogetrows("SELECT id, expense_type_name, description, created_at FROM expense_types ORDER BY id DESC", data)
+            
+            new_row_data = []
+            for row in data:
+                new_row_data.append({
+                    'id': row[0],
+                    'expense_type_name': row[1],
+                    'description': row[2],
+                    'created_at': str(row[3])
+                })
+            
+            if self.table:
+                self.table.options['rowData'] = new_row_data
+                self.table.update()
+                self.table.classes(remove='dimmed')
+            
+            self.row_data = new_row_data
+            self.clear_input_fields()
+        except Exception as e:
+            ui.notify(f'Error refreshing data: {str(e)}', color='negative')
 
-# Register the page route
+    def create_ui(self):
+        # Action Bar
+        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
+            with ui.row().classes('gap-3'):
+                ModernButton('New Category', icon='add', on_click=self.clear_input_fields, variant='primary')
+                ModernButton('Save', icon='save', on_click=self.save_expense_type, variant='success')
+                ModernButton('Undo', icon='undo', on_click=self.undo_changes, variant='secondary')
+                ModernButton('Delete', icon='delete', on_click=self.delete_expense_type, variant='error')
+            
+            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+
+        with ui.column().classes('w-full gap-6'):
+            # Top: List
+            with ModernCard(glass=True).classes('w-full p-6'):
+                with ui.row().classes('w-full justify-between items-center mb-4'):
+                    ui.label('Expense Categories').classes('text-xl font-black text-white')
+                    self.search_input = ui.input(placeholder='Search categories...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
+                    self.search_input.on('input', lambda e: self.filter_rows(e.value))
+
+                column_defs = [
+                    {'headerName': 'ID', 'field': 'id', 'width': 80},
+                    {'headerName': 'Category Name', 'field': 'expense_type_name', 'width': 250},
+                    {'headerName': 'Description', 'field': 'description', 'width': 350},
+                    {'headerName': 'Created At', 'field': 'created_at', 'width': 180}
+                ]
+
+                self.table = ui.aggrid({
+                    'columnDefs': column_defs,
+                    'rowData': [],
+                    'defaultColDef': MDS.get_ag_grid_default_def(),
+                    'rowSelection': 'single',
+                }).classes('w-full h-80 ag-theme-quartz-dark')
+                
+                async def on_row_click():
+                    try:
+                        selected_row = await self.table.get_selected_row()
+                        if selected_row:
+                            self.input_refs['id'].value = str(selected_row['id'])
+                            self.input_refs['expense_type_name'].value = selected_row['expense_type_name']
+                            self.input_refs['description'].value = selected_row['description']
+                            
+                            self.initial_values = {
+                                'expense_type_name': selected_row['expense_type_name'],
+                                'description': selected_row['description'],
+                                'id': str(selected_row['id'])
+                            }
+                            ui.notify(f'Selected: {selected_row["expense_type_name"]}', color='info')
+                    except Exception as e:
+                        ui.notify(f'Error selecting category: {str(e)}', color='negative')
+                
+                self.table.on('cellClicked', on_row_click)
+
+            # Bottom: Details Form
+            with ModernCard(glass=True).classes('w-full p-6'):
+                ui.label('Category Details').classes('text-lg font-black mb-6 text-white')
+                with ui.row().classes('w-full gap-6'):
+                    self.input_refs['expense_type_name'] = ui.input('Category Name').classes('flex-1 glass-input text-white').props('dark rounded outlined')
+                    self.input_refs['id'] = ui.input('ID (Auto)').classes('w-32 glass-input text-white').props('dark rounded outlined readonly')
+                
+                self.input_refs['description'] = ui.textarea('Description').classes('w-full mt-4 glass-input text-white').props('dark rounded outlined')
+
+        ui.timer(0.1, self.refresh_table, once=True)
+
+    def filter_rows(self, search_text):
+        if not search_text:
+            self.table.options['rowData'] = self.row_data
+        else:
+            search_text = search_text.lower()
+            filtered = [row for row in self.row_data if any(search_text in str(v).lower() for v in row.values())]
+            self.table.options['rowData'] = filtered
+        self.table.update()
+
 @ui.page('/expensestype')
 def expensestype_page_route():
     expensestype_page()

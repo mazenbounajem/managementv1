@@ -5,8 +5,10 @@ pynput
 tkintertable
 reportlab
 nicegui
-barcode
+python-barcode
 plotly
 pandas
 jinja2
 matplotlib
+pycairo
+

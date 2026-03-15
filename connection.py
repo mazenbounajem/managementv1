@@ -165,13 +165,39 @@ class connection:
                         'suppliers', 'supplierpayment', 'category', 'consignment', 'customers',
                         'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'backup',
                         'appointments', 'timespend', 'stockoperations', 'statistical-reports',
-                        'currencies', 'cash-drawer'
+                        'currencies', 'cash-drawer', 'company', 'services', 'ledger', 'auxiliary',
+                        'journal_voucher', 'voucher_subtype'
                     ]
 
                     for page in pages:
                         db_manager.execute_update(
                             "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
                             (admin_role_id, page, 1)
+                        )
+                
+                # Insert default permissions for Manager role
+                manager_role_id = db_manager.execute_scalar("SELECT id FROM roles WHERE name = 'Manager'")
+                if manager_role_id:
+                    manager_pages = [
+                        'dashboard', 'products', 'purchase', 'sales', 'reports', 'customers', 
+                        'suppliers', 'category', 'expenses', 'stockoperations', 'statistical-reports'
+                    ]
+                    for page in manager_pages:
+                        db_manager.execute_update(
+                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                            (manager_role_id, page, 1)
+                        )
+
+                # Insert default permissions for Employee role
+                employee_role_id = db_manager.execute_scalar("SELECT id FROM roles WHERE name = 'Employee'")
+                if employee_role_id:
+                    employee_pages = [
+                        'dashboard', 'sales', 'products', 'customers', 'category'
+                    ]
+                    for page in employee_pages:
+                        db_manager.execute_update(
+                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                            (employee_role_id, page, 1)
                         )
 
             # Update employees table to include role_id if it doesn't exist
@@ -515,6 +541,38 @@ class connection:
             return float(result) if result else 0.0
         except Exception as ex:
             print(f"Error getting today's sales: {str(ex)}")
+            return 0.0
+
+    @staticmethod
+    def get_week_sales():
+        """Get this week's total sales amount"""
+        try:
+            sql = """
+            SELECT COALESCE(SUM(total_amount), 0)
+            FROM sales
+            WHERE DATEPART(WEEK, sale_date) = DATEPART(WEEK, GETDATE())
+            AND DATEPART(YEAR, sale_date) = DATEPART(YEAR, GETDATE())
+            """
+            result = db_manager.execute_scalar(sql)
+            return float(result) if result else 0.0
+        except Exception as ex:
+            print(f"Error getting week's sales: {str(ex)}")
+            return 0.0
+
+    @staticmethod
+    def get_month_sales():
+        """Get this month's total sales amount"""
+        try:
+            sql = """
+            SELECT COALESCE(SUM(total_amount), 0)
+            FROM sales
+            WHERE DATEPART(MONTH, sale_date) = DATEPART(MONTH, GETDATE())
+            AND DATEPART(YEAR, sale_date) = DATEPART(YEAR, GETDATE())
+            """
+            result = db_manager.execute_scalar(sql)
+            return float(result) if result else 0.0
+        except Exception as ex:
+            print(f"Error getting month's sales: {str(ex)}")
             return 0.0
 
     @staticmethod

@@ -1,1045 +1,125 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
+from modern_design_system import ModernDesignSystem as MDS
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable
 from session_storage import session_storage
+from datetime import datetime
 
-def customer_page():
-    uiAggridTheme.addingtheme()
-
-    # Check if user is logged in
+def customer_page(standalone=False):
+    # Auth
     user = session_storage.get('user')
     if not user:
-        ui.notify('Please login to access this page', color='red')
-        ui.run_javascript('window.location.href = "/login"')
+        if not standalone:
+            ui.notify('Please login', color='negative')
+            ui.navigate.to('/login')
         return
 
-    # Get user permissions
-    permissions = connection.get_user_permissions(user['role_id'])
-    allowed_pages = {page for page, can_access in permissions.items() if can_access}
-
-    # Create enhanced navigation instance
-    navigation = EnhancedNavigation(permissions, user)
-    navigation.create_navigation_drawer()  # Create drawer first
-    navigation.create_navigation_header()  # Then create header with toggle button
-
-    # Store references to input fields
+    # State
     input_refs = {}
 
-    # Store the initial values for undo functionality
-    initial_values = {}
-
-    # Navigation variables
-    current_index = -1
-    current_highlighted_index = -1
-    total_records = 0
-    record_label = None
-    total_rows_label = None
-    filter_visible = False
-    filter_panel = None
-    filter_inputs = {}
-    
-    # Function to get the next auxiliary number
-    def get_next_auxiliary_number():
-        try:
-            data = []
-            connection.contogetrows("SELECT MAX(CAST(auxiliary_number AS INT)) FROM customers WHERE auxiliary_id = '4111'", data)
-            if data and data[0][0] is not None:
-                return data[0][0] + 1
-            else:
-                return 1
-        except Exception as e:
-            print(f"Error getting next auxiliary number: {e}")
-            return 1
-
-    # Function to clear all input fields
-    def clear_input_fields():
-        input_refs['customer_name'].set_value('')
-        input_refs['email'].set_value('')
-        input_refs['phone'].set_value('')
-        input_refs['address'].set_value('')
-        input_refs['city'].set_value('')
-        input_refs['state'].set_value('')
-        input_refs['zip_code'].set_value('')
-        input_refs['balance'].set_value('0.00')
-        input_refs['is_active'].set_value('1')
-        input_refs['id'].set_value('')
-        input_refs['auxiliary_id'].set_value('4111')
-        input_refs['auxiliary_number'].set_value(f"{get_next_auxiliary_number():05d}")
-    
-    # Function to save customer data
-    def save_customer():
-        # Get values from input fields
-        customer_name = input_refs['customer_name'].value
-        email = input_refs['email'].value
-        phone = input_refs['phone'].value
-        address = input_refs['address'].value
-        city = input_refs['city'].value
-        state = input_refs['state'].value
-        zip_code = input_refs['zip_code'].value
-        balance = float(input_refs['balance'].value or 0)
-        is_active = input_refs['is_active'].value
-        id_value = input_refs['id'].value
-        auxiliary_id = input_refs['auxiliary_id'].value
-        auxiliary_number = input_refs['auxiliary_number'].value
-
-        # Check if all required data is entered
-        if not customer_name:
-            ui.notify('Please enter Customer Name', color='red')
-            return
-
-        # Insert or update data in database using connection
-        try:
-            if id_value:  # Update existing record
-                id_value = int(id_value)
-                sql = "UPDATE customers SET customer_name=?, email=?, phone=?, address=?, city=?, state=?, zip_code=?, balance=?, is_active=?, auxiliary_id=?, auxiliary_number=? WHERE id=?"
-                values = (customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, id_value)
-                connection.insertingtodatabase(sql, values)
-
-                # Update auxiliary name if customer name changed
-                aux_data = []
-                connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", aux_data, (f"{auxiliary_id}.{auxiliary_number}",))
-                if aux_data and aux_data[0][0]:
-                    aux_id = aux_data[0][0]
-                    connection.insertingtodatabase("UPDATE Auxiliary SET account_name=? WHERE id=?", (customer_name, aux_id))
-            else:  # Insert new record
-                sql = "INSERT INTO customers (customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())"
-                values = (customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number)
-                connection.insertingtodatabase(sql, values)
-
-                # Get the new customer id
-                new_id_data = []
-                connection.contogetrows("SELECT @@IDENTITY", new_id_data)
-                new_customer_id = new_id_data[0][0]
-
-                # Create auxiliary
-                account_number = f"{auxiliary_id}.{auxiliary_number}"
-                aux_sql = "INSERT INTO Auxiliary (auxiliary_id, account_name, number, status, update_date) VALUES (?, ?, ?, 1, GETDATE())"
-                connection.insertingtodatabase(aux_sql, (int(auxiliary_id), customer_name, account_number))
-
-                id_value = new_customer_id
-
-            ui.notify('Customer saved successfully', color='green')
-            # Refresh the table to show the new customer
-            refresh_table()
-            # Update initial values
-            initial_values.update({
-                'customer_name': customer_name,
-                'email': email,
-                'phone': phone,
-                'address': address,
-                'city': city,
-                'state': state,
-                'zip_code': zip_code,
-                'is_active': is_active,
-                'auxiliary_id': auxiliary_id,
-                'auxiliary_number': auxiliary_number,
-                'id': id_value
-            })
-        except Exception as e:
-            ui.notify(f'Error saving customer: {str(e)}', color='red')
-    
-    # Function to undo changes
-    def undo_changes():
-        if 'customer_name' in input_refs and 'customer_name' in initial_values:
-            input_refs['customer_name'].set_value(initial_values['customer_name'])
-        if 'email' in input_refs and 'email' in initial_values:
-            input_refs['email'].set_value(initial_values['email'])
-        if 'phone' in input_refs and 'phone' in initial_values:
-            input_refs['phone'].set_value(initial_values['phone'])
-        if 'address' in input_refs and 'address' in initial_values:
-            input_refs['address'].set_value(initial_values['address'])
-        if 'city' in input_refs and 'city' in initial_values:
-            input_refs['city'].set_value(initial_values['city'])
-        if 'state' in input_refs and 'state' in initial_values:
-            input_refs['state'].set_value(initial_values['state'])
-        if 'zip_code' in input_refs and 'zip_code' in initial_values:
-            input_refs['zip_code'].set_value(initial_values['zip_code'])
-        if 'is_active' in input_refs and 'is_active' in initial_values:
-            input_refs['is_active'].set_value(initial_values['is_active'])
-        if 'auxiliary_id' in input_refs and 'auxiliary_id' in initial_values:
-            input_refs['auxiliary_id'].set_value(initial_values['auxiliary_id'])
-        if 'auxiliary_number' in input_refs and 'auxiliary_number' in initial_values:
-            input_refs['auxiliary_number'].set_value(initial_values['auxiliary_number'])
-        if 'id' in input_refs and 'id' in initial_values:
-            input_refs['id'].set_value(initial_values['id'])
-        ui.notify('Changes undone', color='blue')
-    
-    # Function to delete customer
-    def delete_customer():
-        id_value = input_refs['id'].value
-        if not id_value:
-            ui.notify('Please select a customer to delete', color='red')
-            return
-
-        try:
-            id_value = int(id_value)
-            sql = "DELETE FROM customers WHERE id=?"
-            connection.deleterow(sql, id_value)
-
-            # Check if the record was actually deleted
-            check_data = []
-            connection.contogetrows("SELECT id FROM customers WHERE id=?", check_data, (id_value,))
-
-            if check_data:
-                ui.notify('Failed to delete customer - record still exists', color='red')
-            else:
-                ui.notify('Customer deleted successfully', color='green')
-                # Refresh the table
-                refresh_table()
-                # Clear input fields
-                clear_input_fields()
-                # Load the customer record with maximum ID
-                load_max_customer_record()
-        except Exception as e:
-            ui.notify(f'Error deleting customer: {str(e)}', color='red')
-
-    # Helper function to manage row highlighting
-    def clear_highlights():
-        """Clear all row highlights"""
-        for row in table.options['rowData']:
-            row['highlighted'] = False
-
-    def set_highlight(index):
-        """Set highlight for a specific row index"""
-        if 0 <= index < len(table.options['rowData']):
-            table.options['rowData'][index]['highlighted'] = True
-
-    # Navigation functions
-    def first_record():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        if len(current_row_data) > 0:
-            current_index = 0
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def prev_10():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        new_index = max(0, current_index - 10)
-        if new_index != current_index:
-            current_index = new_index
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def prev_record():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        if current_index > 0:
-            current_index -= 1
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def next_record():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        if current_index < len(current_row_data) - 1:
-            current_index += 1
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def next_10():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        new_index = min(len(current_row_data) - 1, current_index + 10)
-        if new_index != current_index:
-            current_index = new_index
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def last_record():
-        nonlocal current_index
-        current_row_data = table.options['rowData']
-        if len(current_row_data) > 0:
-            current_index = len(current_row_data) - 1
-            clear_highlights()
-            set_highlight(current_index)
-            selected_row = current_row_data[current_index]
-            # Set inputs
-            for key in input_refs:
-                if key in selected_row:
-                    input_refs[key].set_value(selected_row[key])
-            # Store initial values
-            initial_values.update({
-                'customer_name': selected_row.get('customer_name', ''),
-                'email': selected_row.get('email', ''),
-                'phone': selected_row.get('phone', ''),
-                'address': selected_row.get('address', ''),
-                'city': selected_row.get('city', ''),
-                'state': selected_row.get('state', ''),
-                'zip_code': selected_row.get('zip_code', ''),
-                'is_active': selected_row.get('is_active', True),
-                'auxiliary_id': selected_row.get('auxiliary_id', '4111'),
-                'auxiliary_number': selected_row.get('auxiliary_number', '00001'),
-                'id': selected_row.get('id', '')
-            })
-            # Scroll to row
-            table.run_method('ensureIndexVisible', current_index)
-            table.update()
-            record_label.text = f'{current_index + 1} of {len(current_row_data)} records'
-
-    def toggle_filter():
-        nonlocal filter_visible
-        filter_visible = not filter_visible
-        if filter_visible:
-            filter_panel.style('display: block')
-        else:
-            filter_panel.style('display: none')
-
-    def apply_filter():
-        filters = {k: v.value for k, v in filter_inputs.items() if v.value}
-        if not filters:
-            table.options['rowData'] = row_data
-        else:
-            filtered = [row for row in row_data if all(
-                str(row.get(k, '')).lower().find(v.lower()) != -1 for k, v in filters.items()
-            )]
-            table.options['rowData'] = filtered
-        table.update()
-        # Reset current_index
-        nonlocal current_index
-        current_index = -1
-        record_label.text = f'0 of {len(table.options["rowData"])} records'
-    
-    # Function to get the maximum customer ID
-    def get_max_customer_id():
-        """Get the maximum customer ID from the customers table."""
-        try:
-            # Get max customer ID from database
-            max_id_result = []
-            connection.contogetrows("SELECT MAX(id) FROM customers", max_id_result)
-
-            if max_id_result and max_id_result[0][0]:
-                max_id = max_id_result[0][0]
-                return max_id
-            else:
-                return 0
-
-        except Exception as e:
-            print(f"Error getting max customer ID: {e}")
-            return 0
-
-    # Function to load the customer with maximum ID
-    def load_max_customer():
-        """Set the ID input to max_id + 1 and clear other input fields for new customer entry."""
-        try:
-            max_id = get_max_customer_id()
-            next_id = max_id 
-
-            # Set ID input to next_id
-            input_refs['id'].set_value(str(next_id))
-
-            # Clear other input fields
-            input_refs['customer_name'].set_value('')
-            input_refs['email'].set_value('')
-            input_refs['phone'].set_value('')
-            input_refs['address'].set_value('')
-            input_refs['city'].set_value('')
-            input_refs['state'].set_value('')
-            input_refs['zip_code'].set_value('')
-            input_refs['balance'].set_value('0.00')
-            input_refs['is_active'].set_value(True)
-
-            # Update initial_values accordingly
-            initial_values.update({
-                'customer_name': '',
-                'email': '',
-                'phone': '',
-                'address': '',
-                'city': '',
-                'state': '',
-                'zip_code': '',
-                'balance': '0.00',
-                'is_active': True,
-                'id': str(next_id)
-            })
-
-            ui.notify(f'✅ Ready for new customer entry with ID: {next_id}')
-
-        except Exception as e:
-            ui.notify(f'Error setting next customer ID: {str(e)}')
-            print(f"Error setting next customer ID: {e}")
-
-    # Function to load the customer record with maximum ID
-    def load_max_customer_record():
-        """Automatically load the customer with the maximum ID when entering the interface."""
-        try:
-            max_id = get_max_customer_id()
-            if max_id > 0:
-                # Fetch the customer data for the max ID
-                customer_data = []
-                connection.contogetrows(
-                    f"SELECT id, customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number FROM customers WHERE id = {max_id}",
-                    customer_data
-                )
-
-                if customer_data:
-                    row_data = {
-                        'id': customer_data[0][0],
-                        'customer_name': customer_data[0][1],
-                        'email': customer_data[0][2],
-                        'phone': customer_data[0][3],
-                        'address': customer_data[0][4],
-                        'city': customer_data[0][5],
-                        'state': customer_data[0][6],
-                        'zip_code': customer_data[0][7],
-                        'balance': customer_data[0][8],
-                        'is_active': customer_data[0][9],
-                        'auxiliary_id': customer_data[0][10],
-                        'auxiliary_number': customer_data[0][11]
-                    }
-
-                    # Update input fields with the customer data
-                    input_refs['id'].set_value(row_data['id'])
-                    input_refs['customer_name'].set_value(row_data['customer_name'])
-                    input_refs['email'].set_value(row_data['email'])
-                    input_refs['phone'].set_value(row_data['phone'])
-                    input_refs['address'].set_value(row_data['address'])
-                    input_refs['city'].set_value(row_data['city'])
-                    input_refs['state'].set_value(row_data['state'])
-                    input_refs['zip_code'].set_value(row_data['zip_code'])
-                    input_refs['balance'].set_value(str(row_data['balance']))
-                    input_refs['is_active'].set_value(row_data['is_active'])
-
-                    # Store initial values for undo functionality
-                    initial_values.update({
-                        'customer_name': row_data['customer_name'],
-                        'email': row_data['email'],
-                        'phone': row_data['phone'],
-                        'address': row_data['address'],
-                        'city': row_data['city'],
-                        'state': row_data['state'],
-                        'zip_code': row_data['zip_code'],
-                        'balance': str(row_data['balance']),
-                        'is_active': row_data['is_active'],
-                        'id': row_data['id']
-                    })
-
-                    # Highlight the loaded row in the table
-                    def highlight_loaded_row():
-                        clear_highlights()
-                        for idx, row in enumerate(table.options['rowData']):
-                            if row.get('id') == row_data['id']:
-                                set_highlight(idx)
-                                table.update()
-                                nonlocal current_index
-                                current_index = idx
-                                if record_label:
-                                    record_label.text = f'{current_index + 1} of {len(table.options["rowData"])} records'
-                                break
-
-                    highlight_loaded_row()
-
-                    ui.notify(f'✅ Automatically loaded customer ID: {max_id} - {row_data["customer_name"]}')
-                else:
-                    ui.notify('No customers found in database')
-            else:
-                ui.notify('No customers found in database')
-
-        except Exception as e:
-            ui.notify(f'Error loading max customer: {str(e)}')
-            print(f"Error loading max customer: {e}")
-
-    # Function to refresh the table
     def refresh_table():
-        # Re-fetch data from database
-        headers = []
-        connection.contogetheaders("SELECT id, customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, created_at FROM customers", headers)
-
-        # Convert to AG Grid column format
-        column_defs = [
-            {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 120}
-            for header in headers
-        ]
-
-        # Fetch data from database
         data = []
-        connection.contogetrows("SELECT id, customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, created_at FROM customers", data)
-
-        # Convert data to list of dictionaries for AG Grid
-        new_row_data = []
-        for row in data:
-            row_dict = {}
-            for i, header in enumerate(headers):
-                row_dict[header] = row[i]
-            row_dict['highlighted'] = False  # Add highlighted field for row styling
-            new_row_data.append(row_dict)
-
-        # Update AG Grid with new data
-        table.options['columnDefs'] = column_defs
-        table.options['rowData'] = new_row_data
+        sql = """SELECT id, customer_name, email, phone, address, city, balance, is_active 
+                 FROM customers ORDER BY id DESC"""
+        connection.contogetrows(sql, data)
+        rows = []
+        cols = ['id', 'customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active']
+        for r in data:
+            rows.append({cols[i]: r[i] for i in range(len(cols))})
+        table.options['rowData'] = rows
         table.update()
 
-        # Update total records label
-        total_rows_label.text = f'Total Records: {len(new_row_data)}'
+    def clear_inputs():
+        for k, ref in input_refs.items():
+            if k == 'is_active': ref.set_value(True)
+            elif k == 'balance': ref.set_value(0)
+            else: ref.set_value('')
+        table.run_method('deselectAll')
 
-        # Update global row_data for search functionality
-        nonlocal row_data
-        row_data = new_row_data
+    def save_customer():
+        try:
+            c_data = {k: ref.value for k, ref in input_refs.items()}
+            if not c_data['customer_name']:
+                return ui.notify('Customer name required', color='negative')
 
-        # Update navigation
-        nonlocal total_records, current_index
-        total_records = len(new_row_data)
-        current_index = -1
-        if record_label:
-            record_label.text = f'0 of {total_records} records'
+            if c_data['id']:
+                sql = """UPDATE customers SET customer_name=?, email=?, phone=?, address=?, 
+                         city=?, balance=?, is_active=? WHERE id=?"""
+                params = (c_data['customer_name'], c_data['email'], c_data['phone'], c_data['address'],
+                          c_data['city'], float(c_data['balance'] or 0), bool(c_data['is_active']), c_data['id'])
+            else:
+                sql = """INSERT INTO customers (customer_name, email, phone, address, city, balance, 
+                         created_at, is_active) VALUES (?, ?, ?, ?, ?, ?, GETDATE(), ?)"""
+                params = (c_data['customer_name'], c_data['email'], c_data['phone'], c_data['address'],
+                          c_data['city'], float(c_data['balance'] or 0), bool(c_data['is_active']))
 
-        # Reset filter
-        for inp in filter_inputs.values():
-            inp.set_value('')
-        nonlocal filter_visible
-        filter_visible = False
-        if filter_panel:
-            filter_panel.style('display: none')
+            connection.insertingtodatabase(sql, params)
+            ui.notify('Customer saved', color='positive')
+            refresh_table()
+        except Exception as e:
+            ui.notify(f'Error: {e}', color='negative')
 
-        # Clear input fields
-        clear_input_fields()
+    with ModernPageLayout("Customer Management"):
+        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
+            
+            # Action Bar
+            with ModernCard().classes('w-full p-4'):
+                with ui.row().classes('w-full items-center justify-between'):
+                    with ui.row().classes('items-center gap-4'):
+                        ui.icon('people').classes('text-3xl text-primary')
+                        ui.label('Customer Network').classes('text-2xl font-black text-primary-dark')
+                    
+                    with ui.row().classes('gap-2'):
+                        ModernButton.create('New', icon='person_add', on_click=clear_inputs, variant='primary')
+                        ModernButton.create('Save', icon='save', on_click=save_customer, variant='success')
 
-    # Main content area with splitter layout
-    with ui.element('div').classes('flex w-full h-screen'):
-        # Function to generate statement of account
-        def generate_statement_of_account():
-            customer_id = input_refs.get('id').value if input_refs.get('id') else None
-            if not customer_id:
-                ui.notify('Please select a customer to generate statement of account', color='red')
-                return
+            with ui.row().classes('w-full gap-6 items-start'):
+                # Form
+                with ui.column().classes('w-1/3 gap-4'):
+                    with ModernCard().classes('w-full p-6'):
+                        ui.label('Client Details').classes('text-lg font-bold mb-4')
+                        input_refs['id'] = ui.input('ID').props('readonly outlined dense').classes('hidden')
+                        input_refs['customer_name'] = ModernInput('Full Name', icon='person')
+                        input_refs['email'] = ModernInput('Email', icon='email')
+                        input_refs['phone'] = ModernInput('Phone', icon='phone')
 
-            try:
-                # Query sales_payment details with debit, credit, and balance calculation
-                sql = f"""
-                SELECT sp.id AS salesid, sp.customer_id, c.customer_name AS display_customer_name, sp.debit, sp.credit, sp.sale_date AS Date, 'Sale' AS Type
-                FROM sales_payment sp
-                JOIN customers c ON sp.customer_id = c.id
-                WHERE sp.customer_id = {customer_id}
-                ORDER BY sp.sale_date
-                """
-                details = []
-                connection.contogetrows(sql, details)
+                    with ModernCard().classes('w-full p-6'):
+                        ui.label('Profile Settings').classes('text-lg font-bold mb-4')
+                        input_refs['address'] = ui.input('Address').props('outlined dense').classes('w-full')
+                        input_refs['city'] = ui.input('City').props('outlined dense').classes('w-full mt-2')
+                        input_refs['balance'] = ui.number('Account Balance').props('outlined dense').classes('w-full mt-2')
+                        input_refs['is_active'] = ui.checkbox('Active', value=True).classes('mt-2')
 
-                # Calculate running balance
-                balance = 0
-                rows = []
-                for row in details:
-                    salesid, customer_id, customer_name, debit, credit, date_, type_ = row
-
-                    balance += credit - debit
-                    rows.append({
-                        'Type': type_,
-                        'Date': date_,
-                        'Credit': credit,
-                        'Debit': debit,
-                        'Balance': balance
-                    })
-
-                # Prepare headers
-                headers = ['Type', 'Date', 'Credit', 'Debit', 'Balance']
-
-                # Get customer name for dialog title
-                customer_data = []
-                connection.contogetrows(f"SELECT customer_name FROM customers WHERE id = {customer_id}", customer_data)
-                customer_name = customer_data[0][0] if customer_data else "Unknown Customer"
-
-                # Create modal dialog to display statement of account
-                with ui.dialog() as dialog:
-                    with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-                        # Header with close button
-                        with ui.row().classes('w-full justify-between items-center p-4 bg-gray-100 border-b'):
-                            ui.label(f'Statement of Account - {customer_name}').classes('text-xl font-bold')
-                            ui.button('Print PDF', on_click=lambda: print_statement_pdf(customer_id, rows)).classes('bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded mr-2')
-                            ui.button('✕ Close', on_click=dialog.close).classes('bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded')
-
-                        # Table display area
-                        ui.table(columns=[{'name': h, 'label': h, 'field': h} for h in headers], rows=rows).classes('w-full flex-1 p-4')
-
-                dialog.open()
-                ui.notify('Statement of account generated and displayed', color='green')
-
-            except Exception as e:
-                ui.notify(f'Error generating statement of account: {str(e)}', color='red')
-
-        # Function to print statement of account as PDF
-        def print_statement_pdf(customer_id, rows):
-            try:
-                import base64
-                from reportlab.lib import colors
-                from reportlab.lib.pagesizes import letter
-                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet
-                from io import BytesIO
-
-                # Get customer name
-                customer_data = []
-                connection.contogetrows(f"SELECT customer_name FROM customers WHERE id = {customer_id}", customer_data)
-                customer_name = customer_data[0][0] if customer_data else "Unknown Customer"
-
-                # Create PDF buffer
-                buffer = BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=letter)
-                elements = []
-
-                # Styles
-                styles = getSampleStyleSheet()
-                title_style = styles['Heading1']
-
-                # Title
-                title = Paragraph(f"Statement of Account - {customer_name}", title_style)
-                elements.append(title)
-                elements.append(Spacer(1, 12))
-
-                # Prepare table data
-                table_data = [['Type', 'Date', 'Credit', 'Debit', 'Balance']]
-                for row in rows:
-                    table_data.append([
-                        row['Type'],
-                        str(row['Date']),
-                        f"${row['Credit']:.2f}",
-                        f"${row['Debit']:.2f}",
-                        f"${row['Balance']:.2f}"
-                    ])
-
-                # Create table with full width for A4
-                from reportlab.lib.pagesizes import A4
-                page_width, page_height = A4
-                table = Table(table_data, colWidths=[page_width/len(table_data[0]) for _ in table_data[0]])
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 14),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
-                ]))
-
-                elements.append(table)
-
-                # Build PDF
-                doc.build(elements)
-
-                # Get PDF bytes
-                pdf_bytes = buffer.getvalue()
-                buffer.close()
-
-                # Convert to base64 for inline display
-                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-                pdf_data_url = f"data:application/pdf;base64,{pdf_base64}"
-
-                # Create full-screen modal dialog to display PDF
-                with ui.dialog() as pdf_dialog:
-                    with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-                        # Header with close button
-                        with ui.row().classes('w-full justify-between items-center p-4 bg-gray-100 border-b'):
-                            ui.label('Statement of Account PDF').classes('text-xl font-bold')
-                            ui.button('✕ Close', on_click=pdf_dialog.close).classes('bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded')
-
-                        # PDF display area
-                        ui.html(f'''
-                            <iframe src="{pdf_data_url}"
-                                    width="100%"
-                                    height="100%"
-                                    style="border: none; min-height: calc(100vh - 80px);">
-                                <p>Your browser does not support iframes.
-                                <a href="{pdf_data_url}" target="_blank">Click here to view the PDF</a></p>
-                            </iframe>
-                        ''').classes('w-full flex-1')
-
-                pdf_dialog.open()
-                ui.notify('Statement of account PDF generated and displayed', color='green')
-
-            except Exception as e:
-                ui.notify(f'Error generating PDF: {str(e)}', color='red')
-
-        # Left drawer for action buttons
-        with ui.column().classes('w-20 p-4 bg-gray-100 flex-shrink-0'):
-            ui.label('Actions').classes('text-lg font-bold mb-4')
-            ui.button('', icon='add', on_click=clear_input_fields).classes('bg-blue-500 text-white w-full mb-2').tooltip('Create a new customer record')
-            ui.button('', icon='save', on_click=save_customer).classes('bg-green-500 text-white w-full mb-2').tooltip('Save current customer information')
-            ui.button('', icon='undo', on_click=undo_changes).classes('bg-yellow-500 text-white w-full mb-2').tooltip('Undo changes to customer data')
-            ui.button('', icon='delete', on_click=delete_customer).classes('bg-red-500 text-white w-full mb-2').tooltip('Delete the selected customer')
-            ui.button('', icon='refresh', on_click=refresh_table).classes('bg-purple-500 text-white w-full mb-2').tooltip('Refresh the customer list')
-            ui.button('', icon='account_balance_wallet', on_click=generate_statement_of_account).classes('bg-indigo-600 text-white w-full mb-2').tooltip('Generate statement of account for selected customer')
-
-
-        # Main content area with splitter
-        with ui.column().classes('flex-1 p-4 overflow-y-auto'):
-            # Splitter for grid and form sections
-            with ui.splitter(horizontal=True, value=20).classes('w-full h-full') as main_splitter:
-                with main_splitter.separator:
-                    ui.icon('drag_handle').classes('text-gray-400 text-sm')
-
-                # Top section - Customer List Grid
-                with main_splitter.before:
-                    # Search functionality
-                    # Container for table and navigation buttons
-                    with ui.element('div').classes('relative w-full'):
-                        # Navigation buttons positioned absolutely over the table
-                        with ui.row().classes(' top--20 left-0 z-5 items-center gap-1').style('height: 25px; background: transparent; padding: 2px;'):
-                            ui.button('', icon='first_page', on_click=first_record).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to first record')
-                            ui.button('', icon='skip_previous', on_click=prev_10).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to previous 10 records')
-                            ui.button('', icon='chevron_left', on_click=prev_record).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to previous record')
-                            record_label = ui.label('0 of 0 records').classes('text-xs text-gray-600')
-                            ui.button('', icon='chevron_right', on_click=next_record).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to next record')
-                            ui.button('', icon='skip_next', on_click=next_10).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to next 10 records')
-                            ui.button('', icon='last_page', on_click=last_record).classes('bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 text-xs rounded').tooltip('Go to last record')
-                            search_input = ui.input('Search Customers').classes('w-full')
-                        # Get column headers from database
-                        headers = []
-                        connection.contogetheaders("SELECT id, customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, created_at FROM customers", headers)
-
-                        # Convert to AG Grid column format
-                        column_defs = [
-                            {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 120}
-                            for header in headers
+                # List
+                with ui.column().classes('flex-1'):
+                    with ModernCard().classes('w-full p-4'):
+                        ui.label('Client Repository').classes('text-lg font-bold mb-4 ml-2')
+                        
+                        cols = [
+                            {'headerName': 'Name', 'field': 'customer_name', 'flex': 2},
+                            {'headerName': 'Email', 'field': 'email', 'flex': 1.5},
+                            {'headerName': 'Phone', 'field': 'phone', 'width': 130},
+                            {'headerName': 'Balance', 'field': 'balance', 'width': 120},
+                            {'headerName': 'Status', 'field': 'is_active', 'cellRenderer': 'agCheckboxRenderer'}
                         ]
-
-                        # Fetch data from database
-                        data = []
-                        connection.contogetrows("SELECT id, customer_name, email, phone, address, city, state, zip_code, balance, is_active, auxiliary_id, auxiliary_number, created_at FROM customers", data)
-
-                        # Convert data to list of dictionaries for AG Grid
-                        row_data = []
-                        for row in data:
-                            row_dict = {}
-                            for i, header in enumerate(headers):
-                                row_dict[header] = row[i]
-                            row_dict['highlighted'] = False  # Add highlighted field for row styling
-                            row_data.append(row_dict)
-
-                        # Create AG Grid table with scroll functionality
+                        
                         table = ui.aggrid({
-                            'columnDefs': column_defs,
-                            'rowData': row_data,
-                            'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
+                            'columnDefs': cols,
+                            'rowData': [],
+                            'defaultColDef': {'sortable': True, 'filter': True},
                             'rowSelection': 'single',
-                            'domLayout': 'normal',
-                            'pagination': False,
-                            'rowClassRules': {
-                                'highlighted-row': 'data.highlighted === true'
-                            }
-                        }).classes('w-full ag-theme-quartz-custom').style('height: 200px; overflow-y: auto;')
+                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
 
-                        # Update record label with actual record count
-                        if record_label and row_data:
-                            record_label.text = f'0 of {len(row_data)} records'
+                        async def on_row():
+                            row = await table.get_selected_row()
+                            if row:
+                                for k in input_refs:
+                                    if k in row: input_refs[k].set_value(row[k])
+                        table.on('cellClicked', on_row)
 
-                        total_rows_label = ui.label('Total Records: 0').classes('text-sm font-bold mb-2')
+    ui.timer(0.1, refresh_table, once=True)
 
-                    # Add custom CSS for highlighted row
-                    ui.add_css('''
-                        .ag-theme-quartz-custom .highlighted-row {
-                            background-color: #1976D2 !important;
-                            color: #ffffff !important;
-                            border: 2px solid #0d47a1 !important;
-                        }
-                    ''')
-
-                    # Function to clear filters
-                    def clear_filters():
-                        table.run_method('setFilterModel', {})
-                        table.update()
-                        nonlocal current_index
-                        current_index = -1
-                        record_label.text = f'0 of {len(table.options["rowData"])} records'
-                        filter_info_button.style('display: none;')
-
-                    # Event listener for filter changes
-                    import asyncio
-                    filter_change_task = None
-
-                    async def on_filter_changed():
-                        nonlocal filter_change_task
-                        if filter_change_task and not filter_change_task.done():
-                            filter_change_task.cancel()
-                        async def handle_filter_change():
-                            try:
-                                filter_model = await asyncio.wait_for(table.run_method('getFilterModel'), timeout=10.0)
-                                if filter_model:
-                                    filter_texts = []
-                                    for col, val in filter_model.items():
-                                        if isinstance(val, dict):
-                                            filter_value = val.get('filter', '')
-                                        else:
-                                            filter_value = str(val)
-                                        if filter_value:
-                                            filter_texts.append(f"{col.replace('_', ' ').title()}: {filter_value}")
-                                    if filter_texts:
-                                        filter_info_button.style('display: flex;')
-                                        filter_info_button.text = ' ✕ '.join(filter_texts) + ' ✕'
-                                    else:
-                                        filter_info_button.style('display: none;')
-                                else:
-                                    filter_info_button.style('display: none;')
-                            except asyncio.CancelledError:
-                                pass
-                            except asyncio.TimeoutError:
-                                # Keep the button visible with "Filters active" if detailed info fails
-                                filter_info_button.style('display: flex;')
-                                filter_info_button.text = 'Filters active ✕'
-                            except Exception as e:
-                                # Keep the button visible with "Filters active" if detailed info fails
-                                filter_info_button.style('display: flex;')
-                                filter_info_button.text = 'Filters active ✕'
-                        filter_change_task = asyncio.create_task(handle_filter_change())
-
-                    table.on('filterChanged', on_filter_changed)
-
-                    # Add row selection functionality for AG Grid
-                    async def on_row_click():
-                        try:
-                            # Save current filter model to preserve filters during row selection
-                            try:
-                                saved_filter_model = await asyncio.wait_for(table.run_method('getFilterModel'), timeout=1.0)
-                            except:
-                                saved_filter_model = None
-
-                            selected_row = await table.get_selected_row()
-                            if selected_row:
-                                # Find the index of the selected row
-                                row_data = table.options['rowData']
-                                selected_index = next((i for i, row in enumerate(row_data) if row['id'] == selected_row['id']), -1)
-
-                                if selected_index != -1:
-                                    # Clear all highlights and highlight the selected row
-                                    clear_highlights()
-                                    set_highlight(selected_index)
-                                    table.update()
-
-                                    # Restore filter model after table update to prevent filter clearing
-                                    if saved_filter_model:
-                                        table.run_method('setFilterModel', saved_filter_model)
-
-                                    # Update current index and record label
-                                    nonlocal current_index
-                                    current_index = selected_index
-                                    record_label.text = f'{current_index + 1} of {len(row_data)} records'
-
-                                # Set inputs
-                                if 'id' in input_refs and 'id' in selected_row:
-                                    input_refs['id'].set_value(selected_row['id'])
-                                if 'customer_name' in input_refs and 'customer_name' in selected_row:
-                                    input_refs['customer_name'].set_value(selected_row['customer_name'])
-                                if 'email' in input_refs and 'email' in selected_row:
-                                    input_refs['email'].set_value(selected_row['email'])
-                                if 'phone' in input_refs and 'phone' in selected_row:
-                                    input_refs['phone'].set_value(selected_row['phone'])
-                                if 'address' in input_refs and 'address' in selected_row:
-                                    input_refs['address'].set_value(selected_row['address'])
-                                if 'city' in input_refs and 'city' in selected_row:
-                                    input_refs['city'].set_value(selected_row['city'])
-                                if 'state' in input_refs and 'state' in selected_row:
-                                    input_refs['state'].set_value(selected_row['state'])
-                                if 'zip_code' in input_refs and 'zip_code' in selected_row:
-                                    input_refs['zip_code'].set_value(selected_row['zip_code'])
-                                if 'is_active' in input_refs and 'is_active' in selected_row:
-                                    input_refs['is_active'].set_value(selected_row['is_active'])
-                                if 'auxiliary_id' in input_refs and 'auxiliary_id' in selected_row:
-                                    input_refs['auxiliary_id'].set_value(selected_row['auxiliary_id'])
-                                if 'auxiliary_number' in input_refs and 'auxiliary_number' in selected_row:
-                                    input_refs['auxiliary_number'].set_value(selected_row['auxiliary_number'])
-
-                                # Store initial values for undo functionality
-                                initial_values.update({
-                                    'customer_name': input_refs['customer_name'].value,
-                                    'email': input_refs['email'].value,
-                                    'phone': input_refs['phone'].value,
-                                    'address': input_refs['address'].value,
-                                    'city': input_refs['city'].value,
-                                    'state': input_refs['state'].value,
-                                    'zip_code': input_refs['zip_code'].value,
-                                    'is_active': input_refs['is_active'].value,
-                                    'auxiliary_id': input_refs['auxiliary_id'].value,
-                                    'auxiliary_number': input_refs['auxiliary_number'].value,
-                                    'id': input_refs['id'].value
-                                })
-                        except Exception as e:
-                            ui.notify(f'Error selecting row: {str(e)}')
-
-                    table.on('cellClicked', on_row_click)
-
-                    # Add search functionality for AG Grid
-                    def filter_rows(search_text):
-                        if not search_text:
-                            # Reset to all data
-                            table.options['rowData'] = row_data
-                            total_rows_label.text = f'Total Records: {len(row_data)}'
-                        else:
-                            # Filter rows based on search text
-                            filtered_rows = [row for row in row_data if any(
-                                search_text.lower() in str(value).lower() for value in row.values()
-                            )]
-                            table.options['rowData'] = filtered_rows
-                            total_rows_label.text = f'Total Records: {len(filtered_rows)}'
-                        table.update()
-
-                        # Select the first row of the filtered results if available
-                        if filtered_rows:
-                            first_row = filtered_rows[0]
-                            if 'id' in input_refs and 'id' in first_row:
-                                input_refs['id'].set_value(first_row['id'])
-                            if 'customer_name' in input_refs and 'customer_name' in first_row:
-                                input_refs['customer_name'].set_value(first_row['customer_name'])
-                            if 'email' in input_refs and 'email' in first_row:
-                                input_refs['email'].set_value(first_row['email'])
-                            if 'phone' in input_refs and 'phone' in first_row:
-                                input_refs['phone'].set_value(first_row['phone'])
-                            if 'address' in input_refs and 'address' in first_row:
-                                input_refs['address'].set_value(first_row['address'])
-                            if 'city' in input_refs and 'city' in first_row:
-                                input_refs['city'].set_value(first_row['city'])
-                            if 'state' in input_refs and 'state' in first_row:
-                                input_refs['state'].set_value(first_row['state'])
-                            if 'zip_code' in input_refs and 'zip_code' in first_row:
-                                input_refs['zip_code'].set_value(first_row['zip_code'])
-                            if 'is_active' in input_refs and 'is_active' in first_row:
-                                input_refs['is_active'].set_value(first_row['is_active'])
-
-                    search_input.on('keydown.enter', lambda e: filter_rows(e.sender.value))
-
-                # Bottom section - Input fields
-                with main_splitter.after:
-                    #ui.label('Customer Details').classes('text-sm font-bold mb-2')
-
-                    # Filter info button (moved from navigation row)
-                    filter_info_button = ui.button('✕ Clear Filter', on_click=clear_filters).classes('bg-red-500 hover:bg-red-700 text-white text-xs px-2 py-1 rounded').style('display: none;')
-
-                    # Input fields for customer data
-                    with ui.row().classes('w-full mb-4'):
-                        input_refs['customer_name'] = ui.input('Customer Name').classes('w-1/4 mr-2')
-                        input_refs['email'] = ui.input('Email').classes('w-1/4 mr-2')
-                        input_refs['phone'] = ui.input('Phone').classes('w-1/4 mr-2')
-                        input_refs['address'] = ui.input('Address').classes('w-1/4 mr-2')
-                        input_refs['city'] = ui.input('City').classes('w-1/4 mr-2')
-                        input_refs['state'] = ui.input('State').classes('w-1/4 mr-2')
-                        input_refs['zip_code'] = ui.input('Zip Code').classes('w-1/4 mr-2')
-                        input_refs['balance'] = ui.input('Balance').classes('w-1/4 mr-2')
-                        input_refs['is_active'] = ui.checkbox('Is Active', value=True).classes('w-1/4 mr-2')
-                        input_refs['id'] = ui.input('Customer ID').classes('w-1/4').props('readonly')
-
-                        # Hidden fields for auxiliary_id and auxiliary_number
-                        input_refs['auxiliary_id'] = ui.input('Auxiliary ID').style('display: none')
-                        input_refs['auxiliary_number'] = ui.input('Auxiliary Number').style('display: none')
-
-                        # Automatically load the customer with max ID after UI is created
-                        ui.timer(0.1, load_max_customer_record, once=True)
-
-# Register the page route
 @ui.page('/customers')
 def customer_page_route():
     customer_page()

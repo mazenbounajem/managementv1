@@ -1,390 +1,166 @@
 from nicegui import ui
 from connection import connection
 from uiaggridtheme import uiAggridTheme
-import datetime
+from navigation_improvements import EnhancedNavigation
+from session_storage import session_storage
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput
+from modern_design_system import ModernDesignSystem as MDS
 
-def roles_page():
-    uiAggridTheme.addingtheme()
-    with ui.header().classes('items-center justify-between'):
-        ui.label('Roles Management').classes('text-2xl font-bold')
-        ui.button('Back to Dashboard', on_click=lambda: ui.navigate.to('/dashboard')).props('flat color=white')
-
-    # Store references to input fields
-    input_refs = {}
-    
-    # Store the initial values for undo functionality
-    initial_values = {}
-    
-    # Available pages for permissions
-    available_pages = [
-        'dashboard', 'employees', 'products', 'purchase', 'reports', 'sales-reports', 'stock-reports', 'sales',
-        'suppliers', 'supplierpayment', 'category', 'consignment', 'customers',
-        'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'timespend',
-        'stockoperations', 'cash-drawer', 'currencies', 'services', 'appointments'
-    ]
-
-    # Function to clear all input fields
-    def clear_input_fields():
-        for key in input_refs:
-            if key == 'id':
-                input_refs[key].set_value('')
-            elif key.startswith('permission_'):
-                input_refs[key].set_value(False)
-            else:
-                input_refs[key].set_value('')
-        # Clear all permission checkboxes
-        for page in available_pages:
-            checkbox_key = f'permission_{page}'
-            if checkbox_key in input_refs:
-                input_refs[checkbox_key].set_value(False)
-        # Dim the grid when creating new record
-        table.classes('dimmed')
-
-    # Function to save role data
-    def save_role():
-        # Get values from input fields
-        name = input_refs['name'].value
-        description = input_refs['description'].value
-        id_value = input_refs['id'].value
-        
-        # Check if required data is entered
-        if not name:
-            ui.notify('Role name is required', color='red')
-            return
-        
-        # Get permissions
-        permissions = {}
-        for page in available_pages:
-            checkbox_key = f'permission_{page}'
-            if checkbox_key in input_refs:
-                permissions[page] = bool(input_refs[checkbox_key].value)
-        
-        # Insert or update data in database using connection
-        try:
-            if id_value:  # Update existing record
-                sql = "UPDATE roles SET name=?, description=?, updated_at=GETDATE() WHERE id=?"
-                values = (name, description, id_value)
-                connection.insertingtodatabase(sql, values)
-                
-                # Update permissions
-                for page, can_access in permissions.items():
-                    # Check if permission exists
-                    perm_exists = connection.getrow(
-                        "SELECT id FROM role_permissions WHERE role_id=? AND page_name=?",
-                        (id_value, page)
-                    )
-                    
-                    if perm_exists:
-                        # Update existing permission
-                        connection.insertingtodatabase(
-                            "UPDATE role_permissions SET can_access=?, updated_at=GETDATE() WHERE role_id=? AND page_name=?",
-                            (1 if can_access else 0, id_value, page)
-                        )
-                    else:
-                        # Insert new permission
-                        connection.insertingtodatabase(
-                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
-                            (id_value, page, 1 if can_access else 0)
-                        )
-                        
-            else:  # Insert new record
-                sql = "INSERT INTO roles (name, description) VALUES (?, ?)"
-                values = (name, description)
-                connection.insertingtodatabase(sql, values)
-                
-                # Get the newly created role ID
-                role_id = connection.getid("SELECT id FROM roles WHERE name=?", name)
-                
-                if role_id:
-                    # Insert permissions
-                    for page, can_access in permissions.items():
-                        connection.insertingtodatabase(
-                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
-                            (role_id, page, 1 if can_access else 0)
-                        )
-            
-            ui.notify('Role saved successfully', color='green')
-            # Remove dimming and refresh the table
-            table.classes(remove='dimmed')
-            refresh_table()
-            # Update initial values
-            initial_values.update({
-                'name': name,
-                'description': description,
-                'id': id_value or role_id
-            })
-            # Store permissions in initial values
-            for page, can_access in permissions.items():
-                initial_values[f'permission_{page}'] = can_access
-                
-        except Exception as e:
-            ui.notify(f'Error saving role: {str(e)}', color='red')
-
-    # Function to undo changes
-    def undo_changes():
-        for key in input_refs:
-            if key in initial_values:
-                input_refs[key].set_value(initial_values[key])
-        # Remove dimming when undoing changes
-        table.classes(remove='dimmed')
-        ui.notify('Changes undone', color='blue')
-
-    # Function to delete role
-    def delete_role():
-        id_value = input_refs['id'].value
-        if not id_value:
-            ui.notify('Please select a role to delete', color='red')
-            return
-        
-        try:
-            # First delete permissions
-            connection.deleterow("DELETE FROM role_permissions WHERE role_id=?", id_value)
-            # Then delete the role
-            connection.deleterow("DELETE FROM roles WHERE id=?", id_value)
-            ui.notify('Role deleted successfully', color='green')
-            # Remove dimming, clear input fields, and refresh the table
-            table.classes(remove='dimmed')
-            clear_input_fields()
-            refresh_table()
-        except Exception as e:
-            ui.notify(f'Error deleting role: {str(e)}', color='red')
-
-    # Function to refresh the table
-    def refresh_table():
-        # Re-fetch data from database
-        headers = []
-        connection.contogetheaders("SELECT id, name, description, created_at, updated_at FROM roles", headers)
-        
-        # Convert to AG Grid column format
-        column_defs = [
-            {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 150}
-            for header in headers
-        ]
-        
-        # Fetch data from database
-        data = []
-        connection.contogetrows("SELECT id, name, description, created_at, updated_at FROM roles ORDER BY id DESC", data)
-        
-        # Convert data to list of dictionaries for AG Grid
-        new_row_data = []
-        for row in data:
-            row_dict = {}
-            for i, header in enumerate(headers):
-                if i < len(row):
-                    row_dict[header] = row[i]
-                else:
-                    row_dict[header] = ''
-            new_row_data.append(row_dict)
-        
-        # Update AG Grid with new data
-        table.options['columnDefs'] = column_defs
-        table.options['rowData'] = new_row_data
-        table.update()
-        
-        # Update global row_data for search functionality
-        nonlocal row_data
-        row_data = new_row_data
-        
-        # Remove dimming and clear input fields
-        table.classes(remove='dimmed')
-        clear_input_fields()
-
-    # Function to load role permissions
-    def load_role_permissions(role_id):
-        # Clear all permission checkboxes first
-        for page in available_pages:
-            checkbox_key = f'permission_{page}'
-            if checkbox_key in input_refs:
-                input_refs[checkbox_key].set_value(False)
-        
-        # Load permissions from database
-        permissions_data = []
-        connection.contogetrows(
-            "SELECT page_name, can_access FROM role_permissions WHERE role_id=?",
-            permissions_data,
-            (role_id,)
-        )
-        
-        # Set permission checkboxes
-        for perm in permissions_data:
-            page_name = perm[0]
-            can_access = bool(perm[1])
-            checkbox_key = f'permission_{page_name}'
-            if checkbox_key in input_refs:
-                input_refs[checkbox_key].set_value(can_access)
-                # Store in initial values for undo
-                initial_values[checkbox_key] = can_access
-
-    # Main content area with splitter layout
-    with ui.element('div').classes('flex w-full h-screen'):
-        # Left drawer for action buttons
-        with ui.column().classes('w-48 p-4 bg-gray-100 flex-shrink-0'):
-            ui.label('Actions').classes('text-lg font-bold mb-4')
-            ui.button('New', icon='add', on_click=clear_input_fields).classes('bg-blue-500 text-white w-full mb-2')
-            ui.button('Save', icon='save', on_click=save_role).classes('bg-green-500 text-white w-full mb-2')
-            ui.button('Undo', icon='undo', on_click=undo_changes).classes('bg-yellow-500 text-white w-full mb-2')
-            ui.button('Delete', icon='delete', on_click=delete_role).classes('bg-red-500 text-white w-full mb-2')
-            ui.button('Refresh', icon='refresh', on_click=refresh_table).classes('bg-purple-500 text-white w-full mb-2')
-        
-        # Main content area with splitter
-        with ui.column().classes('flex-1 p-4 overflow-y-auto'):
-            # Splitter for grid and form sections
-            with ui.splitter(horizontal=True, value=40).classes('w-full h-full') as main_splitter:
-                with main_splitter.separator:
-                    ui.icon('drag_handle').classes('text-gray-400 text-sm')
-                
-                # Top section - Roles List Grid
-                with main_splitter.before:
-                    ui.label('Roles List').classes('text-xl font-bold mb-2')
-                    
-                    # Search functionality
-                    search_input = ui.input('Search Roles').classes('w-full mb-2')
-                    
-                    # Get column headers from database
-                    headers = []
-                    connection.contogetheaders("SELECT id, name, description, created_at, updated_at FROM roles", headers)
-                    
-                    # Convert to AG Grid column format
-                    column_defs = [
-                        {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 150}
-                        for header in headers
-                    ]
-                    
-                    # Fetch data from database
-                    data = []
-                    connection.contogetrows("SELECT id, name, description, created_at, updated_at FROM roles ORDER BY id DESC", data)
-                    
-                    # Convert data to list of dictionaries for AG Grid
-                    row_data = []
-                    for row in data:
-                        row_dict = {}
-                        for i, header in enumerate(headers):
-                            if i < len(row):
-                                row_dict[header] = row[i]
-                            else:
-                                row_dict[header] = ''
-                        row_data.append(row_dict)
-                    
-                    # Create AG Grid table with scroll functionality
-                    table = ui.aggrid({
-                        'columnDefs': column_defs,
-                        'rowData': row_data,
-                        'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
-                        'rowSelection': 'single',
-                        'domLayout': 'normal',
-                        'pagination': True,
-                        'paginationPageSize': 5
-                    }).classes('w-full ag-theme-quartz-custom').style('height: 200px; overflow-y: auto;')
-                    
-                    # Add row selection functionality for AG Grid
-                    async def on_row_click():
-                        try:
-                            selected_row = await table.get_selected_row()
-                            if selected_row:
-                                for key in input_refs:
-                                    if key in selected_row:
-                                        input_refs[key].set_value(selected_row[key])
-                                
-                                # Store initial values for undo functionality
-                                initial_values.update({k: v for k, v in selected_row.items() if k in input_refs})
-                                
-                                # Load permissions for the selected role
-                                role_id = selected_row.get('id')
-                                if role_id:
-                                    load_role_permissions(role_id)
-                                
-                                # Remove dimming when selecting a row
-                                table.classes(remove='dimmed')
-                        except Exception as e:
-                            ui.notify(f'Error selecting row: {str(e)}')
-                    
-                    table.on('cellClicked', on_row_click)
-                    
-                    # Add search functionality for AG Grid
-                    def filter_rows(search_text):
-                        if not search_text:
-                            # Reset to all data
-                            table.options['rowData'] = row_data
-                        else:
-                            # Filter rows based on search text
-                            filtered_rows = [row for row in row_data if any(
-                                search_text.lower() in str(value).lower() for value in row.values()
-                            )]
-                            table.options['rowData'] = filtered_rows
-                        table.update()
-                        
-                        # Select the first row of the filtered results if available
-                        if filtered_rows:
-                            first_row = filtered_rows[0]
-                            for key in input_refs:
-                                if key in first_row:
-                                    input_refs[key].set_value(first_row[key])
-                            # Load permissions for the selected role
-                            role_id = first_row.get('id')
-                            if role_id:
-                                load_role_permissions(role_id)
-                            # Remove dimming when selecting from search results
-                            table.classes(remove='dimmed')
-                    
-                    search_input.on('keydown.enter', lambda e: filter_rows(e.sender.value))
-                
-                # Bottom section - Input fields and permissions
-                with main_splitter.after:
-                    ui.label('Role Details').classes('text-xl font-bold mb-2')
-                    
-                    # Input fields for role data
-                    with ui.row().classes('w-full mb-4'):
-                        input_refs['id'] = ui.input('Role ID').classes('w-1/6 mr-2').props('readonly')
-                        input_refs['name'] = ui.input('Role Name *').classes('w-1/3 mr-2')
-                        input_refs['description'] = ui.input('Description').classes('w-1/2')
-                    
-                    # Permissions section
-                    ui.label('Page Permissions').classes('text-lg font-semibold mb-2')
-                    
-                    # Create a grid for permission checkboxes
-                    with ui.grid(columns=3).classes('w-full gap-2 mb-4'):
-                        for page in available_pages:
-                            display_name = page.replace('_', ' ').title()
-                            checkbox_key = f'permission_{page}'
-                            input_refs[checkbox_key] = ui.checkbox(display_name, value=False).classes('w-full')
-
-    # Footer with system time, company name, and username
-    with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
-        # System time
-        def update_time():
-            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            time_label.set_text(f'System Time: {now}')
-        time_label = ui.label()
-        update_time()
-        ui.timer(1.0, update_time)
-
-        # Company name from database
-        company_info = connection.get_company_info()
-        company_name = company_info.get('company_name') if company_info else 'Company Name'
-        ui.label(f'Company: {company_name}')
-
-        # Username from session
-        from app import session_storage
-        user = session_storage.get('user')
-        username = user.get('username') if user else 'Guest'
-        ui.label(f'User: {username}')
-
-# Register the page route
 @ui.page('/roles')
 def roles_page_route():
-    # Import session functions from app.py
-    from app import check_page_access, require_login
+    with ModernPageLayout("Roles & Permissions"):
+        RolesUI()
 
-    # Check if user is logged in
-    if not require_login():
-        ui.notify('Please login to access this page', color='red')
-        ui.run_javascript('window.location.href = "/"')
-        return
+class RolesUI:
+    def __init__(self):
+        self.input_refs = {}
+        self.initial_values = {}
+        self.row_data = []
+        self.table = None
+        self.available_pages = [
+            'dashboard', 'employees', 'products', 'purchase', 'reports', 'sales-reports', 'stock-reports', 'sales',
+            'suppliers', 'supplierpayment', 'category', 'consignment', 'customers',
+            'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'timespend',
+            'stockoperations', 'cash-drawer', 'currencies', 'services', 'appointments'
+        ]
+        self.create_ui()
 
-    # Check if user has permission to access roles page
-    if not check_page_access('roles'):
-        ui.notify('You do not have permission to access this page', color='red')
-        ui.run_javascript('window.location.href = "/dashboard"')
-        return
+    def clear_input_fields(self):
+        self.input_refs['id'].value = ''
+        self.input_refs['name'].value = ''
+        self.input_refs['description'].value = ''
+        for page in self.available_pages:
+            self.input_refs[f'perm_{page}'].value = False
+        if self.table:
+            self.table.classes('dimmed')
+        ui.notify('Ready for new role', color='info')
 
-    roles_page()
+    def save_role(self):
+        name = self.input_refs['name'].value
+        description = self.input_refs['description'].value
+        id_val = self.input_refs['id'].value
+
+        if not name:
+            ui.notify('Role Name is required', color='warning')
+            return
+
+        try:
+            if id_val:
+                sql = "UPDATE roles SET name=?, description=?, updated_at=GETDATE() WHERE id=?"
+                connection.insertingtodatabase(sql, (name, description, id_val))
+                role_id = id_val
+            else:
+                sql = "INSERT INTO roles (name, description) VALUES (?, ?)"
+                connection.insertingtodatabase(sql, (name, description))
+                role_id = connection.getid("SELECT id FROM roles WHERE name=?", (name,))
+
+            # Save Permissions
+            for page in self.available_pages:
+                can_access = 1 if self.input_refs[f'perm_{page}'].value else 0
+                perm_exists = connection.getrow("SELECT id FROM role_permissions WHERE role_id=? AND page_name=?", (role_id, page))
+                
+                if perm_exists:
+                    connection.insertingtodatabase("UPDATE role_permissions SET can_access=?, updated_at=GETDATE() WHERE role_id=? AND page_name=?", (can_access, role_id, page))
+                else:
+                    connection.insertingtodatabase("INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)", (role_id, page, can_access))
+
+            ui.notify('Role and Permissions saved', color='positive')
+            if self.table:
+                self.table.classes(remove='dimmed')
+            self.refresh_table()
+        except Exception as e:
+            ui.notify(f'Error saving: {str(e)}', color='negative')
+
+    def delete_role(self):
+        id_val = self.input_refs['id'].value
+        if not id_val:
+            ui.notify('Select a role to delete', color='warning')
+            return
+        
+        try:
+            connection.deleterow("DELETE FROM role_permissions WHERE role_id=?", id_val)
+            connection.deleterow("DELETE FROM roles WHERE id=?", id_val)
+            ui.notify('Role deleted', color='positive')
+            self.refresh_table()
+        except Exception as e:
+            ui.notify(f'Error deleting: {str(e)}', color='negative')
+
+    def refresh_table(self):
+        try:
+            data = []
+            connection.contogetrows("SELECT id, name, description FROM roles ORDER BY id DESC", data)
+            rows = []
+            for r in data:
+                rows.append({'id': r[0], 'name': r[1], 'description': r[2]})
+            self.table.options['rowData'] = rows
+            self.table.update()
+            self.clear_input_fields()
+        except Exception as e:
+            ui.notify(f'Error refreshing: {str(e)}', color='negative')
+
+    def load_permissions(self, role_id):
+        try:
+            # Reset
+            for p in self.available_pages:
+                self.input_refs[f'perm_{p}'].value = False
+            
+            perms = []
+            connection.contogetrows(f"SELECT page_name, can_access FROM role_permissions WHERE role_id={role_id}", perms)
+            for p_name, can_acc in perms:
+                if f'perm_{p_name}' in self.input_refs:
+                    self.input_refs[f'perm_{p_name}'].value = bool(can_acc)
+        except Exception as e:
+            print(f"Error loading perms: {e}")
+
+    def create_ui(self):
+        # Action Bar
+        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
+            with ui.row().classes('gap-3'):
+                ModernButton('New Role', icon='add', on_click=self.clear_input_fields, variant='primary')
+                ModernButton('Save Role', icon='save', on_click=self.save_role, variant='success')
+                ModernButton('Delete Role', icon='delete', on_click=self.delete_role, variant='error')
+            
+            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+
+        with ui.column().classes('w-full gap-6'):
+            # Top: List
+            with ModernCard(glass=True).classes('w-full p-6'):
+                self.table = ui.aggrid({
+                    'columnDefs': [
+                        {'headerName': 'ID', 'field': 'id', 'width': 80},
+                        {'headerName': 'Role Name', 'field': 'name', 'width': 200},
+                        {'headerName': 'Description', 'field': 'description', 'width': 300, 'flex': 1}
+                    ],
+                    'rowData': [],
+                    'defaultColDef': MDS.get_ag_grid_default_def(),
+                    'rowSelection': 'single',
+                }).classes('w-full h-64 ag-theme-quartz-dark')
+                
+                async def on_row_click():
+                    selected = await self.table.get_selected_row()
+                    if selected:
+                        self.input_refs['id'].value = str(selected['id'])
+                        self.input_refs['name'].value = selected['name']
+                        self.input_refs['description'].value = selected['description']
+                        self.load_permissions(selected['id'])
+                        if self.table:
+                            self.table.classes(remove='dimmed')
+                self.table.on('cellClicked', on_row_click)
+
+            # Bottom: Details & Permissions
+            with ui.row().classes('w-full gap-6'):
+                with ModernCard(glass=True).classes('flex-1 p-6'):
+                    ui.label('Role Info').classes('text-xl font-black mb-6 text-white')
+                    self.input_refs['name'] = ui.input('Role Name').classes('w-full glass-input mb-4').props('dark rounded outlined')
+                    self.input_refs['description'] = ui.textarea('Description').classes('w-full glass-input h-32').props('dark rounded outlined')
+                    self.input_refs['id'] = ui.input('Internal ID').classes('w-24 glass-input').props('dark rounded outlined readonly')
+
+                with ModernCard(glass=True).classes('w-[500px] p-6'):
+                    ui.label('Permissions').classes('text-xl font-black mb-6 text-white')
+                    with ui.grid(columns=2).classes('w-full gap-x-4 gap-y-2 max-h-[400px] overflow-y-auto pr-2'):
+                        for page in self.available_pages:
+                            display = page.replace('-', ' ').title()
+                            self.input_refs[f'perm_{page}'] = ui.checkbox(display).classes('text-white text-sm')
+
+        ui.timer(0.1, self.refresh_table, once=True)

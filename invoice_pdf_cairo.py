@@ -141,7 +141,7 @@ class CairoInvoiceGenerator:
         ctx.set_source_rgb(0.8, 0.8, 0.8)  # Light gray
         ctx.rectangle(self.margin, y - 15, self.width - 2 * self.margin, 25)
         ctx.fill()
-        
+
         ctx.set_source_rgb(0, 0, 0)
         ctx.set_font_size(10)
         ctx.move_to(self.margin + 5, y)
@@ -154,7 +154,7 @@ class CairoInvoiceGenerator:
         ctx.show_text("Discount")
         ctx.move_to(self.margin + 400, y)
         ctx.show_text("Subtotal")
-        
+
         # Items
         y += 30
         ctx.set_source_rgb(0, 0, 0)
@@ -164,41 +164,46 @@ class CairoInvoiceGenerator:
             ctx.move_to(self.margin + 200, y)
             ctx.show_text(str(item['quantity']))
             ctx.move_to(self.margin + 250, y)
-            ctx.show_text(f"${item['price']:.2f}")
+            # Use currency symbol from item if available, otherwise default to $
+            currency_symbol = item.get('currency_symbol', '$')
+            ctx.show_text(f"{currency_symbol}{item['price']:.2f}")
             ctx.move_to(self.margin + 320, y)
             ctx.show_text(f"{item['discount']}%")
             ctx.move_to(self.margin + 400, y)
-            ctx.show_text(f"${item['subtotal']:.2f}")
+            ctx.show_text(f"{currency_symbol}{item['subtotal']:.2f}")
             y += 25
             
     def draw_totals(self, ctx, invoice_data):
         """Draw totals section"""
         y = 400 + len(invoice_data['items']) * 25
-        
+
         # Line
         ctx.set_source_rgb(0.5, 0.5, 0.5)
         ctx.set_line_width(1)
         ctx.move_to(self.margin, y)
         ctx.line_to(self.width - self.margin, y)
         ctx.stroke()
-        
+
         y += 20
         ctx.set_source_rgb(0, 0, 0)
         ctx.set_font_size(12)
-        
+
+        # Get currency symbol
+        currency_symbol = invoice_data.get('currency_symbol', '$')
+
         # Subtotal
         ctx.move_to(self.width - 200, y)
         ctx.show_text("Subtotal:")
         ctx.move_to(self.width - 100, y)
-        ctx.show_text(f"${invoice_data['subtotal']:.2f}")
-        
+        ctx.show_text(f"{currency_symbol}{invoice_data['subtotal']:.2f}")
+
         # Total
         y += 25
         ctx.set_font_size(14)
         ctx.move_to(self.width - 200, y)
         ctx.show_text("Total:")
         ctx.move_to(self.width - 100, y)
-        ctx.show_text(f"${invoice_data['total_amount']:.2f}")
+        ctx.show_text(f"{currency_symbol}{invoice_data['total_amount']:.2f}")
         
     def draw_footer(self, ctx):
         """Draw footer"""
@@ -231,7 +236,7 @@ def generate_sales_invoice_pdf(rows, customer_name, invoice_number, total_amount
     return pdf_buffer
 
 # Integration function for purchaseui.py
-def generate_purchase_invoice_pdf(rows, supplier_name, invoice_number, total_amount, subtotal, supplier_phone='', purchase_date=None):
+def generate_purchase_invoice_pdf(rows, supplier_name, invoice_number, total_amount, subtotal, supplier_phone='', purchase_date=None, currency_symbol='$'):
     """Generate PDF from purchase data"""
     if purchase_date is None:
         purchase_date = datetime.now().strftime('%Y-%m-%d')
@@ -244,7 +249,8 @@ def generate_purchase_invoice_pdf(rows, supplier_name, invoice_number, total_amo
         'total_amount': total_amount,
         'subtotal': subtotal,
         'items': rows,
-        'is_purchase': True
+        'is_purchase': True,
+        'currency_symbol': currency_symbol
     }
 
     generator = CairoInvoiceGenerator()

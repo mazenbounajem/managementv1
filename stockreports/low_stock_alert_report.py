@@ -38,21 +38,23 @@ class LowStockAlertReport:
             query = """
             SELECT
                 p.product_name,
-                p.category,
-                COALESCE(SUM(s.quantity), 0) as current_stock,
+                c.category_name as category,
+                COALESCE(SUM(st.quantity), 0) as current_stock,
                 p.min_stock_level,
                 p.max_stock_level,
                 p.unit_price,
-                p.supplier_name,
+                sup.name as supplier_name,
                 CASE
-                    WHEN COALESCE(SUM(s.quantity), 0) = 0 THEN 'Out of Stock'
-                    WHEN COALESCE(SUM(s.quantity), 0) <= p.min_stock_level THEN 'Low Stock'
-                    WHEN COALESCE(SUM(s.quantity), 0) <= p.min_stock_level * 1.5 THEN 'Warning'
+                    WHEN COALESCE(SUM(st.quantity), 0) = 0 THEN 'Out of Stock'
+                    WHEN COALESCE(SUM(st.quantity), 0) <= p.min_stock_level THEN 'Low Stock'
+                    WHEN COALESCE(SUM(st.quantity), 0) <= p.min_stock_level * 1.5 THEN 'Warning'
                     ELSE 'Normal'
                 END as stock_status
             FROM products p
-            LEFT JOIN stock s ON p.id = s.product_id
-            GROUP BY p.id, p.product_name, p.category, p.min_stock_level, p.max_stock_level, p.unit_price, p.supplier_name
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN suppliers sup ON p.supplier_id = sup.id
+            LEFT JOIN stock st ON p.id = st.product_id
+            GROUP BY p.id, p.product_name, c.category_name, p.min_stock_level, p.max_stock_level, p.unit_price, sup.name
             HAVING (COALESCE(SUM(s.quantity), 0) <= p.min_stock_level AND p.min_stock_level > 0)
                 OR COALESCE(SUM(s.quantity), 0) = 0
             ORDER BY

@@ -16,7 +16,7 @@ class PurchaseService:
         if not purchase_header:
             raise ValueError(f'Purchase with ID {purchase_id} not found.')
 
-        supplier_name, phone, payment_status, invoice_number, purchase_date = purchase_header[0]
+        supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id = purchase_header[0]
         purchase_items = self.repository.get_purchase_items(purchase_id)
 
         rows = []
@@ -41,6 +41,7 @@ class PurchaseService:
             'payment_status': payment_status,
             'invoice_number': invoice_number,
             'purchase_date': purchase_date,
+            'currency_id': currency_id,
             'rows': rows
         }
 
@@ -57,6 +58,7 @@ class PurchaseService:
                 'payment_status': str(row[5]),
                 'account_code': str(row[6]) if row[6] else '',
                 'auxiliary_number': str(row[7]) if row[7] else '',
+                'currency_name': str(row[8]) if row[8] else '',
                 'highlighted': False
             })
         return purchases_data
@@ -84,21 +86,37 @@ class PurchaseService:
             rows.append(row_dict)
         return headers, rows
 
-    def delete_purchase(self, purchase_id):
+    def delete_purchase(self, purchase_id, user_id):
         purchase_data = self.repository.get_purchase_details_for_deletion(purchase_id)
         if not purchase_data:
             return f'Purchase {purchase_id} not found'
 
         purchase_total, payment_status, supplier_id = purchase_data[0]
 
+        # Revert stock quantities
+        self._revert_previous_stock(purchase_id)
+
+        # Handle financial reversals
+        if payment_status == 'completed':
+            # Reverse cash drawer operation: add money back
+            notes = f"Reversal for purchase deletion {purchase_id}"
+            if not self.repository.add_cash_drawer_operation(purchase_total, 'In', user_id, notes):
+                raise Exception('Failed to reverse cash drawer operation')
+        elif payment_status == 'pending' and supplier_id:
+            # Deduct from supplier balance (reverse the on-account addition)
+            self.repository.update_supplier_balance(purchase_total, supplier_id)
+
+        # Delete related payment records
+        self.repository.delete_purchase_payment_records(purchase_id)
+        invoice_number = self.repository.get_invoice_number(purchase_id)
+        if invoice_number:
+            self.repository.delete_supplier_payment_by_invoice(invoice_number)
+
+        # Delete purchase items and purchase header
         self.repository.delete_purchase_items(purchase_id)
         self.repository.delete_purchase(purchase_id)
 
-        if payment_status == 'pending' and supplier_id:
-            self.repository.update_supplier_balance(purchase_total, supplier_id)
-            return f'Purchase {purchase_id} deleted successfully. Supplier balance deducted by ${purchase_total:.2f}'
-        else:
-            return f'Purchase {purchase_id} deleted successfully'
+        return f'Purchase {purchase_id} deleted successfully'
 
     def generate_invoice_number(self):
         try:
@@ -135,7 +153,7 @@ class PurchaseService:
 
         last_purchase_id = self.repository.create_purchase(
             data['purchase_date'], data['supplier_id'], data['subtotal'], data['discount_amount'],
-            data['final_total'], invoice_number, data['created_at'], data['payment_status']
+            data['final_total'], invoice_number, data['created_at'], data['payment_status'], data.get('currency_id', 1)
         )
 
         # Get ledger id for purchases (6011)
@@ -157,7 +175,7 @@ class PurchaseService:
             # Update purchase with auxiliary_number
             self.repository.update_purchase_auxiliary_number(last_purchase_id, f"{next_sub:05d}")
 
-        self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows)
+        self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows, data.get('currency_id', 1))
 
         self._handle_payment_logic(
             purchase_id=last_purchase_id,
@@ -177,7 +195,7 @@ class PurchaseService:
         
         self.repository.delete_purchase_items(purchase_id)
         
-        self._process_purchase_items(purchase_id, data['created_at'], data['user'], data['session_id'], rows)
+        self._process_purchase_items(purchase_id, data['created_at'], data['user'], data['session_id'], rows, data.get('currency_id', 1))
         
         invoice_number = self.repository.get_invoice_number(purchase_id)
         self._handle_payment_logic(
@@ -187,7 +205,7 @@ class PurchaseService:
             **data
         )
 
-    def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows):
+    def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows, purchase_currency_id=None):
         for row in rows:
             product_id = self.repository.get_product_id_by_name(row['product'])
             barcode = row['barcode']
@@ -204,14 +222,29 @@ class PurchaseService:
             new_price = float(row['price'])
             new_cost_price = float(row['cost'])
             changed_by = f"{session_id} - {user.get('username') if user else 'System'}"
-            
+
+            # Convert prices back to product's currency if purchase currency differs
+            product_currency_id = self.repository.get_product_currency(final_product_id)
+            if purchase_currency_id and product_currency_id and purchase_currency_id != product_currency_id:
+                # Get exchange rates
+                purchase_rate = self.repository.get_exchange_rate(purchase_currency_id)
+                product_rate = self.repository.get_exchange_rate(product_currency_id)
+
+                if purchase_rate and product_rate and purchase_rate > 0 and product_rate > 0:
+                    # Convert from purchase currency to product currency
+                    # If purchase_rate is 1 USD = X L.L., and product_rate is 1 USD = Y L.L.
+                    # Then to convert from L.L. to USD: divide by purchase_rate
+                    conversion_factor = purchase_rate / product_rate
+                    new_price = new_price / conversion_factor
+                    new_cost_price = new_cost_price / conversion_factor
+
             if old_price != new_price or old_cost_price != new_cost_price:
                 self.repository.insert_price_cost_history(
                     final_product_id, old_price, new_price, old_cost_price, new_cost_price, created_at, changed_by
                 )
 
             self.repository.update_product_stock_and_price(
-                row['cost'], row['price'], row['quantity'], created_at, final_product_id
+                new_cost_price, new_price, row['quantity'], created_at, final_product_id
             )
 
     def _revert_previous_stock(self, purchase_id):
@@ -252,7 +285,7 @@ class PurchaseService:
         created_at = data['created_at']
 
         if supplier_id and payment_status == 'pending':
-            self.repository.update_supplier_balance_on_account(final_total, supplier_id)
+            self.repository.update_supplier_balance_on_account(final_total, supplier_id, data.get('currency_id', 1))
             self.repository.insert_purchase_payment_on_account(
                 purchase_id, invoice_number, final_total, purchase_date, created_at, supplier_id, 'Payment pending - On Account'
             )
@@ -275,12 +308,29 @@ class PurchaseService:
     def get_supplier_id(self, supplier_name):
         return self.repository.get_supplier_id(supplier_name)
 
+    def get_all_currencies(self):
+        headers, data = self.repository.get_all_currencies()
+        rows = []
+        for row in data:
+            row_dict = {}
+            for i, header in enumerate(headers):
+                row_dict[header] = row[i]
+            rows.append(row_dict)
+        return headers, rows
+
     def get_invoice_data(self, purchase_id):
         purchase_data = self.repository.get_purchase_data_for_invoice(purchase_id)
         if not purchase_data:
             raise ValueError('Purchase data not found')
 
-        invoice_number, purchase_date, supplier_name, supplier_phone, total_amount, subtotal = purchase_data[0]
+        invoice_number, purchase_date, supplier_name, supplier_phone, total_amount, subtotal, currency_id = purchase_data[0]
+
+        # Get currency symbol
+        currency_symbol = '$'
+        if currency_id:
+            currency_data = self.repository.get_currency_symbol(currency_id)
+            if currency_data:
+                currency_symbol = currency_data[0][0]
 
         purchase_items_data = self.repository.get_purchase_items_for_invoice(purchase_id)
         if not purchase_items_data:
@@ -295,7 +345,8 @@ class PurchaseService:
                 'quantity': quantity,
                 'price': unit_cost,
                 'discount': discount_percent,
-                'subtotal': total_cost
+                'subtotal': total_cost,
+                'currency_symbol': currency_symbol
             })
 
         return {
@@ -305,5 +356,6 @@ class PurchaseService:
             'total_amount': total_amount,
             'subtotal': subtotal,
             'supplier_phone': supplier_phone,
-            'purchase_date': purchase_date
+            'purchase_date': purchase_date,
+            'currency_symbol': currency_symbol
         }

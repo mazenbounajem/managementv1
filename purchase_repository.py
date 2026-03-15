@@ -16,7 +16,7 @@ class PurchaseRepository:
     def get_purchase_header_data(self, purchase_id):
         purchase_header_data = []
         connection.contogetrows(
-            "SELECT s.name, s.phone, p.payment_status, p.invoice_number, p.purchase_date FROM purchases p "
+            "SELECT s.name, s.phone, p.payment_status, p.invoice_number, p.purchase_date, p.currency_id FROM purchases p "
             "INNER JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?",
             purchase_header_data, params=[purchase_id]
         )
@@ -35,7 +35,7 @@ class PurchaseRepository:
     def get_all_purchases(self):
         raw_purchases_data = []
         connection.contogetrows(
-            "SELECT p.id, p.purchase_date, s.name, p.total_amount, p.invoice_number, p.payment_status, p.account_code, p.auxiliary_number FROM purchases p INNER JOIN suppliers s ON s.id = p.supplier_id ORDER BY p.id DESC",
+            "SELECT p.id, p.purchase_date, s.name, p.total_amount, p.invoice_number, p.payment_status, p.account_code, p.auxiliary_number, c.currency_name FROM purchases p INNER JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN currencies c ON c.id = p.currency_id ORDER BY p.id DESC",
             raw_purchases_data
         )
         return raw_purchases_data
@@ -43,7 +43,7 @@ class PurchaseRepository:
     def get_product_by_barcode(self, barcode):
         product_data = []
         connection.contogetrows(
-            "SELECT barcode, product_name, cost_price, price FROM products WHERE barcode = ?",
+            "SELECT barcode, product_name, cost_price, price, currency_id, local_price FROM products WHERE barcode = ?",
             product_data,
             params=[barcode]
         )
@@ -78,6 +78,7 @@ class PurchaseRepository:
         connection.deleterow("DELETE FROM purchases WHERE id = ?", [purchase_id])
 
     def update_supplier_balance(self, amount, supplier_id):
+        
         connection.update_supplierbalance("UPDATE suppliers SET balance = balance - ? WHERE id = ?", (amount, supplier_id))
 
     def insert_price_cost_history(self, product_id, old_price, new_price, old_cost, new_cost, change_date, changed_by):
@@ -147,8 +148,12 @@ class PurchaseRepository:
     def delete_supplier_payment_by_invoice(self, invoice_number):
         connection.deleterow("DELETE FROM supplier_payment WHERE manual_reference = ?", [invoice_number])
 
-    def update_supplier_balance_on_account(self, amount, supplier_id):
-        connection.update_supplierbalance("UPDATE suppliers SET balance = balance + ? WHERE id = ?", (amount, supplier_id))
+    def update_supplier_balance_on_account(self, amount, supplier_id, currency_id):
+        symbol = self.get_currency_symbol_by_id(currency_id)
+        if symbol == '$':  # USD
+            connection.update_supplierbalance("UPDATE suppliers SET balance_usd = balance_usd + ? WHERE id = ?", (amount, supplier_id))
+        else:  # LL or other
+            connection.update_supplierbalance("UPDATE suppliers SET balance = balance + ? WHERE id = ?", (amount, supplier_id))
 
     def insert_purchase_payment_on_account(self, purchase_id, invoice_number, total_amount, purchase_date, created_date, supplier_id, notes):
         purchase_payment_sql = """
@@ -174,28 +179,28 @@ class PurchaseRepository:
         purchase_payment_values = (purchase_id, invoice_number, total_amount, purchase_date, created_date, supplier_id, total_amount, 'Cash', total_amount, total_amount, notes)
         connection.insertingtodatabase(purchase_payment_sql, purchase_payment_values)
 
-    def create_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, invoice_number, created_at, payment_status):
+    def create_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, invoice_number, created_at, payment_status, currency_id=1):
         purchase_sql = """
-            INSERT INTO purchases (purchase_date, supplier_id, subtotal, discount_amount, total_amount, invoice_number, created_at, payment_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO purchases (purchase_date, supplier_id, subtotal, discount_amount, total_amount, invoice_number, created_at, payment_status, currency_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         purchase_values = (
             purchase_date, supplier_id, subtotal, discount_amount,
-            final_total, invoice_number, created_at, payment_status
+            final_total, invoice_number, created_at, payment_status, currency_id
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
         return connection.getid("SELECT MAX(id) FROM purchases", [])
 
-    def update_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, created_at, payment_status, purchase_id):
+    def update_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, created_at, payment_status, purchase_id, currency_id=1):
         purchase_sql = """
-            UPDATE purchases 
-            SET purchase_date = ?, supplier_id = ?, subtotal = ?, discount_amount = ?, 
-                total_amount = ?, created_at = ?, payment_status = ?
+            UPDATE purchases
+            SET purchase_date = ?, supplier_id = ?, subtotal = ?, discount_amount = ?,
+                total_amount = ?, created_at = ?, payment_status = ?, currency_id = ?
             WHERE id = ?
         """
         purchase_values = (
             purchase_date, supplier_id, subtotal, discount_amount,
-            final_total, created_at, payment_status, purchase_id
+            final_total, created_at, payment_status, currency_id, purchase_id
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
 
@@ -211,7 +216,7 @@ class PurchaseRepository:
     def get_purchase_data_for_invoice(self, purchase_id):
         purchase_data = []
         connection.contogetrows(
-            "SELECT p.invoice_number, p.purchase_date, s.name, s.phone, p.total_amount, p.subtotal FROM purchases p INNER JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?",
+            "SELECT p.invoice_number, p.purchase_date, s.name, s.phone, p.total_amount, p.subtotal, p.currency_id FROM purchases p INNER JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?",
             purchase_data, params=[purchase_id]
         )
         return purchase_data
@@ -248,3 +253,30 @@ class PurchaseRepository:
 
     def update_purchase_auxiliary_number(self, purchase_id, auxiliary_number):
         connection.insertingtodatabase("UPDATE purchases SET auxiliary_number = ? WHERE id = ?", (auxiliary_number, purchase_id))
+
+    def get_all_currencies(self):
+        headers = []
+        connection.contogetheaders("SELECT id, currency_code, currency_name, symbol, exchange_rate FROM currencies WHERE is_active = 1", headers)
+        data = []
+        connection.contogetrows("SELECT id, currency_code, currency_name, symbol, exchange_rate FROM currencies WHERE is_active = 1", data)
+        return headers, data
+
+    def get_currency_symbol(self, currency_id):
+        currency_data = []
+        connection.contogetrows("SELECT symbol FROM currencies WHERE id = ?", currency_data, params=[currency_id])
+        return currency_data
+
+    def get_currency_symbol_by_id(self, currency_id):
+        currency_data = []
+        connection.contogetrows("SELECT symbol FROM currencies WHERE id = ?", currency_data, params=[currency_id])
+        return currency_data[0][0] if currency_data else '$'
+
+    def get_product_currency(self, product_id):
+        currency_data = []
+        connection.contogetrows("SELECT currency_id FROM products WHERE id = ?", currency_data, params=[product_id])
+        return currency_data[0][0] if currency_data and currency_data[0][0] else None
+
+    def get_exchange_rate(self, currency_id):
+        rate_data = []
+        connection.contogetrows("SELECT exchange_rate FROM currencies WHERE id = ?", rate_data, params=[currency_id])
+        return float(rate_data[0][0]) if rate_data and rate_data[0][0] else None

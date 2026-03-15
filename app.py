@@ -47,6 +47,14 @@ from services_ui import services_page_route
 # Import ledger UI route
 from ledgerui import ledger_page_route
 
+# Import auxiliary, journal, and voucher routes
+from auxiliaryui import auxiliary_page_route
+from journal_voucher_ui import journal_voucher_page_route
+from voucher_subtype_ui import voucher_subtype_page_route
+
+# Import modern design system pages
+from modern_sales_ui import modern_sales_page
+
 # Stock Reports page
 @ui.page('/stock-reports')
 def stock_reports_page():
@@ -521,47 +529,22 @@ def home_page():
     ui.run_javascript('window.location.href = "/login";')
 
 @ui.page('/login')
-def login_page():
-    """Dedicated login page"""
+def login_page_route():
+    """Dedicated login page using modern split-screen layout"""
     # Check if user is already logged in
+    from session_storage import session_storage
     if session_storage.get('user'):
         ui.run_javascript('window.location.href = "/dashboard";')
         return
 
-    with ui.card().classes('w-96 mx-auto my-16 p-8 shadow-lg rounded-lg'):
-        ui.label('Login').classes('text-3xl font-bold text-center mb-6')
-
-        with ui.column().classes('w-full items-center'):
-            username_input = ui.input('Username').classes('w-full mb-4')
-            password_input = ui.input('Password', password=True).classes('w-full mb-6')
-
-            ui.button('Login', on_click=lambda: handle_login(
-                username_input.value,
-                password_input.value
-            )).classes('w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded')
-
-            ui.link('Sign Up', '/signup').classes('text-sm text-blue-500 cursor-pointer mt-2')
+    from login_page import login_page as modern_login_page
+    modern_login_page()
 
 @ui.page('/signup')
-def signup_page():
-    """Dedicated signup page"""
-    with ui.card().classes('w-96 mx-auto my-16 p-8 shadow-lg rounded-lg'):
-        ui.label('Sign Up').classes('text-3xl font-bold text-center mb-6')
-
-        with ui.column().classes('w-full items-center'):
-            username_input = ui.input('Username').classes('w-full mb-4')
-            email_input = ui.input('Email').classes('w-full mb-4')
-            password_input = ui.input('Password', password=True).classes('w-full mb-4')
-            confirm_password_input = ui.input('Confirm Password', password=True).classes('w-full mb-6')
-
-            ui.button('Sign Up', on_click=lambda: handle_signup(
-                username_input.value,
-                email_input.value,
-                password_input.value,
-                confirm_password_input.value
-            )).classes('w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded')
-
-            ui.link('Already have an account? Login', '/login').classes('text-sm text-blue-500 cursor-pointer mt-2')
+def signup_page_route():
+    """Dedicated signup page with premium design"""
+    from signup_page import signup_page as modern_signup_page
+    modern_signup_page()
 
 @ui.page('/logout')
 def logout_page():
@@ -618,8 +601,8 @@ def handle_login(username, password):
                 session_storage['session_id'] = session_id
 
             ui.notify(f'Login successful. Welcome {username}!', color='green')
-            # Redirect to the main application
-            ui.run_javascript('window.location.href = "/dashboard";')
+            # Redirect to the modern sales page as landing page
+            ui.run_javascript('window.location.href = "/modern-sales";')
         else:
             ui.notify('Invalid username or password, or user not approved', color='red')
 
@@ -657,11 +640,16 @@ def handle_signup(username, email, password, confirm_password):
 
 @ui.page('/dashboard')
 def dashboard_page():
+    """Dashboard now redirects to modern-sales as the main landing page"""
     user = session_storage.get('user')
     if not user:
-        ui.notify('Please login to access the dashboard', color='red')
+        ui.notify('Please login to access this page', color='red')
         ui.run_javascript('window.location.href = "/login"')
         return
+    
+    # Redirect to modern-sales as the new landing page
+    ui.run_javascript('window.location.href = "/modern-sales";')
+    return
 
     # Get user permissions
     permissions = connection.get_user_permissions(user['role_id'])
@@ -803,29 +791,29 @@ if __name__ in {"__main__", "__mp_main__"}:
     # Create default admin user
     connection.create_default_admin_user()
     # Create user_sessions table (only if it doesn't exist)
-    try:
-        from create_user_sessions_table_fixed import create_user_sessions_table
-        create_user_sessions_table()
-    except Exception as e:
-        if "already an object named 'user_sessions'" in str(e):
-            # Table already exists, skip creation
-            pass
-        else:
-            print(f"Error creating user_sessions table: {str(e)}")
+    # try:
+    #     from create_user_sessions_table_fixed import create_user_sessions_table
+    #     create_user_sessions_table()
+    # except Exception as e:
+    #     if "already an object named 'user_sessions'" in str(e):
+    #         # Table already exists, skip creation
+    #         pass
+    #     else:
+    #         print(f"Error creating user_sessions table: {str(e)}")
 
     # Create cash drawer tables (only if they don't exist)
-    try:
-        from create_cash_drawer_tables_sqlserver import create_cash_drawer_tables_sqlserver
-        create_cash_drawer_tables_sqlserver()
-    except Exception as e:
-        print(f"Error creating cash drawer tables: {str(e)}")
+    # try:
+    #     from create_cash_drawer_tables_sqlserver import create_cash_drawer_tables_sqlserver
+    #     create_cash_drawer_tables_sqlserver()
+    # except Exception as e:
+    #     print(f"Error creating cash drawer tables: {str(e)}")
 
     # Create currencies table (only if it doesn't exist)
-    try:
-        from create_currencies_table import create_currencies_table
-        create_currencies_table()
-    except Exception as e:
-        print(f"Error creating currencies table: {str(e)}")
+    # try:
+    #     from create_currencies_table import create_currencies_table
+    #     create_currencies_table()
+    # except Exception as e:
+    #     print(f"Error creating currencies table: {str(e)}")
 
   
    
@@ -843,17 +831,9 @@ if __name__ in {"__main__", "__mp_main__"}:
     except Exception as e:
         print(f"Error ensuring ledger permission or auxiliary permission: {str(e)}")
 
+    # The following page routes are already registered via @ui.page decorators
+    # and do not need to be called manually.
+    
     # You can add authentication logic here before opening the dashboard
     # For now, we'll just run the app
-    company_page_route()  # Register company UI route
-    timespend_page_route()  # Register timespend UI route
-    currencies_page_route()  # Register currencies UI route
-    cash_drawer_page()  # Register cash drawer UI route
-    appointments_page_route()  # Register appointments UI route
-    services_page_route()  # Register services UI route
-    ledger_page_route()  # Register ledger UI route
     ui.run()
-
-    # Import auxiliary UI route
-    from auxiliaryui import auxiliary_page_route
-    auxiliary_page_route()  # Register auxiliary UI route

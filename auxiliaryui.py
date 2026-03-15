@@ -3,304 +3,198 @@ from connection import connection
 from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput
+from modern_design_system import ModernDesignSystem as MDS
 
-def auxiliary_page():
-    uiAggridTheme.addingtheme()
+@ui.page('/auxiliary')
+def auxiliary_page_route():
+    with ModernPageLayout("Auxiliary Management"):
+        AuxiliaryUI()
 
-    # Check if user is logged in
-    user = session_storage.get('user')
-    if not user:
-        ui.notify('Please login to access this page', color='red')
-        # Use a timer to delay the redirect to avoid startup issues
-        ui.timer(0.1, lambda: ui.run_javascript('window.location.href = "/login"'), once=True)
-        return
+class AuxiliaryUI:
+    def __init__(self):
+        self.input_refs = {}
+        self.initial_values = {}
+        self.row_data = []
+        self.table = None
+        self.create_ui()
 
-    # Get user permissions
-    permissions = connection.get_user_permissions(user['role_id'])
-    allowed_pages = {page for page, can_access in permissions.items() if can_access}
+    def clear_input_fields(self):
+        self.input_refs['aux_code'].value = None
+        self.input_refs['account_name'].value = ''
+        self.input_refs['number'].value = ''
+        self.input_refs['status'].value = 1
+        self.input_refs['id'].value = ''
+        if self.table:
+            self.table.classes('dimmed')
+        ui.notify('Ready for new entry', color='info')
 
-    # Create enhanced navigation instance
-    navigation = EnhancedNavigation(permissions, user)
-    navigation.create_navigation_drawer()  # Create drawer first
-    navigation.create_navigation_header()  # Then create header with toggle button
+    def save_auxiliary(self):
+        aux_code = self.input_refs['aux_code'].value
+        account_name = self.input_refs['account_name'].value
+        number = self.input_refs['number'].value
+        status = self.input_refs['status'].value
+        id_value = self.input_refs['id'].value
 
-    # Store references to input fields
-    input_refs = {}
-
-    # Store the initial values for undo functionality
-    initial_values = {'Auxiliary': None, 'name': '', 'account_number': '', 'status': 1, 'auxiliary_id': ''}
-
-    # Flag to prevent recursive triggering
-    is_updating_from_grid = False
-
-    # Function to clear all input fields
-    def clear_input_fields():
-        input_refs['Auxiliary'].set_value(None)
-        input_refs['name'].set_value('')
-        input_refs['account_number'].set_value('')
-        input_refs['status'].set_value(1)
-        input_refs['update_date'].set_value('')
-        input_refs['auxiliary_id'].set_value('')
-
-    # Function to save auxiliary data
-    def save_auxiliary():
-        # Get values from input fields
-        aux_id = input_refs['Auxiliary'].value
-        name = input_refs['name'].value
-        account_number = input_refs['account_number'].value
-        status = input_refs['status'].value
-        auxiliary_id = input_refs['auxiliary_id'].value
-
-        # Check if all required data is entered
-        if not aux_id or not name or not account_number:
-            ui.notify('Please enter Ledger ID, Name and Account Number', color='red')
+        if not aux_code or not account_name or not number:
+            ui.notify('Code, Name and Number are required', color='warning')
             return
 
-        # Insert or update data in database using connection
         try:
-            if auxiliary_id:  # Update existing record
+            if id_value:
                 sql = "UPDATE auxiliary SET auxiliary_id=?, account_name=?, number=?, update_date=GETDATE(), status=? WHERE id=?"
-                values = (aux_id, name, account_number, status, auxiliary_id)
-            else:  # Insert new record
+                values = (aux_code, account_name, number, status, id_value)
+            else:
                 sql = "INSERT INTO auxiliary (auxiliary_id, account_name, number, update_date, status) VALUES (?, ?, ?, GETDATE(), ?)"
-                values = (aux_id, name, account_number, status)
+                values = (aux_code, account_name, number, status)
 
             connection.insertingtodatabase(sql, values)
-            ui.notify('Auxiliary saved successfully', color='green')
-            # Refresh the table to show the new auxiliary
-            refresh_table()
-            # Update initial values
-            initial_values.update({
-                'Auxiliary': aux_id,
-                'name': name,
-                'account_number': account_number,
-                'status': status,
-                'auxiliary_id': auxiliary_id
-            })
+            ui.notify('Saved successfully', color='positive')
+            if self.table:
+                self.table.classes(remove='dimmed')
+            self.refresh_table()
         except Exception as e:
-            ui.notify(f'Error saving auxiliary: {str(e)}', color='red')
+            ui.notify(f'Error saving: {str(e)}', color='negative')
 
-    # Function to undo changes
-    def undo_changes():
-        if 'Auxiliary' in input_refs and 'Auxiliary' in initial_values:
-            input_refs['Auxiliary'].set_value(initial_values['Auxiliary'])
-        if 'name' in input_refs and 'name' in initial_values:
-            input_refs['name'].set_value(initial_values['name'])
-        if 'account_number' in input_refs and 'account_number' in initial_values:
-            input_refs['account_number'].set_value(initial_values['account_number'])
-        if 'status' in input_refs and 'status' in initial_values:
-            input_refs['status'].set_value(initial_values['status'])
-        if 'auxiliary_id' in input_refs and 'auxiliary_id' in initial_values:
-            input_refs['auxiliary_id'].set_value(initial_values['auxiliary_id'])
-        ui.notify('Changes undone', color='blue')
+    def undo_changes(self):
+        fields = ['aux_code', 'account_name', 'number', 'status', 'id']
+        for field in fields:
+            if field in self.initial_values:
+                self.input_refs[field].value = self.initial_values[field]
+        if self.table:
+            self.table.classes(remove='dimmed')
+        ui.notify('Changes reverted', color='info')
 
-    # Function to delete auxiliary
-    def delete_auxiliary():
-        auxiliary_id = input_refs['auxiliary_id'].value
-        if not auxiliary_id:
-            ui.notify('Please select an auxiliary to delete', color='red')
+    def delete_auxiliary(self):
+        id_value = self.input_refs['id'].value
+        if not id_value:
+            ui.notify('Select a record to delete', color='warning')
             return
 
         try:
             sql = "DELETE FROM auxiliary WHERE id=?"
-            connection.deleterow(sql, auxiliary_id)
-            ui.notify('Auxiliary deleted successfully', color='green')
-            # Clear input fields
-            clear_input_fields()
-            # Refresh the table
-            refresh_table()
+            connection.deleterow(sql, id_value)
+            ui.notify('Deleted successfully', color='positive')
+            if self.table:
+                self.table.classes(remove='dimmed')
+            self.clear_input_fields()
+            self.refresh_table()
         except Exception as e:
-            ui.notify(f'Error deleting auxiliary: {str(e)}', color='red')
+            ui.notify(f'Error deleting: {str(e)}', color='negative')
 
-    # Function to refresh the table
-    def refresh_table():
-        # Re-fetch data from database
-        headers = []
-        connection.contogetheaders("SELECT * FROM auxiliary WHERE auxiliary_id LIKE '62%'", headers)
+    def refresh_table(self):
+        try:
+            data = []
+            connection.contogetrows("SELECT id, auxiliary_id, account_name, number, update_date, status FROM auxiliary WHERE auxiliary_id LIKE '62%' ORDER BY id DESC", data)
 
-        # Convert to AG Grid column format
-        column_defs = [
-            {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 120 if header != 'id' else 80}
-            for header in headers
-        ]
-        # Hide the id column
-        for col in column_defs:
-            if col['field'] == 'id':
-                col['hide'] = True
+            new_row_data = []
+            for row in data:
+                new_row_data.append({
+                    'id': row[0],
+                    'auxiliary_id': row[1],
+                    'account_name': row[2],
+                    'number': row[3],
+                    'update_date': str(row[4]),
+                    'status': row[5]
+                })
 
-        # Fetch data from database
-        data = []
-        connection.contogetrows("SELECT * FROM auxiliary WHERE auxiliary_id LIKE '62%'", data)
+            if self.table:
+                self.table.options['rowData'] = new_row_data
+                self.table.update()
+                self.table.classes(remove='dimmed')
 
-        # Convert data to list of dictionaries for AG Grid
-        new_row_data = []
-        for row in data:
-            row_dict = {}
-            for i, header in enumerate(headers):
-                row_dict[header] = row[i]
-            new_row_data.append(row_dict)
+            self.row_data = new_row_data
+            self.clear_input_fields()
+            self.update_code_options()
+        except Exception as e:
+            ui.notify(f'Error refreshing: {str(e)}', color='negative')
 
-        # Update AG Grid with new data
-        table.options['columnDefs'] = column_defs
-        table.options['rowData'] = new_row_data
-        table.update()
+    def update_code_options(self):
+        try:
+            # Re-fetch unique codes for the dropdown if needed
+            codes = sorted(list(set(row['auxiliary_id'] for row in self.row_data if row['auxiliary_id'])))
+            self.input_refs['aux_code'].options = [None] + codes
+            self.input_refs['aux_code'].update()
+        except Exception as e:
+            print(f"Error updating codes: {e}")
 
-        # Update global row_data for search functionality
-        nonlocal row_data
-        row_data = new_row_data
-
-        # Update auxiliary options
-
-        # Update Auxiliary options
-        aux_options = [row['auxiliary_id'] for row in new_row_data]
-        aux_options.insert(0, None)
-        input_refs['Auxiliary'].options = aux_options
-        input_refs['Auxiliary'].update()
-
-        # Clear input fields
-        clear_input_fields()
-
-    # Main content area with splitter layout
-    with ui.element('div').classes('flex w-full h-screen'):
-        # Left drawer for action buttons
-        with ui.column().classes('w-20 p-4 bg-gray-100 flex-shrink-0'):
+    def create_ui(self):
+        # Action Bar
+        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
+            with ui.row().classes('gap-3'):
+                ModernButton('New Entry', icon='add', on_click=self.clear_input_fields, variant='primary')
+                ModernButton('Save', icon='save', on_click=self.save_auxiliary, variant='success')
+                ModernButton('Undo', icon='undo', on_click=self.undo_changes, variant='secondary')
+                ModernButton('Delete', icon='delete', on_click=self.delete_auxiliary, variant='error')
             
-            ui.button('', icon='add', on_click=clear_input_fields).classes('w-6 h-6 mb-2').tooltip('New')
-            ui.button('', icon='save', on_click=save_auxiliary).classes('w-6 h-6 mb-2').tooltip('Save')
-            ui.button('', icon='undo', on_click=undo_changes).classes('w-6 h-6 mb-2').tooltip('Undo')
-            ui.button('', icon='delete', on_click=delete_auxiliary).classes('w-6 h-6 mb-2').tooltip('Delete')
-            ui.button('', icon='refresh', on_click=refresh_table).classes('w-6 h-6 mb-2').tooltip('Refresh')
+            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
 
-        # Main content area with splitter
-        with ui.column().classes('flex-1 p-4 overflow-y-auto'):
-            # Splitter for grid and form sections
-            with ui.splitter(horizontal=True, value=40).classes('w-full h-full') as main_splitter:
-                with main_splitter.separator:
-                    ui.icon('drag_handle').classes('text-gray-400 text-sm')
+        with ui.column().classes('w-full gap-6'):
+            # Top: List
+            with ModernCard(glass=True).classes('w-full p-6'):
+                with ui.row().classes('w-full justify-between items-center mb-4'):
+                    ui.label('Auxiliary List').classes('text-xl font-black text-white')
+                    self.search_input = ui.input(placeholder='Search...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
+                    self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
-                # Top section - Auxiliary List Grid
-                with main_splitter.before:
-                    ui.label('Auxiliary List').classes('text-xl font-bold mb-2')
+                column_defs = [
+                    {'headerName': 'Aux Code', 'field': 'auxiliary_id', 'width': 120},
+                    {'headerName': 'Name', 'field': 'account_name', 'width': 220},
+                    {'headerName': 'Number', 'field': 'number', 'width': 120},
+                    {'headerName': 'Status', 'field': 'status', 'width': 100, 'cellRenderer': 'params => params.value == 1 ? "Active" : "Inactive"'},
+                    {'headerName': 'Last Update', 'field': 'update_date', 'width': 180}
+                ]
 
-                    # Search functionality
-                    search_input = ui.input('Search Auxiliaries').classes('w-full mb-2')
+                self.table = ui.aggrid({
+                    'columnDefs': column_defs,
+                    'rowData': [],
+                    'defaultColDef': MDS.get_ag_grid_default_def(),
+                    'rowSelection': 'single',
+                }).classes('w-full h-80 ag-theme-quartz-dark')
+                
+                async def on_row_click():
+                    try:
+                        selected_row = await self.table.get_selected_row()
+                        if selected_row:
+                            self.input_refs['id'].value = str(selected_row['id'])
+                            self.input_refs['aux_code'].value = selected_row['auxiliary_id']
+                            self.input_refs['account_name'].value = selected_row['account_name']
+                            self.input_refs['number'].value = selected_row['number']
+                            self.input_refs['status'].value = selected_row['status']
+                            
+                            self.initial_values = {
+                                'aux_code': selected_row['auxiliary_id'],
+                                'account_name': selected_row['account_name'],
+                                'number': selected_row['number'],
+                                'status': selected_row['status'],
+                                'id': str(selected_row['id'])
+                            }
+                            ui.notify(f'Selected: {selected_row["account_name"]}', color='info')
+                    except Exception as e:
+                        ui.notify(f'Error selecting: {str(e)}', color='negative')
+                
+                self.table.on('cellClicked', on_row_click)
 
-                    # Get column headers from database
-                    headers = []
-                    connection.contogetheaders("SELECT * FROM auxiliary WHERE auxiliary_id LIKE '62%'", headers)
+            # Bottom: Details
+            with ModernCard(glass=True).classes('w-full p-6'):
+                ui.label('Record Details').classes('text-lg font-black mb-6 text-white')
+                with ui.row().classes('w-full gap-6 items-center'):
+                    self.input_refs['aux_code'] = ui.select([None], label='Auxiliary Code').classes('w-48 glass-input text-white').props('dark rounded outlined')
+                    self.input_refs['number'] = ui.input('Auxiliary Number').classes('w-48 glass-input text-white').props('dark rounded outlined')
+                    self.input_refs['status'] = ui.select({1: 'Active', 0: 'Inactive'}, label='Status').classes('w-32 glass-input text-white').props('dark rounded outlined')
+                    self.input_refs['id'] = ui.input('ID (Internal)').classes('w-32 glass-input text-white').props('dark rounded outlined readonly')
 
-                    # Convert to AG Grid column format
-                    column_defs = [
-                        {'headerName': header.replace('_', ' ').title(), 'field': header, 'sortable': True, 'filter': True, 'width': 120 if header != 'id' else 80}
-                        for header in headers
-                    ]
-                    # Hide the id column
-                    for col in column_defs:
-                        if col['field'] == 'id':
-                            col['hide'] = True
+                with ui.row().classes('w-full gap-6 mt-4'):
+                    self.input_refs['account_name'] = ui.input('Account Name').classes('flex-1 glass-input text-white').props('dark rounded outlined')
 
-                    # Fetch data from database
-                    data = []
-                    connection.contogetrows("SELECT * FROM auxiliary WHERE auxiliary_id LIKE '62%'", data)
+        ui.timer(0.1, self.refresh_table, once=True)
 
-                    # Convert data to list of dictionaries for AG Grid
-                    row_data = []
-                    for row in data:
-                        row_dict = {}
-                        for i, header in enumerate(headers):
-                            row_dict[header] = row[i]
-                        row_data.append(row_dict)
-
-                    # Function to handle row click
-                    def on_row_click(event):
-                        nonlocal is_updating_from_grid
-                        row_data = event.args['data']
-                        # Update input fields with the selected row data
-                        if 'Auxiliary' in input_refs:
-                            input_refs['Auxiliary'].set_value(row_data['auxiliary_id'])
-                        if 'name' in input_refs and 'account_name' in row_data:
-                            input_refs['name'].set_value(row_data['account_name'])
-                        if 'account_number' in input_refs and 'number' in row_data:
-                            input_refs['account_number'].set_value(row_data['number'])
-                        if 'status' in input_refs and 'status' in row_data:
-                            input_refs['status'].set_value(row_data['status'])
-                        if 'update_date' in input_refs and 'update_date' in row_data:
-                            input_refs['update_date'].set_value(str(row_data['update_date']))
-                        if 'auxiliary_id' in input_refs and 'id' in row_data:
-                            is_updating_from_grid = True
-                            input_refs['auxiliary_id'].set_value(row_data['id'])
-                            is_updating_from_grid = False
-
-                        # Store initial values for undo functionality
-                        initial_values.update({
-                            'Auxiliary': row_data.get('auxiliary_id', None),
-                            'name': row_data.get('account_name', ''),
-                            'account_number': row_data.get('number', ''),
-                            'status': row_data.get('status', 1),
-                            'auxiliary_id': row_data.get('id', '')
-                        })
-
-                    # Create AG Grid table with scroll functionality
-                    table = ui.aggrid({
-                        'columnDefs': column_defs,
-                        'rowData': row_data,
-                        'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
-                        'rowSelection': 'single',
-                        'domLayout': 'normal'
-                    }).classes('w-full ag-theme-quartz-custom').style('height: 250px; overflow-y: auto;')
-
-                    # Add row click event handler
-                    table.on('cellClicked', on_row_click)
-
-                    # Add search functionality for AG Grid
-                    def filter_rows(search_text):
-                        if not search_text:
-                            # Reset to all data
-                            table.options['rowData'] = row_data
-                        else:
-                            # Filter rows based on search text
-                            filtered_rows = [row for row in row_data if any(
-                                search_text.lower() in str(value).lower() for value in row.values()
-                            )]
-                            table.options['rowData'] = filtered_rows
-                        table.update()
-
-                        # Select the first row of the filtered results if available
-                        if filtered_rows:
-                            first_row = filtered_rows[0]
-                            if 'auxiliary_id' in input_refs and 'id' in first_row:
-                                input_refs['auxiliary_id'].set_value(first_row['id'])
-                            if 'Auxiliary' in input_refs and 'auxiliary_id' in first_row:
-                                input_refs['Auxiliary'].set_value(first_row['auxiliary_id'])
-                            if 'name' in input_refs and 'account_name' in first_row:
-                                input_refs['name'].set_value(first_row['account_name'])
-                            if 'account_number' in input_refs and 'number' in first_row:
-                                input_refs['account_number'].set_value(first_row['number'])
-                            if 'status' in input_refs and 'status' in first_row:
-                                input_refs['status'].set_value(first_row['status'])
-
-                    search_input.on('keydown.enter', lambda e: filter_rows(e.sender.value))
-
-                # Bottom section - Input fields
-                with main_splitter.after:
-                    ui.label('Auxiliary Details').classes('text-xl font-bold mb-2')
-
-                    # Fetch auxiliary options for select
-                    auxdata_data = []
-                    connection.contogetrows("SELECT auxiliary_id from auxiliary WHERE auxiliary_id LIKE '62%'", auxdata_data)
-                    aux_options = [row[0] for row in auxdata_data]
-                    aux_options.insert(0, None)
-
-                    # Input fields for auxiliary data
-                    with ui.row().classes('w-full mb-4'):
-                        input_refs['Auxiliary'] = ui.select(options=aux_options, label='Auxiliary').classes('w-1/4 mr-2')
-                        input_refs['name'] = ui.input('Name').classes('w-1/4 mr-2')
-                        input_refs['account_number'] = ui.input('Auxiliary Number').classes('w-1/4 mr-2')
-                        input_refs['status'] = ui.select(options=[0, 1], label='Status').classes('w-1/4 mr-2')
-                        input_refs['update_date'] = ui.input('Update Date').classes('w-1/4 mr-2').props('readonly')
-                        input_refs['auxiliary_id'] = ui.input('Auxiliary ID').props('readonly').classes('w-1/4')
-
-# Register the page route
-@ui.page('/auxiliary')
-def auxiliary_page_route():
-    auxiliary_page()
+    def filter_rows(self, search_text):
+        if not search_text:
+            self.table.options['rowData'] = self.row_data
+        else:
+            search_text = search_text.lower()
+            filtered = [row for row in self.row_data if any(search_text in str(v).lower() for v in row.values())]
+            self.table.options['rowData'] = filtered
+        self.table.update()

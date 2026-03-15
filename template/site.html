@@ -1,0 +1,3261 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Business Management System</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    .dashboard-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .company-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .ribbon-nav {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .ribbon-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 24px;
+      background: #f8f9fa;
+      border-bottom: 2px solid #e0e0e0;
+      overflow-x: auto;
+    }
+
+    .ribbon-tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #495057;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      position: relative;
+      white-space: nowrap;
+    }
+
+    .ribbon-tab:hover {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
+    .ribbon-tab.active {
+      background: white;
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .ribbon-content {
+      background: white;
+      padding: 16px 24px;
+      display: none;
+      min-height: 120px;
+    }
+
+    .ribbon-content.active {
+      display: block;
+    }
+
+    .ribbon-group {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 16px;
+      border-right: 1px solid #e0e0e0;
+      margin-right: 16px;
+    }
+
+    .ribbon-group:last-child {
+      border-right: none;
+    }
+
+    .ribbon-group-label {
+      font-size: 11px;
+      color: #6c757d;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .ribbon-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ribbon-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+      color: #495057;
+      min-width: 80px;
+    }
+
+    .ribbon-button:hover {
+      background: #e9ecef;
+      border-color: #667eea;
+      color: #667eea;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .ribbon-button-icon {
+      font-size: 24px;
+    }
+
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .welcome-section {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .welcome-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #212529;
+      margin: 0 0 12px 0;
+    }
+
+    .welcome-subtitle {
+      font-size: 16px;
+      color: #6c757d;
+      margin: 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-left: 4px solid #667eea;
+    }
+
+    .stat-card.success {
+      border-left-color: #28a745;
+    }
+
+    .stat-card.warning {
+      border-left-color: #ffc107;
+    }
+
+    .stat-card.danger {
+      border-left-color: #dc3545;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #6c757d;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #212529;
+    }
+
+    .content-section {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: none;
+    }
+
+    .content-section.active {
+      display: block;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #212529;
+      margin: 0 0 20px 0;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      padding: 10px 14px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #218838;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-icon {
+      padding: 8px 12px;
+      font-size: 16px;
+    }
+
+    .data-table-container {
+      overflow-x: auto;
+      margin-bottom: 20px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    .data-table th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #dee2e6;
+      font-size: 13px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e9ecef;
+      font-size: 14px;
+      color: #495057;
+    }
+
+    .data-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .invoice-grid {
+      margin: 20px 0;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .invoice-grid-header {
+      display: grid;
+      background: #f8f9fa;
+      font-weight: 600;
+      font-size: 13px;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .invoice-grid-row {
+      display: grid;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .invoice-grid-cell {
+      padding: 10px;
+      border-right: 1px solid #e9ecef;
+    }
+
+    .invoice-grid-cell:last-child {
+      border-right: none;
+    }
+
+    .invoice-grid-cell input, .invoice-grid-cell select {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .invoice-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: #f8f9fa;
+      border-top: 2px solid #dee2e6;
+      margin-top: 20px;
+    }
+
+    .invoice-totals {
+      text-align: right;
+    }
+
+    .invoice-total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .invoice-total-row.grand-total {
+      font-size: 18px;
+      font-weight: 700;
+      color: #667eea;
+      padding-top: 8px;
+      border-top: 2px solid #dee2e6;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .loading-indicator {
+      display: none;
+      margin-left: 8px;
+      color: #667eea;
+    }
+
+    .loading-indicator.active {
+      display: inline;
+    }
+
+    .print-button {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .print-button:hover {
+      background: #138496;
+    }
+
+    .journal-entry-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 2fr 60px;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tab-button {
+      padding: 10px 20px;
+      background: #f8f9fa;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .tab-button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .tab-button:hover {
+      border-color: #667eea;
+    }
+
+    @media print {
+      .ribbon-nav, .nav-buttons, .btn, .header, .no-print, .tab-buttons {
+        display: none !important;
+      }
+      
+      .main-content {
+        padding: 0;
+      }
+      
+      body {
+        background: white;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ribbon-tabs {
+        padding: 0 12px;
+      }
+
+      .ribbon-tab {
+        padding: 10px 16px;
+        font-size: 13px;
+      }
+
+      .main-content {
+        padding: 16px;
+      }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="dashboard-container">
+   <header class="header">
+    <div class="header-top">
+     <h1 class="company-name" id="companyName">Complete Business Management System</h1>
+     <div class="user-info">
+      <div class="user-avatar">
+       👤
+      </div><span id="currentUser">Admin User</span>
+     </div>
+    </div>
+   </header>
+   <nav class="ribbon-nav">
+    <div class="ribbon-tabs" id="ribbonTabs"><button class="ribbon-tab active" data-tab="home">Home</button> <button class="ribbon-tab" data-tab="products">Products</button> <button class="ribbon-tab" data-tab="customers">Customers</button> <button class="ribbon-tab" data-tab="sales">Sales</button> <button class="ribbon-tab" data-tab="purchases">Purchases</button> <button class="ribbon-tab" data-tab="stock-operation">Stock</button> <button class="ribbon-tab" data-tab="cash-flow">Cash Flow</button> <button class="ribbon-tab" data-tab="accounting">Accounting</button> <button class="ribbon-tab" data-tab="reports">Reports</button> <button class="ribbon-tab" data-tab="utilities">Utilities</button>
+    </div>
+    <div class="ribbon-content active" id="ribbon-home">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Quick Access
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('dashboard')"> <span class="ribbon-button-icon">📊</span> <span>Dashboard</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-products">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Products
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('products-list')"> <span class="ribbon-button-icon">📦</span> <span>Products</span> </button> <button class="ribbon-button" onclick="showContent('categories')"> <span class="ribbon-button-icon">🏷️</span> <span>Categories</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-customers">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Customers
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('customers-list')"> <span class="ribbon-button-icon">👥</span> <span>Customers</span> </button> <button class="ribbon-button" onclick="showContent('suppliers')"> <span class="ribbon-button-icon">🏢</span> <span>Suppliers</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-sales">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Sales
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('new-invoice')"> <span class="ribbon-button-icon">📝</span> <span>New Invoice</span> </button> <button class="ribbon-button" onclick="showContent('invoices-list')"> <span class="ribbon-button-icon">📋</span> <span>Invoices</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-purchases">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Purchases
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('new-purchase')"> <span class="ribbon-button-icon">🛒</span> <span>New Purchase</span> </button> <button class="ribbon-button" onclick="showContent('purchases-list')"> <span class="ribbon-button-icon">📑</span> <span>Purchases</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-stock-operation">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Operations
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('inventory')"> <span class="ribbon-button-icon">📊</span> <span>Inventory</span> </button> <button class="ribbon-button" onclick="showContent('adjustment')"> <span class="ribbon-button-icon">🔢</span> <span>Adjustment</span> </button> <button class="ribbon-button" onclick="showContent('defective')"> <span class="ribbon-button-icon">⚠️</span> <span>Defective</span> </button> <button class="ribbon-button" onclick="showContent('general-changing')"> <span class="ribbon-button-icon">🔄</span> <span>Changes</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-cash-flow">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Cash Management
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('cash-in')"> <span class="ribbon-button-icon">💵</span> <span>Cash In</span> </button> <button class="ribbon-button" onclick="showContent('cash-out')"> <span class="ribbon-button-icon">💸</span> <span>Cash Out</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-accounting">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Accounting
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('journal-voucher')"> <span class="ribbon-button-icon">📖</span> <span>Journal</span> </button> <button class="ribbon-button" onclick="showContent('auxiliary-account')"> <span class="ribbon-button-icon">📚</span> <span>Auxiliary</span> </button> <button class="ribbon-button" onclick="showContent('expenses')"> <span class="ribbon-button-icon">💳</span> <span>Expenses</span> </button>
+      </div>
+     </div>
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Finance
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('balance-sheet')"> <span class="ribbon-button-icon">📊</span> <span>Balance</span> </button> <button class="ribbon-button" onclick="showContent('profit-loss')"> <span class="ribbon-button-icon">📈</span> <span>P&amp;L</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-reports">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       Reports
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('stock-reports')"> <span class="ribbon-button-icon">📊</span> <span>Stock</span> </button> <button class="ribbon-button" onclick="showContent('purchase-reports')"> <span class="ribbon-button-icon">📈</span> <span>Purchase</span> </button> <button class="ribbon-button" onclick="showContent('sales-reports')"> <span class="ribbon-button-icon">📉</span> <span>Sales</span> </button>
+      </div>
+     </div>
+    </div>
+    <div class="ribbon-content" id="ribbon-utilities">
+     <div class="ribbon-group">
+      <div class="ribbon-group-label">
+       System
+      </div>
+      <div class="ribbon-buttons"><button class="ribbon-button" onclick="showContent('users')"> <span class="ribbon-button-icon">👤</span> <span>Users</span> </button> <button class="ribbon-button" onclick="showContent('roles')"> <span class="ribbon-button-icon">🔐</span> <span>Roles</span> </button> <button class="ribbon-button" onclick="showContent('backup')"> <span class="ribbon-button-icon">💾</span> <span>Backup</span> </button>
+      </div>
+     </div>
+    </div>
+   </nav>
+   <main class="main-content" id="mainContent">
+    <div id="homeSection">
+     <div class="welcome-section">
+      <h2 class="welcome-title" id="welcomeTitle">Welcome to your dashboard</h2>
+      <p class="welcome-subtitle" id="welcomeSubtitle">Manage your business operations efficiently</p>
+     </div>
+     <div class="stats-grid">
+      <div class="stat-card">
+       <div class="stat-label">
+        Total Products
+       </div>
+       <div class="stat-value" id="statProducts">
+        0
+       </div>
+      </div>
+      <div class="stat-card success">
+       <div class="stat-label">
+        Total Customers
+       </div>
+       <div class="stat-value" id="statCustomers">
+        0
+       </div>
+      </div>
+      <div class="stat-card warning">
+       <div class="stat-label">
+        Total Invoices
+       </div>
+       <div class="stat-value" id="statInvoices">
+        0
+       </div>
+      </div>
+      <div class="stat-card danger">
+       <div class="stat-label">
+        Total Records
+       </div>
+       <div class="stat-value" id="statRecords">
+        0
+       </div>
+      </div>
+     </div>
+    </div>
+    <div id="dynamicContent"></div>
+   </main>
+  </div>
+  <script>
+    const defaultConfig = {
+      company_name: "Complete Business Management System",
+      dashboard_title: "Complete Business Management System",
+      welcome_message: "Welcome to your dashboard"
+    };
+
+    let currentRecordCount = 0;
+    let allRecords = [];
+    let currentInvoiceRow = 0;
+    let currentPurchaseRow = 0;
+    let currentInventoryRow = 0;
+    let currentAdjustmentRow = 0;
+    let currentDefectiveRow = 0;
+    let currentJournalRow = 0;
+    let currentExpenseRow = 0;
+
+    const dataHandler = {
+      onDataChanged(data) {
+        currentRecordCount = data.length;
+        allRecords = data;
+        updateDashboardStats();
+      }
+    };
+
+    function updateDashboardStats() {
+      const products = allRecords.filter(r => r.record_type === 'product').length;
+      const customers = allRecords.filter(r => r.record_type === 'customer').length;
+      const invoices = allRecords.filter(r => r.record_type === 'invoice').length;
+
+      const statProductsEl = document.getElementById('statProducts');
+      const statCustomersEl = document.getElementById('statCustomers');
+      const statInvoicesEl = document.getElementById('statInvoices');
+      const statRecordsEl = document.getElementById('statRecords');
+
+      if (statProductsEl) statProductsEl.textContent = products;
+      if (statCustomersEl) statCustomersEl.textContent = customers;
+      if (statInvoicesEl) statInvoicesEl.textContent = invoices;
+      if (statRecordsEl) statRecordsEl.textContent = currentRecordCount;
+    }
+
+    async function initializeApp() {
+      if (window.dataSdk) {
+        const initResult = await window.dataSdk.init(dataHandler);
+        if (!initResult.isOk) {
+          console.error("Failed to initialize data SDK");
+        }
+      }
+
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            const companyNameEl = document.getElementById('companyName');
+            const welcomeTitleEl = document.getElementById('welcomeTitle');
+            const welcomeSubtitleEl = document.getElementById('welcomeSubtitle');
+
+            if (companyNameEl) {
+              companyNameEl.textContent = config.company_name || defaultConfig.company_name;
+            }
+            if (welcomeTitleEl) {
+              welcomeTitleEl.textContent = config.welcome_message || defaultConfig.welcome_message;
+            }
+            if (welcomeSubtitleEl) {
+              welcomeSubtitleEl.textContent = config.dashboard_title || defaultConfig.dashboard_title;
+            }
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["company_name", config.company_name || defaultConfig.company_name],
+            ["dashboard_title", config.dashboard_title || defaultConfig.dashboard_title],
+            ["welcome_message", config.welcome_message || defaultConfig.welcome_message]
+          ])
+        });
+      }
+    }
+
+    document.getElementById('ribbonTabs').addEventListener('click', (e) => {
+      if (e.target.classList.contains('ribbon-tab')) {
+        const tabName = e.target.dataset.tab;
+        
+        document.querySelectorAll('.ribbon-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.ribbon-content').forEach(content => content.classList.remove('active'));
+        
+        e.target.classList.add('active');
+        document.getElementById(`ribbon-${tabName}`).classList.add('active');
+      }
+    });
+
+    function showContent(contentType) {
+      const homeSection = document.getElementById('homeSection');
+      const dynamicContent = document.getElementById('dynamicContent');
+      
+      if (contentType === 'dashboard') {
+        homeSection.style.display = 'block';
+        dynamicContent.innerHTML = '';
+        return;
+      } else {
+        homeSection.style.display = 'none';
+      }
+
+      document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+      });
+
+      let existingContent = document.getElementById(`content-${contentType}`);
+      if (existingContent) {
+        existingContent.classList.add('active');
+        return;
+      }
+
+      const contentTemplates = {
+        'products-list': createProductsListContent,
+        'categories': createCategoriesContent,
+        'customers-list': createCustomersListContent,
+        'suppliers': createSuppliersContent,
+        'new-invoice': createNewInvoiceContent,
+        'invoices-list': createInvoicesListContent,
+        'new-purchase': createNewPurchaseContent,
+        'purchases-list': createPurchasesListContent,
+        'inventory': createInventoryContent,
+        'adjustment': createAdjustmentContent,
+        'defective': createDefectiveContent,
+        'general-changing': createGeneralChangingContent,
+        'cash-in': createCashInContent,
+        'cash-out': createCashOutContent,
+        'journal-voucher': createJournalVoucherContent,
+        'auxiliary-account': createAuxiliaryContent,
+        'expenses': createExpensesContent,
+        'balance-sheet': createBalanceSheetContent,
+        'profit-loss': createProfitLossContent,
+        'stock-reports': createStockReportsContent,
+        'purchase-reports': createPurchaseReportsContent,
+        'sales-reports': createSalesReportsContent,
+        'users': createUsersContent,
+        'roles': createRolesContent,
+        'backup': createBackupContent
+      };
+
+      const template = contentTemplates[contentType];
+      if (template) {
+        dynamicContent.innerHTML = template();
+        if (contentType === 'new-invoice') addInvoiceRow();
+        if (contentType === 'new-purchase') addPurchaseRow();
+        if (contentType === 'inventory') addInventoryRow();
+        if (contentType === 'adjustment') addAdjustmentRow();
+        if (contentType === 'defective') addDefectiveRow();
+        if (contentType === 'journal-voucher') addJournalRow();
+        if (contentType === 'expenses') addExpenseRow();
+        if (contentType === 'products-list') loadProducts();
+        if (contentType === 'customers-list') loadCustomers();
+        if (contentType === 'invoices-list') loadInvoices();
+        if (contentType === 'purchases-list') loadPurchases();
+      }
+    }
+
+    function createProductsListContent() {
+      return `
+        <div class="content-section active" id="content-products-list">
+          <h2 class="section-title">Products Management</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Barcode</label>
+              <input type="text" id="productBarcode" class="form-input" placeholder="Enter barcode">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Product Name</label>
+              <input type="text" id="productName" class="form-input" placeholder="Enter product name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <input type="text" id="productCategory" class="form-input" placeholder="Enter category">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Supplier</label>
+              <input type="text" id="productSupplier" class="form-input" placeholder="Enter supplier">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Quantity</label>
+              <input type="number" id="productQuantity" class="form-input" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cost Price</label>
+              <input type="number" id="productCost" class="form-input" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Selling Price</label>
+              <input type="number" id="productPrice" class="form-input" placeholder="0.00" step="0.01">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveProduct()">
+            Add Product
+            <span class="loading-indicator" id="loadingProduct">⏳</span>
+          </button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Products List</h3>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Barcode</th>
+                  <th>Product Name</th>
+                  <th>Category</th>
+                  <th>Supplier</th>
+                  <th>Quantity</th>
+                  <th>Cost</th>
+                  <th>Price</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="productsTableBody">
+                <tr>
+                  <td colspan="8" class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <div class="empty-state-text">No products added yet</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveProduct() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const barcode = document.getElementById('productBarcode').value;
+      const name = document.getElementById('productName').value;
+      const category = document.getElementById('productCategory').value;
+      const supplier = document.getElementById('productSupplier').value;
+      const quantity = parseFloat(document.getElementById('productQuantity').value) || 0;
+      const cost = parseFloat(document.getElementById('productCost').value) || 0;
+      const price = parseFloat(document.getElementById('productPrice').value) || 0;
+
+      if (!barcode || !name) {
+        showMessage('Please fill in barcode and product name', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingProduct');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'product',
+        barcode: barcode,
+        product_name: name,
+        category: category,
+        supplier: supplier,
+        quantity: quantity,
+        cost: cost,
+        price: price,
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Product added successfully!', 'success');
+        document.getElementById('productBarcode').value = '';
+        document.getElementById('productName').value = '';
+        document.getElementById('productCategory').value = '';
+        document.getElementById('productSupplier').value = '';
+        document.getElementById('productQuantity').value = '';
+        document.getElementById('productCost').value = '';
+        document.getElementById('productPrice').value = '';
+        loadProducts();
+      } else {
+        showMessage('Failed to add product', 'error');
+      }
+    }
+
+    function loadProducts() {
+      const tbody = document.getElementById('productsTableBody');
+      if (!tbody) return;
+
+      const products = allRecords.filter(r => r.record_type === 'product');
+
+      if (products.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="empty-state">
+              <div class="empty-state-icon">📦</div>
+              <div class="empty-state-text">No products added yet</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = products.map(product => `
+        <tr>
+          <td>${product.barcode || ''}</td>
+          <td>${product.product_name || ''}</td>
+          <td>${product.category || ''}</td>
+          <td>${product.supplier || ''}</td>
+          <td>${product.quantity || 0}</td>
+          <td>$${(product.cost || 0).toFixed(2)}</td>
+          <td>$${(product.price || 0).toFixed(2)}</td>
+          <td>
+            <button class="btn btn-secondary btn-small" onclick="editProduct('${product.__backendId}')">Edit</button>
+            <button class="btn btn-danger btn-small" onclick="deleteProduct('${product.__backendId}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteProduct(id) {
+      const product = allRecords.find(r => r.__backendId === id);
+      if (!product) return;
+
+      const result = await window.dataSdk.delete(product);
+      if (result.isOk) {
+        showMessage('Product deleted successfully!', 'success');
+        loadProducts();
+      } else {
+        showMessage('Failed to delete product', 'error');
+      }
+    }
+
+    function createCategoriesContent() {
+      return `
+        <div class="content-section active" id="content-categories">
+          <h2 class="section-title">Categories Management</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Category Name</label>
+              <input type="text" id="categoryName" class="form-input" placeholder="Enter category name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <input type="text" id="categoryDescription" class="form-input" placeholder="Enter description">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveCategory()">
+            Add Category
+            <span class="loading-indicator" id="loadingCategory">⏳</span>
+          </button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Categories List</h3>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Category Name</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="categoriesTableBody">
+                <tr>
+                  <td colspan="3" class="empty-state">
+                    <div class="empty-state-icon">🏷️</div>
+                    <div class="empty-state-text">No categories added yet</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveCategory() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const name = document.getElementById('categoryName').value;
+      const description = document.getElementById('categoryDescription').value;
+
+      if (!name) {
+        showMessage('Please enter category name', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingCategory');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'category',
+        category: name,
+        description: description,
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Category added successfully!', 'success');
+        document.getElementById('categoryName').value = '';
+        document.getElementById('categoryDescription').value = '';
+      } else {
+        showMessage('Failed to add category', 'error');
+      }
+    }
+
+    function createCustomersListContent() {
+      return `
+        <div class="content-section active" id="content-customers-list">
+          <h2 class="section-title">Customers Management</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Customer Name</label>
+              <input type="text" id="customerName" class="form-input" placeholder="Enter customer name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="tel" id="customerPhone" class="form-input" placeholder="Enter phone number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="customerEmail" class="form-input" placeholder="Enter email">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Address</label>
+              <input type="text" id="customerAddress" class="form-input" placeholder="Enter address">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveCustomer()">
+            Add Customer
+            <span class="loading-indicator" id="loadingCustomer">⏳</span>
+          </button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Customers List</h3>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Address</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="customersTableBody">
+                <tr>
+                  <td colspan="5" class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <div class="empty-state-text">No customers added yet</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveCustomer() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const name = document.getElementById('customerName').value;
+      const phone = document.getElementById('customerPhone').value;
+      const email = document.getElementById('customerEmail').value;
+      const address = document.getElementById('customerAddress').value;
+
+      if (!name) {
+        showMessage('Please enter customer name', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingCustomer');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'customer',
+        customer_name: name,
+        customer_phone: phone,
+        customer_email: email,
+        customer_address: address,
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Customer added successfully!', 'success');
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerPhone').value = '';
+        document.getElementById('customerEmail').value = '';
+        document.getElementById('customerAddress').value = '';
+        loadCustomers();
+      } else {
+        showMessage('Failed to add customer', 'error');
+      }
+    }
+
+    function loadCustomers() {
+      const tbody = document.getElementById('customersTableBody');
+      if (!tbody) return;
+
+      const customers = allRecords.filter(r => r.record_type === 'customer');
+
+      if (customers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="empty-state">
+              <div class="empty-state-icon">👥</div>
+              <div class="empty-state-text">No customers added yet</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = customers.map(customer => `
+        <tr>
+          <td>${customer.customer_name || ''}</td>
+          <td>${customer.customer_phone || ''}</td>
+          <td>${customer.customer_email || ''}</td>
+          <td>${customer.customer_address || ''}</td>
+          <td>
+            <button class="btn btn-secondary btn-small" onclick="editCustomer('${customer.__backendId}')">Edit</button>
+            <button class="btn btn-danger btn-small" onclick="deleteCustomer('${customer.__backendId}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteCustomer(id) {
+      const customer = allRecords.find(r => r.__backendId === id);
+      if (!customer) return;
+
+      const result = await window.dataSdk.delete(customer);
+      if (result.isOk) {
+        showMessage('Customer deleted successfully!', 'success');
+        loadCustomers();
+      } else {
+        showMessage('Failed to delete customer', 'error');
+      }
+    }
+
+    function createSuppliersContent() {
+      return `
+        <div class="content-section active" id="content-suppliers">
+          <h2 class="section-title">Suppliers Management</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Supplier Name</label>
+              <input type="text" id="supplierName" class="form-input" placeholder="Enter supplier name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="tel" id="supplierPhone" class="form-input" placeholder="Enter phone number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="supplierEmail" class="form-input" placeholder="Enter email">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Address</label>
+              <input type="text" id="supplierAddress" class="form-input" placeholder="Enter address">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveSupplier()">
+            Add Supplier
+            <span class="loading-indicator" id="loadingSupplier">⏳</span>
+          </button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Suppliers List</h3>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Address</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="suppliersTableBody">
+                <tr>
+                  <td colspan="5" class="empty-state">
+                    <div class="empty-state-icon">🏢</div>
+                    <div class="empty-state-text">No suppliers added yet</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveSupplier() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const name = document.getElementById('supplierName').value;
+      const phone = document.getElementById('supplierPhone').value;
+      const email = document.getElementById('supplierEmail').value;
+      const address = document.getElementById('supplierAddress').value;
+
+      if (!name) {
+        showMessage('Please enter supplier name', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingSupplier');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'supplier',
+        supplier: name,
+        customer_phone: phone,
+        customer_email: email,
+        customer_address: address,
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Supplier added successfully!', 'success');
+        document.getElementById('supplierName').value = '';
+        document.getElementById('supplierPhone').value = '';
+        document.getElementById('supplierEmail').value = '';
+        document.getElementById('supplierAddress').value = '';
+      } else {
+        showMessage('Failed to add supplier', 'error');
+      }
+    }
+
+    function createNewInvoiceContent() {
+      return `
+        <div class="content-section active" id="content-new-invoice">
+          <h2 class="section-title">New Sales Invoice</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Invoice Number</label>
+              <input type="text" id="invoiceNumber" class="form-input" placeholder="INV-001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Invoice Date</label>
+              <input type="date" id="invoiceDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Customer</label>
+              <select id="invoiceCustomer" class="form-select">
+                <option value="">Select Customer</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Method</label>
+              <select id="invoicePayment" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="card">Credit Card</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="check">Check</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 20px; margin-bottom: 10px;">Invoice Items</h3>
+          <div class="invoice-grid">
+            <div class="invoice-grid-header" style="grid-template-columns: 150px 250px 100px 120px 120px 120px;">
+              <div class="invoice-grid-cell">Barcode</div>
+              <div class="invoice-grid-cell">Product</div>
+              <div class="invoice-grid-cell">Quantity</div>
+              <div class="invoice-grid-cell">Price</div>
+              <div class="invoice-grid-cell">Discount %</div>
+              <div class="invoice-grid-cell">Total</div>
+            </div>
+            <div id="invoiceItemsContainer"></div>
+          </div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removeInvoiceRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addInvoiceRow()">+</button>
+          </div>
+
+          <div class="invoice-footer">
+            <div></div>
+            <div class="invoice-totals">
+              <div class="invoice-total-row">
+                <span>Subtotal:</span>
+                <span id="invoiceSubtotal">$0.00</span>
+              </div>
+              <div class="invoice-total-row">
+                <span>Discount:</span>
+                <span id="invoiceDiscount">$0.00</span>
+              </div>
+              <div class="invoice-total-row grand-total">
+                <span>Grand Total:</span>
+                <span id="invoiceGrandTotal">$0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="saveInvoice()" style="margin-top: 20px;">
+            Save Invoice
+            <span class="loading-indicator" id="loadingInvoice">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addInvoiceRow() {
+      const container = document.getElementById('invoiceItemsContainer');
+      if (!container) return;
+
+      const rowId = currentInvoiceRow++;
+      const row = document.createElement('div');
+      row.className = 'invoice-grid-row';
+      row.id = `invoice-row-${rowId}`;
+      row.style.gridTemplateColumns = '150px 250px 100px 120px 120px 120px';
+      row.innerHTML = `
+        <div class="invoice-grid-cell">
+          <input type="text" class="inv-barcode" data-row="${rowId}" placeholder="Barcode">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="inv-product" data-row="${rowId}" placeholder="Product" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-qty" data-row="${rowId}" placeholder="0" value="1" min="1" onchange="calculateInvoiceRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-price" data-row="${rowId}" placeholder="0.00" value="0" step="0.01" onchange="calculateInvoiceRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-discount" data-row="${rowId}" placeholder="0" value="0" min="0" max="100" onchange="calculateInvoiceRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-total" data-row="${rowId}" placeholder="0.00" value="0" readonly>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeInvoiceRow() {
+      const container = document.getElementById('invoiceItemsContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+        calculateInvoiceTotals();
+      }
+    }
+
+    function calculateInvoiceRow(rowId) {
+      const row = document.getElementById(`invoice-row-${rowId}`);
+      if (!row) return;
+
+      const qty = parseFloat(row.querySelector('.inv-qty').value) || 0;
+      const price = parseFloat(row.querySelector('.inv-price').value) || 0;
+      const discount = parseFloat(row.querySelector('.inv-discount').value) || 0;
+
+      const subtotal = qty * price;
+      const discountAmount = subtotal * (discount / 100);
+      const total = subtotal - discountAmount;
+
+      row.querySelector('.inv-total').value = total.toFixed(2);
+      calculateInvoiceTotals();
+    }
+
+    function calculateInvoiceTotals() {
+      const container = document.getElementById('invoiceItemsContainer');
+      if (!container) return;
+
+      let subtotal = 0;
+      let totalDiscount = 0;
+
+      container.querySelectorAll('.invoice-grid-row').forEach(row => {
+        const qty = parseFloat(row.querySelector('.inv-qty').value) || 0;
+        const price = parseFloat(row.querySelector('.inv-price').value) || 0;
+        const discount = parseFloat(row.querySelector('.inv-discount').value) || 0;
+
+        const rowSubtotal = qty * price;
+        const rowDiscount = rowSubtotal * (discount / 100);
+
+        subtotal += rowSubtotal;
+        totalDiscount += rowDiscount;
+      });
+
+      const grandTotal = subtotal - totalDiscount;
+
+      document.getElementById('invoiceSubtotal').textContent = `$${subtotal.toFixed(2)}`;
+      document.getElementById('invoiceDiscount').textContent = `$${totalDiscount.toFixed(2)}`;
+      document.getElementById('invoiceGrandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+    }
+
+    async function saveInvoice() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const invoiceNumber = document.getElementById('invoiceNumber').value;
+      const invoiceDate = document.getElementById('invoiceDate').value;
+      const customer = document.getElementById('invoiceCustomer').value;
+      const payment = document.getElementById('invoicePayment').value;
+      const grandTotal = parseFloat(document.getElementById('invoiceGrandTotal').textContent.replace('$', ''));
+
+      if (!invoiceNumber) {
+        showMessage('Please enter invoice number', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingInvoice');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'invoice',
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        customer_name: customer,
+        payment_method: payment,
+        total_amount: grandTotal,
+        status: 'completed',
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Invoice saved successfully!', 'success');
+        document.getElementById('invoiceNumber').value = '';
+        document.getElementById('invoiceCustomer').value = '';
+      } else {
+        showMessage('Failed to save invoice', 'error');
+      }
+    }
+
+    function createInvoicesListContent() {
+      return `
+        <div class="content-section active" id="content-invoices-list">
+          <h2 class="section-title">Sales Invoices</h2>
+          
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Payment Method</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoicesTableBody">
+                <tr>
+                  <td colspan="7" class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">No invoices found</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadInvoices() {
+      const tbody = document.getElementById('invoicesTableBody');
+      if (!tbody) return;
+
+      const invoices = allRecords.filter(r => r.record_type === 'invoice');
+
+      if (invoices.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="empty-state">
+              <div class="empty-state-icon">📋</div>
+              <div class="empty-state-text">No invoices found</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = invoices.map(invoice => `
+        <tr>
+          <td>${invoice.invoice_number || ''}</td>
+          <td>${invoice.invoice_date || ''}</td>
+          <td>${invoice.customer_name || ''}</td>
+          <td>${invoice.payment_method || ''}</td>
+          <td>$${(invoice.total_amount || 0).toFixed(2)}</td>
+          <td>${invoice.status || ''}</td>
+          <td>
+            <button class="btn btn-secondary btn-small" onclick="viewInvoice('${invoice.__backendId}')">View</button>
+            <button class="btn btn-danger btn-small" onclick="deleteInvoice('${invoice.__backendId}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteInvoice(id) {
+      const invoice = allRecords.find(r => r.__backendId === id);
+      if (!invoice) return;
+
+      const result = await window.dataSdk.delete(invoice);
+      if (result.isOk) {
+        showMessage('Invoice deleted successfully!', 'success');
+        loadInvoices();
+      } else {
+        showMessage('Failed to delete invoice', 'error');
+      }
+    }
+
+    function createNewPurchaseContent() {
+      return `
+        <div class="content-section active" id="content-new-purchase">
+          <h2 class="section-title">New Purchase Order</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Purchase Number</label>
+              <input type="text" id="purchaseNumber" class="form-input" placeholder="PO-001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Purchase Date</label>
+              <input type="date" id="purchaseDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Supplier</label>
+              <select id="purchaseSupplier" class="form-select">
+                <option value="">Select Supplier</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Method</label>
+              <select id="purchasePayment" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="card">Credit Card</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="check">Check</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 20px; margin-bottom: 10px;">Purchase Items</h3>
+          <div class="invoice-grid">
+            <div class="invoice-grid-header" style="grid-template-columns: 150px 250px 100px 120px 120px;">
+              <div class="invoice-grid-cell">Barcode</div>
+              <div class="invoice-grid-cell">Product</div>
+              <div class="invoice-grid-cell">Quantity</div>
+              <div class="invoice-grid-cell">Cost</div>
+              <div class="invoice-grid-cell">Total</div>
+            </div>
+            <div id="purchaseItemsContainer"></div>
+          </div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removePurchaseRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addPurchaseRow()">+</button>
+          </div>
+
+          <div class="invoice-footer">
+            <div></div>
+            <div class="invoice-totals">
+              <div class="invoice-total-row grand-total">
+                <span>Grand Total:</span>
+                <span id="purchaseGrandTotal">$0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="savePurchase()" style="margin-top: 20px;">
+            Save Purchase
+            <span class="loading-indicator" id="loadingPurchase">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addPurchaseRow() {
+      const container = document.getElementById('purchaseItemsContainer');
+      if (!container) return;
+
+      const rowId = currentPurchaseRow++;
+      const row = document.createElement('div');
+      row.className = 'invoice-grid-row';
+      row.id = `purchase-row-${rowId}`;
+      row.style.gridTemplateColumns = '150px 250px 100px 120px 120px';
+      row.innerHTML = `
+        <div class="invoice-grid-cell">
+          <input type="text" class="pur-barcode" data-row="${rowId}" placeholder="Barcode">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="pur-product" data-row="${rowId}" placeholder="Product" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="pur-qty" data-row="${rowId}" placeholder="0" value="1" min="1" onchange="calculatePurchaseRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="pur-cost" data-row="${rowId}" placeholder="0.00" value="0" step="0.01" onchange="calculatePurchaseRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="pur-total" data-row="${rowId}" placeholder="0.00" value="0" readonly>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function removePurchaseRow() {
+      const container = document.getElementById('purchaseItemsContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+        calculatePurchaseTotals();
+      }
+    }
+
+    function calculatePurchaseRow(rowId) {
+      const row = document.getElementById(`purchase-row-${rowId}`);
+      if (!row) return;
+
+      const qty = parseFloat(row.querySelector('.pur-qty').value) || 0;
+      const cost = parseFloat(row.querySelector('.pur-cost').value) || 0;
+      const total = qty * cost;
+
+      row.querySelector('.pur-total').value = total.toFixed(2);
+      calculatePurchaseTotals();
+    }
+
+    function calculatePurchaseTotals() {
+      const container = document.getElementById('purchaseItemsContainer');
+      if (!container) return;
+
+      let grandTotal = 0;
+
+      container.querySelectorAll('.invoice-grid-row').forEach(row => {
+        const total = parseFloat(row.querySelector('.pur-total').value) || 0;
+        grandTotal += total;
+      });
+
+      document.getElementById('purchaseGrandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+    }
+
+    async function savePurchase() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const purchaseNumber = document.getElementById('purchaseNumber').value;
+      const purchaseDate = document.getElementById('purchaseDate').value;
+      const supplier = document.getElementById('purchaseSupplier').value;
+      const payment = document.getElementById('purchasePayment').value;
+      const grandTotal = parseFloat(document.getElementById('purchaseGrandTotal').textContent.replace('$', ''));
+
+      if (!purchaseNumber) {
+        showMessage('Please enter purchase number', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingPurchase');
+      loading.classList.add('active');
+
+      const result = await window.dataSdk.create({
+        record_type: 'purchase',
+        invoice_number: purchaseNumber,
+        invoice_date: purchaseDate,
+        supplier: supplier,
+        payment_method: payment,
+        total_amount: grandTotal,
+        status: 'completed',
+        created_at: new Date().toISOString()
+      });
+
+      loading.classList.remove('active');
+
+      if (result.isOk) {
+        showMessage('Purchase saved successfully!', 'success');
+        document.getElementById('purchaseNumber').value = '';
+        document.getElementById('purchaseSupplier').value = '';
+      } else {
+        showMessage('Failed to save purchase', 'error');
+      }
+    }
+
+    function createPurchasesListContent() {
+      return `
+        <div class="content-section active" id="content-purchases-list">
+          <h2 class="section-title">Purchase Orders</h2>
+          
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Purchase #</th>
+                  <th>Date</th>
+                  <th>Supplier</th>
+                  <th>Payment Method</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="purchasesTableBody">
+                <tr>
+                  <td colspan="7" class="empty-state">
+                    <div class="empty-state-icon">📑</div>
+                    <div class="empty-state-text">No purchases found</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadPurchases() {
+      const tbody = document.getElementById('purchasesTableBody');
+      if (!tbody) return;
+
+      const purchases = allRecords.filter(r => r.record_type === 'purchase');
+
+      if (purchases.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="empty-state">
+              <div class="empty-state-icon">📑</div>
+              <div class="empty-state-text">No purchases found</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = purchases.map(purchase => `
+        <tr>
+          <td>${purchase.invoice_number || ''}</td>
+          <td>${purchase.invoice_date || ''}</td>
+          <td>${purchase.supplier || ''}</td>
+          <td>${purchase.payment_method || ''}</td>
+          <td>$${(purchase.total_amount || 0).toFixed(2)}</td>
+          <td>${purchase.status || ''}</td>
+          <td>
+            <button class="btn btn-secondary btn-small" onclick="viewPurchase('${purchase.__backendId}')">View</button>
+            <button class="btn btn-danger btn-small" onclick="deletePurchase('${purchase.__backendId}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deletePurchase(id) {
+      const purchase = allRecords.find(r => r.__backendId === id);
+      if (!purchase) return;
+
+      const result = await window.dataSdk.delete(purchase);
+      if (result.isOk) {
+        showMessage('Purchase deleted successfully!', 'success');
+        loadPurchases();
+      } else {
+        showMessage('Failed to delete purchase', 'error');
+      }
+    }
+
+    function createInventoryContent() {
+      return `
+        <div class="content-section active" id="content-inventory">
+          <h2 class="section-title">Physical Inventory Count</h2>
+          
+          <div class="invoice-grid">
+            <div class="invoice-grid-header" style="grid-template-columns: 150px 250px 120px 120px 120px 120px;">
+              <div class="invoice-grid-cell">Barcode</div>
+              <div class="invoice-grid-cell">Product</div>
+              <div class="invoice-grid-cell">Counted Qty</div>
+              <div class="invoice-grid-cell">System Qty</div>
+              <div class="invoice-grid-cell">Difference</div>
+              <div class="invoice-grid-cell">Cost</div>
+            </div>
+            <div id="inventoryItemsContainer"></div>
+          </div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removeInventoryRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addInventoryRow()">+</button>
+          </div>
+
+          <div class="invoice-footer">
+            <div></div>
+            <div class="invoice-totals">
+              <div class="invoice-total-row grand-total">
+                <span>Total Cost Difference:</span>
+                <span id="inventoryTotalCost">$0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="saveInventory()" style="margin-top: 20px;">
+            Save Inventory & Update Stock
+            <span class="loading-indicator" id="loadingInventory">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addInventoryRow() {
+      const container = document.getElementById('inventoryItemsContainer');
+      if (!container) return;
+
+      const rowId = currentInventoryRow++;
+      const row = document.createElement('div');
+      row.className = 'invoice-grid-row';
+      row.id = `inventory-row-${rowId}`;
+      row.style.gridTemplateColumns = '150px 250px 120px 120px 120px 120px';
+      row.innerHTML = `
+        <div class="invoice-grid-cell">
+          <input type="text" class="inv-barcode" data-row="${rowId}" placeholder="Barcode">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="inv-product" data-row="${rowId}" placeholder="Product Name" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-counted" data-row="${rowId}" placeholder="0" value="0" min="0" onchange="calculateInventoryRow(${rowId})">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-system" data-row="${rowId}" placeholder="0" value="0" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-diff" data-row="${rowId}" placeholder="0" value="0" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="inv-cost" data-row="${rowId}" placeholder="0.00" value="0" step="0.01" readonly>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeInventoryRow() {
+      const container = document.getElementById('inventoryItemsContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+        calculateInventoryTotals();
+      }
+    }
+
+    function calculateInventoryRow(rowId) {
+      const row = document.getElementById(`inventory-row-${rowId}`);
+      if (!row) return;
+
+      const counted = parseFloat(row.querySelector('.inv-counted').value) || 0;
+      const system = parseFloat(row.querySelector('.inv-system').value) || 0;
+      const diff = counted - system;
+      row.querySelector('.inv-diff').value = diff;
+
+      calculateInventoryTotals();
+    }
+
+    function calculateInventoryTotals() {
+      const container = document.getElementById('inventoryItemsContainer');
+      if (!container) return;
+
+      let totalCost = 0;
+      container.querySelectorAll('.invoice-grid-row').forEach(row => {
+        const diff = parseFloat(row.querySelector('.inv-diff').value) || 0;
+        const cost = parseFloat(row.querySelector('.inv-cost').value) || 0;
+        totalCost += diff * cost;
+      });
+
+      const totalEl = document.getElementById('inventoryTotalCost');
+      if (totalEl) {
+        totalEl.textContent = `$${totalCost.toFixed(2)}`;
+      }
+    }
+
+    async function saveInventory() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingInventory');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Inventory saved and stock updated successfully!', 'success');
+      }, 1000);
+    }
+
+    function createAdjustmentContent() {
+      return `
+        <div class="content-section active" id="content-adjustment">
+          <h2 class="section-title">Quantity Adjustment</h2>
+          
+          <div class="invoice-grid">
+            <div class="invoice-grid-header" style="grid-template-columns: 150px 250px 150px 120px 200px;">
+              <div class="invoice-grid-cell">Barcode</div>
+              <div class="invoice-grid-cell">Product</div>
+              <div class="invoice-grid-cell">Action</div>
+              <div class="invoice-grid-cell">Quantity</div>
+              <div class="invoice-grid-cell">Reason</div>
+            </div>
+            <div id="adjustmentItemsContainer"></div>
+          </div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removeAdjustmentRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addAdjustmentRow()">+</button>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="saveAdjustment()" style="margin-top: 20px;">
+            Save Adjustment
+            <span class="loading-indicator" id="loadingAdjustment">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addAdjustmentRow() {
+      const container = document.getElementById('adjustmentItemsContainer');
+      if (!container) return;
+
+      const rowId = currentAdjustmentRow++;
+      const row = document.createElement('div');
+      row.className = 'invoice-grid-row';
+      row.id = `adjustment-row-${rowId}`;
+      row.style.gridTemplateColumns = '150px 250px 150px 120px 200px';
+      row.innerHTML = `
+        <div class="invoice-grid-cell">
+          <input type="text" class="adj-barcode" data-row="${rowId}" placeholder="Barcode">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="adj-product" data-row="${rowId}" placeholder="Product Name" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <select class="adj-action" data-row="${rowId}">
+            <option value="add">Add</option>
+            <option value="subtract">Subtract</option>
+          </select>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="adj-qty" data-row="${rowId}" placeholder="0" value="0" min="0">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="adj-reason" data-row="${rowId}" placeholder="Reason">
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeAdjustmentRow() {
+      const container = document.getElementById('adjustmentItemsContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    async function saveAdjustment() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingAdjustment');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Adjustment saved successfully!', 'success');
+      }, 1000);
+    }
+
+    function createDefectiveContent() {
+      return `
+        <div class="content-section active" id="content-defective">
+          <h2 class="section-title">Defective Items</h2>
+          
+          <div class="invoice-grid">
+            <div class="invoice-grid-header" style="grid-template-columns: 150px 250px 120px 200px;">
+              <div class="invoice-grid-cell">Barcode</div>
+              <div class="invoice-grid-cell">Product</div>
+              <div class="invoice-grid-cell">Quantity</div>
+              <div class="invoice-grid-cell">Reason</div>
+            </div>
+            <div id="defectiveItemsContainer"></div>
+          </div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removeDefectiveRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addDefectiveRow()">+</button>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="saveDefective()" style="margin-top: 20px;">
+            Save & Remove from Stock
+            <span class="loading-indicator" id="loadingDefective">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addDefectiveRow() {
+      const container = document.getElementById('defectiveItemsContainer');
+      if (!container) return;
+
+      const rowId = currentDefectiveRow++;
+      const row = document.createElement('div');
+      row.className = 'invoice-grid-row';
+      row.id = `defective-row-${rowId}`;
+      row.style.gridTemplateColumns = '150px 250px 120px 200px';
+      row.innerHTML = `
+        <div class="invoice-grid-cell">
+          <input type="text" class="def-barcode" data-row="${rowId}" placeholder="Barcode">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="def-product" data-row="${rowId}" placeholder="Product Name" readonly>
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="number" class="def-qty" data-row="${rowId}" placeholder="0" value="0" min="0">
+        </div>
+        <div class="invoice-grid-cell">
+          <input type="text" class="def-reason" data-row="${rowId}" placeholder="Defect reason">
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeDefectiveRow() {
+      const container = document.getElementById('defectiveItemsContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    async function saveDefective() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingDefective');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Defective items removed from stock!', 'success');
+      }, 1000);
+    }
+
+    function createGeneralChangingContent() {
+      return `
+        <div class="content-section active" id="content-general-changing">
+          <h2 class="section-title">General Price Changes</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Filter By</label>
+              <select id="changeFilter" class="form-select">
+                <option value="category">Category</option>
+                <option value="supplier">Supplier</option>
+                <option value="starts-with">Starts With</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Filter Value</label>
+              <input type="text" id="changeFilterValue" class="form-input" placeholder="Enter value">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Change Type</label>
+              <select id="changeType" class="form-select">
+                <option value="multiply">Multiply Profit</option>
+                <option value="add">Add Profit</option>
+                <option value="discount">Apply Discount</option>
+                <option value="points">Add Points</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Value (%)</label>
+              <input type="number" id="changeValue" class="form-input" placeholder="0" step="0.01">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="applyGeneralChanges()">
+            Apply Changes
+            <span class="loading-indicator" id="loadingChanges">⏳</span>
+          </button>
+
+          <div id="changePreview" style="margin-top: 20px;"></div>
+        </div>
+      `;
+    }
+
+    async function applyGeneralChanges() {
+      const loading = document.getElementById('loadingChanges');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Price changes applied successfully!', 'success');
+      }, 1000);
+    }
+
+    function createCashInContent() {
+      return `
+        <div class="content-section active" id="content-cash-in">
+          <h2 class="section-title">Cash In</h2>
+          
+          <div class="no-print" style="margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="loadTodayCashIn()">Today</button>
+            <button class="btn btn-secondary" onclick="showCashInHistory()">History</button>
+            <button class="btn print-button" onclick="window.print()">🖨️ Print</button>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Reference</th>
+                  <th>Amount</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="cashInTableBody">
+                <tr>
+                  <td colspan="5" class="empty-state">
+                    <div class="empty-state-icon">💵</div>
+                    <div class="empty-state-text">No cash in records for today</div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style="background: #f8f9fa; font-weight: 700;">
+                  <td colspan="3" style="text-align: right; padding: 16px;">Total Cash In:</td>
+                  <td colspan="2" style="padding: 16px; color: #28a745; font-size: 18px;" id="totalCashIn">$0.00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadTodayCashIn() {
+      showMessage('Loading today\'s cash in records...', 'success');
+    }
+
+    function showCashInHistory() {
+      showMessage('Cash in history feature coming soon', 'success');
+    }
+
+    function createCashOutContent() {
+      return `
+        <div class="content-section active" id="content-cash-out">
+          <h2 class="section-title">Cash Out</h2>
+          
+          <div class="no-print" style="margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="loadTodayCashOut()">Today</button>
+            <button class="btn btn-secondary" onclick="showCashOutHistory()">History</button>
+            <button class="btn print-button" onclick="window.print()">🖨️ Print</button>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Paid To</th>
+                  <th>Reference</th>
+                  <th>Amount</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="cashOutTableBody">
+                <tr>
+                  <td colspan="5" class="empty-state">
+                    <div class="empty-state-icon">💸</div>
+                    <div class="empty-state-text">No cash out records for today</div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style="background: #f8f9fa; font-weight: 700;">
+                  <td colspan="3" style="text-align: right; padding: 16px;">Total Cash Out:</td>
+                  <td colspan="2" style="padding: 16px; color: #dc3545; font-size: 18px;" id="totalCashOut">$0.00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadTodayCashOut() {
+      showMessage('Loading today\'s cash out records...', 'success');
+    }
+
+    function showCashOutHistory() {
+      showMessage('Cash out history feature coming soon', 'success');
+    }
+
+    function createJournalVoucherContent() {
+      return `
+        <div class="content-section active" id="content-journal-voucher">
+          <h2 class="section-title">Journal Voucher</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Voucher Date</label>
+              <input type="date" id="voucherDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Voucher Number</label>
+              <input type="text" id="voucherNumber" class="form-input" placeholder="JV-001">
+            </div>
+          </div>
+
+          <div id="journalEntriesContainer"></div>
+
+          <div class="nav-buttons no-print">
+            <button class="btn btn-secondary btn-icon" onclick="removeJournalRow()">−</button>
+            <button class="btn btn-primary btn-icon" onclick="addJournalRow()">+</button>
+          </div>
+
+          <div class="invoice-footer">
+            <div></div>
+            <div class="invoice-totals">
+              <div class="invoice-total-row">
+                <span>Total Debit:</span>
+                <span id="totalDebit">$0.00</span>
+              </div>
+              <div class="invoice-total-row">
+                <span>Total Credit:</span>
+                <span id="totalCredit">$0.00</span>
+              </div>
+              <div class="invoice-total-row grand-total">
+                <span>Difference:</span>
+                <span id="journalDifference">$0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary no-print" onclick="saveJournalVoucher()" style="margin-top: 20px;">
+            Save Journal Voucher
+            <span class="loading-indicator" id="loadingJournal">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function addJournalRow() {
+      const container = document.getElementById('journalEntriesContainer');
+      if (!container) return;
+
+      const rowId = currentJournalRow++;
+      const row = document.createElement('div');
+      row.className = 'journal-entry-row';
+      row.id = `journal-row-${rowId}`;
+      row.innerHTML = `
+        <select class="form-select" data-row="${rowId}">
+          <option value="">Select Account</option>
+          <option value="1">1 - Cash</option>
+          <option value="2">2 - Accounts Receivable</option>
+          <option value="3">3 - Inventory</option>
+          <option value="4">4 - Accounts Payable</option>
+          <option value="5">5 - Revenue</option>
+          <option value="6">6 - Expenses</option>
+          <option value="7">7 - Equity</option>
+        </select>
+        <input type="number" class="form-input journal-debit" data-row="${rowId}" placeholder="Debit" step="0.01" onchange="calculateJournalTotals()">
+        <input type="number" class="form-input journal-credit" data-row="${rowId}" placeholder="Credit" step="0.01" onchange="calculateJournalTotals()">
+        <input type="text" class="form-input" data-row="${rowId}" placeholder="Description">
+        <button class="btn btn-secondary btn-small" onclick="removeSpecificJournalRow(${rowId})">×</button>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeJournalRow() {
+      const container = document.getElementById('journalEntriesContainer');
+      if (container && container.children.length > 0) {
+        container.removeChild(container.lastChild);
+        calculateJournalTotals();
+      }
+    }
+
+    function removeSpecificJournalRow(rowId) {
+      const row = document.getElementById(`journal-row-${rowId}`);
+      if (row) {
+        row.remove();
+        calculateJournalTotals();
+      }
+    }
+
+    function calculateJournalTotals() {
+      const container = document.getElementById('journalEntriesContainer');
+      if (!container) return;
+
+      let totalDebit = 0;
+      let totalCredit = 0;
+
+      container.querySelectorAll('.journal-entry-row').forEach(row => {
+        const debit = parseFloat(row.querySelector('.journal-debit').value) || 0;
+        const credit = parseFloat(row.querySelector('.journal-credit').value) || 0;
+        totalDebit += debit;
+        totalCredit += credit;
+      });
+
+      const difference = Math.abs(totalDebit - totalCredit);
+
+      document.getElementById('totalDebit').textContent = `$${totalDebit.toFixed(2)}`;
+      document.getElementById('totalCredit').textContent = `$${totalCredit.toFixed(2)}`;
+      document.getElementById('journalDifference').textContent = `$${difference.toFixed(2)}`;
+    }
+
+    async function saveJournalVoucher() {
+      const difference = parseFloat(document.getElementById('journalDifference').textContent.replace('$', ''));
+      
+      if (difference !== 0) {
+        showMessage('Cannot save: Debit and Credit must be equal!', 'error');
+        return;
+      }
+
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingJournal');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Journal voucher saved successfully!', 'success');
+      }, 1000);
+    }
+
+    function createAuxiliaryContent() {
+      return `
+        <div class="content-section active" id="content-auxiliary-account">
+          <h2 class="section-title">Auxiliary Accounts (1-7)</h2>
+          
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Account #</th>
+                  <th>Account Name</th>
+                  <th>Type</th>
+                  <th>Balance</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>Cash</td>
+                  <td>Asset</td>
+                  <td>$10,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(1)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>Accounts Receivable</td>
+                  <td>Asset</td>
+                  <td>$5,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(2)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>Inventory</td>
+                  <td>Asset</td>
+                  <td>$15,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(3)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td>Accounts Payable</td>
+                  <td>Liability</td>
+                  <td>$3,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(4)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td>Revenue</td>
+                  <td>Income</td>
+                  <td>$50,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(5)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td>Expenses</td>
+                  <td>Expense</td>
+                  <td>$20,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(6)">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>7</td>
+                  <td>Equity</td>
+                  <td>Equity</td>
+                  <td>$7,000.00</td>
+                  <td><button class="btn btn-secondary btn-small" onclick="editAuxiliary(7)">Edit</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button class="btn btn-primary" onclick="addNewAuxiliary()">Add New Auxiliary Account</button>
+        </div>
+      `;
+    }
+
+    function editAuxiliary(accountNum) {
+      showMessage(`Editing auxiliary account ${accountNum}`, 'success');
+    }
+
+    function addNewAuxiliary() {
+      showMessage('Add new auxiliary account feature', 'success');
+    }
+
+    function createExpensesContent() {
+      return `
+        <div class="content-section active" id="content-expenses">
+          <h2 class="section-title">Expenses</h2>
+          
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Expense Type</th>
+                  <th>Amount</th>
+                  <th>Tax</th>
+                  <th>Payment Method</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    <div class="empty-state-icon">💳</div>
+                    <div class="empty-state-text">No expenses recorded</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Add New Expense</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" id="expenseDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expense Type</label>
+              <select id="expenseType" class="form-select">
+                <option value="rent">Rent</option>
+                <option value="utilities">Utilities</option>
+                <option value="salaries">Salaries</option>
+                <option value="supplies">Supplies</option>
+                <option value="marketing">Marketing</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount</label>
+              <input type="number" id="expenseAmount" class="form-input" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tax (%)</label>
+              <input type="number" id="expenseTax" class="form-input" placeholder="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Method</label>
+              <select id="expensePayment" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="check">Check</option>
+                <option value="card">Credit Card</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveExpense()">
+            Add Expense
+            <span class="loading-indicator" id="loadingExpense">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    async function saveExpense() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingExpense');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Expense saved successfully!', 'success');
+      }, 1000);
+    }
+
+    function createBalanceSheetContent() {
+      return `
+        <div class="content-section active" id="content-balance-sheet">
+          <h2 class="section-title">Balance Sheet</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">As of Date</label>
+              <input type="date" id="balanceDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary" onclick="generateBalanceSheet()" style="margin-top: 24px;">Generate Report</button>
+            </div>
+          </div>
+
+          <div id="balanceSheetReport" style="margin-top: 30px;">
+            <h3 style="text-align: center; margin-bottom: 20px;">Balance Sheet</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+              <div>
+                <h4 style="background: #f8f9fa; padding: 12px; border-radius: 6px;">Assets</h4>
+                <div style="padding: 12px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Cash</span>
+                    <span>$10,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Accounts Receivable</span>
+                    <span>$5,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Inventory</span>
+                    <span>$15,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 2px solid #dee2e6; font-weight: 700;">
+                    <span>Total Assets</span>
+                    <span>$30,000.00</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 style="background: #f8f9fa; padding: 12px; border-radius: 6px;">Liabilities & Equity</h4>
+                <div style="padding: 12px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Accounts Payable</span>
+                    <span>$3,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Equity</span>
+                    <span>$27,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 2px solid #dee2e6; font-weight: 700;">
+                    <span>Total Liabilities & Equity</span>
+                    <span>$30,000.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateBalanceSheet() {
+      showMessage('Balance sheet generated!', 'success');
+    }
+
+    function createProfitLossContent() {
+      return `
+        <div class="content-section active" id="content-profit-loss">
+          <h2 class="section-title">Profit & Loss Statement</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">From Date</label>
+              <input type="date" id="plFromDate" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date</label>
+              <input type="date" id="plToDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary" onclick="generateProfitLoss()" style="margin-top: 24px;">Generate Report</button>
+            </div>
+          </div>
+
+          <div id="profitLossReport" style="margin-top: 30px;">
+            <h3 style="text-align: center; margin-bottom: 20px;">Profit & Loss Statement</h3>
+            <div style="max-width: 600px; margin: 0 auto;">
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                <h4>Revenue</h4>
+                <div style="padding: 12px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Sales Revenue</span>
+                    <span>$50,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-weight: 700; padding-top: 8px; border-top: 1px solid #dee2e6;">
+                    <span>Total Revenue</span>
+                    <span>$50,000.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                <h4>Expenses</h4>
+                <div style="padding: 12px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Cost of Goods Sold</span>
+                    <span>$20,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Operating Expenses</span>
+                    <span>$10,000.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-weight: 700; padding-top: 8px; border-top: 1px solid #dee2e6;">
+                    <span>Total Expenses</span>
+                    <span>$30,000.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: #28a745; color: white; padding: 16px; border-radius: 6px; text-align: center;">
+                <h3 style="margin: 0;">Net Profit: $20,000.00</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateProfitLoss() {
+      showMessage('Profit & Loss statement generated!', 'success');
+    }
+
+    function createStockReportsContent() {
+      return `
+        <div class="content-section active" id="content-stock-reports">
+          <h2 class="section-title">Stock Reports</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">From Date</label>
+              <input type="date" id="stockFromDate" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date</label>
+              <input type="date" id="stockToDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary" onclick="generateStockReport()" style="margin-top: 24px;">Generate Report</button>
+            </div>
+          </div>
+
+          <div id="stockReportResult" style="margin-top: 30px;">
+            <h3>Stock Valuation Summary</h3>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Stock Value</div>
+                <div class="stat-value">$45,000</div>
+              </div>
+              <div class="stat-card success">
+                <div class="stat-label">Total Items</div>
+                <div class="stat-value">1,250</div>
+              </div>
+              <div class="stat-card warning">
+                <div class="stat-label">Low Stock Items</div>
+                <div class="stat-value">15</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Out of Stock</div>
+                <div class="stat-value">3</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateStockReport() {
+      showMessage('Stock report generated!', 'success');
+    }
+
+    function createPurchaseReportsContent() {
+      return `
+        <div class="content-section active" id="content-purchase-reports">
+          <h2 class="section-title">Purchase Reports</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">From Date</label>
+              <input type="date" id="purchaseFromDate" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date</label>
+              <input type="date" id="purchaseToDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary" onclick="generatePurchaseReport()" style="margin-top: 24px;">Generate Report</button>
+            </div>
+          </div>
+
+          <div id="purchaseReportResult" style="margin-top: 30px;">
+            <h3>Purchase Summary</h3>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Purchases</div>
+                <div class="stat-value">$32,500</div>
+              </div>
+              <div class="stat-card success">
+                <div class="stat-label">Number of Orders</div>
+                <div class="stat-value">45</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Average Order Value</div>
+                <div class="stat-value">$722</div>
+              </div>
+              <div class="stat-card warning">
+                <div class="stat-label">Pending Orders</div>
+                <div class="stat-value">8</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function generatePurchaseReport() {
+      showMessage('Purchase report generated!', 'success');
+    }
+
+    function createSalesReportsContent() {
+      return `
+        <div class="content-section active" id="content-sales-reports">
+          <h2 class="section-title">Sales Reports</h2>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">From Date</label>
+              <input type="date" id="salesFromDate" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date</label>
+              <input type="date" id="salesToDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary" onclick="generateSalesReport()" style="margin-top: 24px;">Generate Report</button>
+            </div>
+          </div>
+
+          <div id="salesReportResult" style="margin-top: 30px;">
+            <h3>Sales Summary</h3>
+            <div class="stats-grid">
+              <div class="stat-card success">
+                <div class="stat-label">Total Sales</div>
+                <div class="stat-value">$58,750</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Number of Invoices</div>
+                <div class="stat-value">127</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Average Sale Value</div>
+                <div class="stat-value">$462</div>
+              </div>
+              <div class="stat-card success">
+                <div class="stat-label">Gross Profit</div>
+                <div class="stat-value">$23,500</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateSalesReport() {
+      showMessage('Sales report generated!', 'success');
+    }
+
+    function createUsersContent() {
+      return `
+        <div class="content-section active" id="content-users">
+          <h2 class="section-title">User Management</h2>
+          
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Username</th>
+                  <th>Gender</th>
+                  <th>Date of Birth</th>
+                  <th>Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    <div class="empty-state-icon">👤</div>
+                    <div class="empty-state-text">No users added yet</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px;">Add New User</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="userFullName" class="form-input" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="userName" class="form-input" placeholder="johndoe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gender</label>
+              <select id="userGender" class="form-select">
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date of Birth</label>
+              <input type="date" id="userDOB" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select id="userRole" class="form-select">
+                <option value="">Select Role</option>
+                <option value="admin">Administrator</option>
+                <option value="manager">Manager</option>
+                <option value="accountant">Accountant</option>
+                <option value="sales">Sales Person</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveUser()">
+            Add User
+            <span class="loading-indicator" id="loadingUser">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    async function saveUser() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingUser');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('User added successfully!', 'success');
+      }, 1000);
+    }
+
+    function createRolesContent() {
+      return `
+        <div class="content-section active" id="content-roles">
+          <h2 class="section-title">Role Management</h2>
+          
+          <div style="margin-bottom: 30px;">
+            <h3>Create New Role</h3>
+            <div class="form-group" style="max-width: 400px;">
+              <label class="form-label">Role Name</label>
+              <input type="text" id="newRoleName" class="form-input" placeholder="Enter role name">
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 20px;">Role Permissions</h3>
+          <div style="display: grid; gap: 20px;">
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Products</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="products_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="products_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="products_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Sales</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="sales_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="sales_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="sales_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Stock Operations</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="stock_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="stock_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="stock_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Cash Flow</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="cash_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="cash_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="cash_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Accounting</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="accounting_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="accounting_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="accounting_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Reports</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="reports_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="reports_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="reports_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+              <h4 style="margin-bottom: 15px;">Utilities</h4>
+              <div style="display: grid; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="utilities_perm" value="full"> Full Access
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="utilities_perm" value="view"> View Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                  <input type="radio" name="utilities_perm" value="none" checked> No Access
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveRole()" style="margin-top: 30px;">
+            Save Role
+            <span class="loading-indicator" id="loadingRole">⏳</span>
+          </button>
+        </div>
+      `;
+    }
+
+    async function saveRole() {
+      if (currentRecordCount >= 999) {
+        showMessage('Maximum limit of 999 records reached.', 'error');
+        return;
+      }
+
+      const loading = document.getElementById('loadingRole');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        loading.classList.remove('active');
+        showMessage('Role saved successfully!', 'success');
+      }, 1000);
+    }
+
+    function createBackupContent() {
+      return `
+        <div class="content-section active" id="content-backup">
+          <h2 class="section-title">System Backup</h2>
+          
+          <div style="max-width: 600px; margin: 0 auto; text-align: center;">
+            <div style="background: #f8f9fa; padding: 40px; border-radius: 12px; margin-bottom: 30px;">
+              <div style="font-size: 64px; margin-bottom: 20px;">💾</div>
+              <h3 style="margin-bottom: 15px;">Backup Your Data</h3>
+              <p style="color: #6c757d; margin-bottom: 30px;">
+                Create a complete backup of all your business data including inventory, transactions, customers, and financial records.
+              </p>
+              <button class="btn btn-primary" onclick="createBackup()" style="font-size: 16px; padding: 12px 32px;">
+                Create Backup Now
+                <span class="loading-indicator" id="loadingBackup">⏳</span>
+              </button>
+            </div>
+
+            <div style="background: white; padding: 30px; border: 2px solid #e9ecef; border-radius: 12px;">
+              <h4 style="margin-bottom: 15px;">Backup Information</h4>
+              <div style="text-align: left;">
+                <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #e9ecef;">
+                  <span style="font-weight: 600;">Last Backup:</span>
+                  <span>Never</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #e9ecef;">
+                  <span style="font-weight: 600;">Total Records:</span>
+                  <span id="totalRecordsCount">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 12px;">
+                  <span style="font-weight: 600;">Backup Format:</span>
+                  <span>JSON</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function createBackup() {
+      const loading = document.getElementById('loadingBackup');
+      loading.classList.add('active');
+
+      setTimeout(() => {
+        const backupData = {
+          timestamp: new Date().toISOString(),
+          records: allRecords,
+          totalRecords: currentRecordCount
+        };
+
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `business-backup-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        loading.classList.remove('active');
+        showMessage('Backup created successfully!', 'success');
+      }, 1500);
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-weight: 500;
+      `;
+      messageDiv.textContent = message;
+      document.body.appendChild(messageDiv);
+      
+      setTimeout(() => {
+        messageDiv.remove();
+      }, 3000);
+    }
+
+    initializeApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'99b41261636fe30a',t:'MTc2MjU5NDQzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

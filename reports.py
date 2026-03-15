@@ -1,6 +1,10 @@
 from io import BytesIO
 import csv
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.pdfgen import canvas
 from datetime import datetime
 from connection import connection
@@ -55,6 +59,34 @@ class Reports:
             params = [from_date]
         elif to_date:
             query += " WHERE s.sale_date <= ?"
+            params = [to_date]
+
+        # Get rows
+        connection.contogetrows_with_params(query, data, params)
+
+        # Convert to list of dicts with column names
+        return [dict(zip(headers, row)) for row in data]
+
+    @staticmethod
+    def fetch_purchases(from_date=None, to_date=None):
+        """Fetch purchases with optional date filtering"""
+        headers = []
+        data = []
+
+        # Get headers dynamically from the joined query
+        connection.contogetheaders("SELECT p.*, s.name as supplier_name FROM purchases p LEFT JOIN suppliers s ON p.supplier_id = s.id WHERE 1=0", headers)
+
+        # Build query with date filtering
+        query = "SELECT p.*, s.name as supplier_name FROM purchases p LEFT JOIN suppliers s ON p.supplier_id = s.id"
+        params = []
+        if from_date and to_date:
+            query += " WHERE p.purchase_date BETWEEN ? AND ?"
+            params = [from_date, to_date]
+        elif from_date:
+            query += " WHERE p.purchase_date >= ?"
+            params = [from_date]
+        elif to_date:
+            query += " WHERE p.purchase_date <= ?"
             params = [to_date]
 
         # Get rows

@@ -4,18 +4,13 @@ Features: Organized categories, search, breadcrumbs, recent pages, keyboard shor
 """
 
 from nicegui import ui
+from nicegui import context as ng_context
 
-ui.add_css('''
-    body {
-        border: 5px solid black;
-    }
-    .q-page-container {
-        border: 5px solid blue;
-    }
-''')
+
 import json
 from datetime import datetime
 import os
+from modern_design_system import ModernDesignSystem as MDS
 
 # Import switch_to_tab function for tab switching
 try:
@@ -31,6 +26,11 @@ class EnhancedNavigation:
         self.current_path = []
         self.search_query = ""
         self.drawer = None
+        # Detect current page path for active-item highlighting
+        try:
+            self.active_path = ng_context.client.page.path
+        except Exception:
+            self.active_path = ''
         self.setup_navigation_data()
 
     def setup_navigation_data(self):
@@ -39,62 +39,64 @@ class EnhancedNavigation:
             'Dashboard': {
                 'icon': 'dashboard',
                 'items': {
-                    'dashboard': {'label': 'Home', 'path': '/dashboard', 'icon': 'home', 'shortcut': 'Alt+H'},
-                    'timespend': {'label': 'Time Spend Analysis', 'path': '/timespend', 'icon': 'schedule', 'shortcut': 'Alt+T'}
+                    'dashboard':  {'label': 'Home',               'path': '/dashboard',         'icon': 'home',                   'shortcut': 'Alt+H'},
+                    'timespend':  {'label': 'Time Spend Analysis', 'path': '/timespend',          'icon': 'schedule',               'shortcut': 'Alt+T'},
                 }
             },
             'Sales & Inventory': {
                 'icon': 'shopping_cart',
                 'items': {
-                    'sales': {'label': 'Sales', 'path': '/sales', 'icon': 'point_of_sale', 'shortcut': 'Alt+S'},
-                    'products': {'label': 'Products', 'path': '/products', 'icon': 'inventory', 'shortcut': 'Alt+P'},
-                    'purchase': {'label': 'Purchase', 'path': '/purchase', 'icon': 'shopping_bag', 'shortcut': 'Alt+U'},
-                    'stockoperations': {'label': 'Stock Operations', 'path': '/stockoperations', 'icon': 'inventory_2', 'shortcut': 'Alt+K'},
-                    'category': {'label': 'Category', 'path': '/category', 'icon': 'category', 'shortcut': 'Alt+C'}
+                    'sales':           {'label': 'Sales',            'path': '/sales',            'icon': 'point_of_sale', 'shortcut': 'Alt+S'},
+                    'products':        {'label': 'Products',         'path': '/products',         'icon': 'inventory',     'shortcut': 'Alt+P'},
+                    'purchase':        {'label': 'Purchase',         'path': '/purchase',         'icon': 'shopping_bag',  'shortcut': 'Alt+U'},
+                    'stockoperations': {'label': 'Stock Operations', 'path': '/stockoperations',  'icon': 'inventory_2',   'shortcut': 'Alt+K'},
+                    'category':        {'label': 'Category',         'path': '/category',         'icon': 'category',      'shortcut': 'Alt+C'},
                 }
             },
             'Customers & Suppliers': {
                 'icon': 'people',
                 'items': {
-                    'customers': {'label': 'Customers', 'path': '/customers', 'icon': 'person', 'shortcut': 'Alt+M'},
-                    'customerreceipt': {'label': 'Customer Receipt', 'path': '/customerreceipt', 'icon': 'receipt', 'shortcut': 'Alt+R'},
-                    'suppliers': {'label': 'Suppliers', 'path': '/suppliers', 'icon': 'business', 'shortcut': 'Alt+L'},
-                    'supplierpayment': {'label': 'Supplier Payment', 'path': '/supplierpayment', 'icon': 'payment', 'shortcut': 'Alt+Y'}
+                    'customers':      {'label': 'Customers',        'path': '/customers',        'icon': 'person',    'shortcut': 'Alt+M'},
+                    'customerreceipt':{'label': 'Customer Receipt', 'path': '/customerreceipt',  'icon': 'receipt',   'shortcut': 'Alt+Q'},
+                    'suppliers':      {'label': 'Suppliers',        'path': '/suppliers',        'icon': 'business',  'shortcut': 'Alt+L'},
+                    'supplierpayment':{'label': 'Supplier Payment', 'path': '/supplierpayment',  'icon': 'payment',   'shortcut': 'Alt+Y'},
                 }
             },
             'Finance': {
                 'icon': 'account_balance',
                 'items': {
-                    'expenses': {'label': 'Expenses', 'path': '/expenses', 'icon': 'money_off', 'shortcut': 'Alt+E'},
-                    'expensestype': {'label': 'Expense Types', 'path': '/expensestype', 'icon': 'category', 'shortcut': 'Alt+X'},
-                    'currencies': {'label': 'Currencies', 'path': '/currencies', 'icon': 'currency_exchange', 'shortcut': 'Alt+U'},
-                    'accounting': {'label': 'Accounting & Finance', 'path': '/accounting', 'icon': 'account_balance', 'shortcut': 'Alt+A'},
-                    'cash-drawer': {'label': 'Cash Drawer', 'path': '/cash-drawer', 'icon': 'account_balance_wallet', 'shortcut': 'Alt+D'},
-                    'ledger': {'label': 'Ledger', 'path': '/ledger', 'icon': 'account_balance', 'shortcut': 'Alt+L'},
-                    'auxiliary': {'label': 'Auxiliary', 'path': '/auxiliary', 'icon': 'account_balance', 'shortcut': 'Alt+Aux'}
+                    'expenses':       {'label': 'Expenses',             'path': '/expenses',        'icon': 'money_off',              'shortcut': 'Alt+E'},
+                    'expensestype':   {'label': 'Expense Types',        'path': '/expensestype',    'icon': 'category',               'shortcut': 'Alt+X'},
+                    'currencies':     {'label': 'Currencies',           'path': '/currencies',      'icon': 'currency_exchange',      'shortcut': 'Alt+W'},
+                    'accounting':     {'label': 'Accounting & Finance', 'path': '/accounting',      'icon': 'account_balance',        'shortcut': 'Alt+A'},
+                    'cash-drawer':    {'label': 'Cash Drawer',          'path': '/cash-drawer',     'icon': 'account_balance_wallet', 'shortcut': 'Alt+D'},
+                    'ledger':         {'label': 'Ledger',               'path': '/ledger',          'icon': 'account_balance',        'shortcut': 'Alt+F'},
+                    'auxiliary':      {'label': 'Auxiliary',            'path': '/auxiliary',       'icon': 'account_balance',        'shortcut': 'Alt+Aux'},
+                    'journal_voucher':{'label': 'Journal Voucher',      'path': '/journal_voucher', 'icon': 'receipt_long',           'shortcut': 'Alt+J'},
+                    'voucher_subtype':{'label': 'Voucher Subtype',      'path': '/voucher_subtype', 'icon': 'category',               'shortcut': 'Alt+V'},
                 }
             },
             'Administration': {
                 'icon': 'admin_panel_settings',
                 'items': {
-                    'employees': {'label': 'Employees', 'path': '/employees', 'icon': 'badge', 'shortcut': 'Alt+O'},
-                    'company': {'label': 'Company', 'path': '/company', 'icon': 'business_center', 'shortcut': 'Alt+B'},
-                    'roles': {'label': 'Roles', 'path': '/roles', 'icon': 'group', 'shortcut': 'Alt+G'},
-                    'appointments': {'label': 'Appointments', 'path': '/appointments', 'icon': 'event', 'shortcut': 'Alt+N'},
-                    'services': {'label': 'Services', 'path': '/services', 'icon': 'build', 'shortcut': 'Alt+V'}
+                    'employees':    {'label': 'Employees',    'path': '/employees',    'icon': 'badge',          'shortcut': 'Alt+O'},
+                    'company':      {'label': 'Company',      'path': '/company',      'icon': 'business_center','shortcut': 'Alt+B'},
+                    'roles':        {'label': 'Roles',        'path': '/roles',        'icon': 'group',          'shortcut': 'Alt+G'},
+                    'appointments': {'label': 'Appointments', 'path': '/appointments', 'icon': 'event',          'shortcut': 'Alt+N'},
+                    'services':     {'label': 'Services',     'path': '/services',     'icon': 'build',          'shortcut': 'Alt+I'},
                 }
             },
             'Reports': {
                 'icon': 'analytics',
                 'items': {
-                    'reports': {'label': 'Reports', 'path': '/reports', 'icon': 'analytics', 'shortcut': 'Alt+R'},
-                    'statistical-reports': {'label': 'Statistical Reports', 'path': '/statistical-reports', 'icon': 'bar_chart', 'shortcut': 'Alt+S'}
+                    'reports':             {'label': 'Reports',             'path': '/reports',             'icon': 'analytics', 'shortcut': 'Alt+R'},
+                    'statistical-reports': {'label': 'Statistical Reports', 'path': '/statistical-reports', 'icon': 'bar_chart', 'shortcut': 'Alt+2'},
                 }
             },
             'System': {
                 'icon': 'settings',
                 'items': {
-                    'backup': {'label': 'Database Backup', 'path': '/tabbed-dashboard', 'icon': 'backup', 'shortcut': 'Alt+K'}
+                    'backup': {'label': 'Database Backup', 'path': '/tabbed-dashboard', 'icon': 'backup', 'shortcut': 'Alt+Z'},
                 }
             }
         }
@@ -165,73 +167,92 @@ class EnhancedNavigation:
         return results
 
     def create_navigation_header(self):
-        """Create enhanced navigation header"""
-        with ui.header().classes('bg-white shadow-sm border-b'):
-            with ui.row().classes('w-full items-center justify-between px-4'):
+        """Create premium navigation header with glassmorphism"""
+        with ui.header().classes('ribbon-container').style('background: transparent; border: none;'):
+            with ui.row().classes('w-full items-center justify-between px-6 py-2 glass').style('border-radius: 0 0 1.5rem 1.5rem; border-top: none;'):
 
-                # Left side - Toggle button, Logo and breadcrumbs
-                with ui.row().classes('items-center gap-4'):
-                    # Toggle button for navigation drawer
-                    self.toggle_button = ui.button('', icon='menu').classes('text-gray-600 hover:text-gray-800').props('flat round')
+                # Left side - Logo & Path
+                with ui.row().classes('items-center gap-6'):
+                    # Custom Hamburger Toggle
+                    self.toggle_button = ui.button(icon='menu').props('flat round').classes('text-gray-700 hover:text-purple-600 transition-all')
                     self.toggle_button.on('click', self.toggle_navigation_drawer)
 
-                    ui.icon('store').classes('text-2xl text-blue-600')
-                    ui.label('POS System').classes('text-xl font-bold text-gray-800')
+                    with ui.row().classes('items-center gap-2'):
+                        ui.icon('cloud_done', size='2rem').style(f'color: {MDS.SECONDARY}')
+                        ui.label('ManagementOS').classes('text-xl font-black tracking-tighter text-gray-900').style('font-family: "Outfit", sans-serif;')
 
-                    # Breadcrumbs
+                    # Animated Breadcrumbs
                     if self.current_path:
-                        with ui.row().classes('items-center gap-2 ml-4'):
-                            ui.icon('chevron_right').classes('text-gray-400 text-sm')
+                        with ui.row().classes('items-center gap-2 ml-4 animate-fade-in'):
+                            ui.label('/').classes('text-gray-300 font-light')
                             for i, crumb in enumerate(self.current_path):
                                 if i > 0:
-                                    ui.icon('chevron_right').classes('text-gray-400 text-sm')
-                                ui.label(crumb).classes('text-sm text-gray-600')
+                                    ui.label('›').classes('text-gray-300 font-light')
+                                ui.label(crumb).classes('text-xs font-bold uppercase tracking-widest text-gray-500 bg-gray-100/50 px-2 py-1 rounded-md')
 
-                # Center - Search bar
-                with ui.row().classes('flex-1 justify-center max-w-md relative'):
-                    search_input = ui.input(placeholder='Search pages...').classes('w-full')
-                    search_input.on('input', lambda e: self.update_search_results(e.value))
+                # Center - Global Quick Search
+                with ui.row().classes('flex-1 justify-center max-w-xl mx-8'):
+                    with ui.row().classes('w-full items-center px-4 py-1 rounded-full bg-gray-100/50 border border-gray-200/50 focus-within:bg-white focus-within:shadow-lg focus-within:border-purple-300 transition-all'):
+                        ui.icon('search', size='1.25rem').classes('text-gray-400')
+                        search_input = ui.input(placeholder='Search everything... (Alt+/)').props('borderless dense').classes('flex-1 ml-2 text-sm font-medium')
+                        search_input.on('input', lambda e: self.update_search_results(e.value))
 
-                    # Search results dropdown
-                    self.search_dropdown = ui.column().classes('absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b shadow-lg z-50 max-h-64 overflow-y-auto hidden')
+                    # Glass Search Results
+                    self.search_dropdown = ui.column().classes('absolute top-full mt-2 left-0 right-0 glass p-2 rounded-2xl hidden z-50').style('max-height: 400px; overflow-y: auto;')
 
-                # Right side - User info and actions
-                with ui.row().classes('items-center gap-4'):
-                    # Dashboard Home button
-                    ui.button('Home', icon='home', on_click=lambda: self.navigate_to_page('dashboard')).props('flat').classes('text-blue-600')
+                # Right side - Actions & User
+                with ui.row().classes('items-center gap-3'):
+                    # Action Buttons
+                    ui.button(icon='notifications').props('flat round').classes('text-gray-500 hover:text-purple-600')
+                    
+                    # User Profile Widget
+                    with ui.row().classes('items-center gap-3 pl-4 border-l border-gray-200'):
+                        with ui.column().classes('items-end gap-0'):
+                            ui.label(self.current_user.get("username", "User")).classes('text-sm font-bold text-gray-900')
+                            ui.label('Enterprise Admin').classes('text-[10px] font-black uppercase tracking-tighter text-purple-600')
+                        
+                        with ui.button().props('flat round').classes('p-0 overflow-hidden border-2 border-purple-100 hover:border-purple-500 transition-all'):
+                            ui.image('https://ui-avatars.com/api/?name=' + self.current_user.get("username", "U") + '&background=7048E8&color=fff').classes('w-8 h-8 rounded-full')
+                            
+                            with ui.menu().classes('glass p-2 rounded-xl border border-white/50 shadow-2xl'):
+                                ui.menu_item('My Account', lambda: self.navigate_to_page('profile')).classes('rounded-lg font-bold text-sm')
+                                ui.menu_item('System Settings', lambda: self.navigate_to_page('settings')).classes('rounded-lg font-bold text-sm')
+                                ui.separator().classes('my-2 opacity-50')
+                                ui.menu_item('Sign Out', on_click=self.confirm_logout).classes('rounded-lg font-bold text-sm text-red-500')
 
-                    # Recent pages dropdown
-                    with ui.dropdown_button('Recent', icon='history').props('flat'):
-                        if self.recent_pages:
-                            for page in self.recent_pages[:5]:
-                                ui.menu_item(page['label'], lambda p=page: self.navigate_to_page(p['key']))
-                        else:
-                            ui.menu_item('No recent pages', lambda: None).props('disabled')
 
-                    # User menu
-                    with ui.dropdown_button(f'Welcome, {self.current_user.get("username", "User")}', icon='person').props('flat'):
-                        ui.menu_item('Profile', lambda: self.navigate_to_page('profile'))
-                        ui.menu_item('Settings', lambda: self.navigate_to_page('settings'))
-                        ui.menu_item('Logout', lambda: ui.navigate.to('/logout'))
-
-                    # Add Appointments link if user has permission
-                    if 'appointments' in self.get_allowed_pages():
-                        ui.link('Appointments', '/appointments').classes('text-blue-600 hover:text-blue-800 ml-4')
+    def confirm_logout(self):
+        """Show confirmation dialog before logging out"""
+        with ui.dialog() as dialog, ui.card().classes('p-6'):
+            ui.label('Logout Confirmation').classes('text-xl font-bold mb-2')
+            ui.label('Are you sure you want to logout of your session?').classes('text-gray-600 mb-6')
+            with ui.row().classes('w-full justify-end gap-3 mt-4'):
+                ui.button('Cancel', on_click=dialog.close).props('flat text-gray-600')
+                ui.button('Logout', color='red', on_click=lambda: ui.navigate.to('/logout')).props('unelevated')
+        dialog.open()
 
     def create_navigation_drawer(self):
-        """Create enhanced navigation drawer with categories"""
-        with ui.left_drawer(value=False).classes('bg-gray-50 border-r').props('width=280') as drawer:
+        """Create premium navigation drawer"""
+        with ui.left_drawer(value=True).classes('drawer p-4').props('width=280 breakpoint=0') as drawer:
             self.drawer = drawer
+            
+            with ui.column().classes('w-full gap-8'):
+                # Branding / Logo
+                with ui.row().classes('w-full items-center px-4 gap-3 mb-4'):
+                    ui.icon('cloud_done', size='2.5rem').style(f'color: {MDS.ACCENT}')
+                    ui.label('ManagementOS').classes('text-xl font-black text-white tracking-tighter')
 
-            # Search in drawer
-            with ui.row().classes('p-4 border-b'):
-                ui.icon('search').classes('text-gray-400')
-                self.drawer_search = ui.input(placeholder='Search navigation...').classes('flex-1 ml-2')
-                self.drawer_search.on('input', lambda e: self.filter_navigation(e.value))
+                # Search in drawer
+                with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all'):
+                    ui.icon('search', size='1rem').classes('text-gray-500')
+                    self.drawer_search = ui.input(placeholder='Jump to Page...').props('borderless dense').classes('flex-1 ml-2 text-xs font-bold text-white uppercase tracking-wider')
+                    self.drawer_search.on('input', lambda e: self.filter_navigation(e.value))
 
-            # Navigation content
-            with ui.column().classes('p-2'):
-                self.create_navigation_content()
+                # Navigation content
+                self.nav_container = ui.column().classes('w-full gap-2 mt-4 drawer-scroll-container overflow-y-auto')
+                with self.nav_container:
+                    self.create_navigation_content()
+
 
     def create_navigation_content(self, search_filter=""):
         """Create navigation content with categories"""
@@ -245,32 +266,30 @@ class EnhancedNavigation:
                         category_items.append((page_key, page_data))
 
             if category_items:
-                # Category header
-                with ui.expansion(category, icon=data['icon']).classes('w-full mb-1') as expansion:
-                    expansion.props('header-class=text-sm font-semibold')
-
+                # Premium Category Section
+                with ui.column().classes('w-full mb-6'):
+                    ui.label(category).classes('text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3 px-4')
+                    
                     # Category items
                     for page_key, page_data in category_items:
-                        with ui.row().classes('items-center p-2 rounded hover:bg-blue-50 cursor-pointer w-full').on('click', lambda p=page_key: self.navigate_to_page(p)):
-                            ui.icon(page_data['icon']).classes('text-blue-600 mr-3')
-                            with ui.column().classes('flex-1'):
-                                ui.label(page_data['label']).classes('text-sm font-medium')
-                                if 'shortcut' in page_data:
-                                    ui.label(f'Shortcut: {page_data["shortcut"]}').classes('text-xs text-gray-500')
+                        is_active = (page_data['path'] == self.active_path)
+                        
+                        btn_classes = 'drawer-button w-full ' + ('active ' if is_active else '')
+                        
+                        with ui.element('div').classes(btn_classes).on('click', lambda p=page_key: self.navigate_to_page(p)):
+                            ui.icon(page_data['icon']).classes('drawer-button-icon')
+                            ui.label(page_data['label']).classes('drawer-button-label flex-1')
+                            
+                            if is_active:
+                                ui.element('div').classes('w-1.5 h-1.5 rounded-full bg-white animate-pulse')
+
 
     def filter_navigation(self, query):
         """Filter navigation based on search query"""
-        # Clear current content
-        self.drawer.clear()
-
-        # Recreate with filter
-        with self.drawer:
-            with ui.row().classes('p-4 border-b'):
-                ui.icon('search').classes('text-gray-400')
-                self.drawer_search = ui.input(placeholder='Search navigation...', value=query).classes('flex-1 ml-2')
-                self.drawer_search.on('input', lambda e: self.filter_navigation(e.value))
-
-            with ui.column().classes('p-2'):
+        # Clear current content area only
+        if hasattr(self, 'nav_container'):
+            self.nav_container.clear()
+            with self.nav_container:
                 self.create_navigation_content(query)
 
     def update_search_results(self, query):

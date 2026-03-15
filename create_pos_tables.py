@@ -357,6 +357,54 @@ def create_tables():
             ALTER TABLE auxiliary ADD short_cut NVARCHAR(200)
         ''')
 
+        # Create subtype table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='subtype' AND xtype='U')
+            CREATE TABLE subtype (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                code NVARCHAR(50) NOT NULL UNIQUE,
+                name NVARCHAR(200) NOT NULL,
+                sequence INT DEFAULT 0,
+                created_at DATETIME DEFAULT GETDATE(),
+                updated_at DATETIME DEFAULT GETDATE()
+            )
+        ''')
+
+        # Create journal_voucher_header table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='journal_voucher_header' AND xtype='U')
+            CREATE TABLE journal_voucher_header (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                date DATETIME DEFAULT GETDATE(),
+                voucher_number NVARCHAR(50) NOT NULL UNIQUE,
+                subtype_code NVARCHAR(50),
+                manual_reference NVARCHAR(200),
+                created_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (subtype_code) REFERENCES subtype(code)
+            )
+        ''')
+
+        # Create journal_voucher_lines table
+        cursor.execute('''
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='journal_voucher_lines' AND xtype='U')
+            CREATE TABLE journal_voucher_lines (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                header_id INT NOT NULL,
+                account NVARCHAR(50),
+                currency_code NVARCHAR(10),
+                debit DECIMAL(18,2) DEFAULT 0,
+                credit DECIMAL(18,2) DEFAULT 0,
+                lbp_value DECIMAL(18,2) DEFAULT 0,
+                usd_value DECIMAL(18,2) DEFAULT 0,
+                parity_rate DECIMAL(10,4) DEFAULT 0,
+                remark NVARCHAR(500),
+                created_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (header_id) REFERENCES journal_voucher_header(id),
+                FOREIGN KEY (account) REFERENCES auxiliary(number),
+                FOREIGN KEY (currency_code) REFERENCES currencies(currency_code)
+            )
+        ''')
+
         
         
         # Insert sample data

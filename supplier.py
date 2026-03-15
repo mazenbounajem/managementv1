@@ -191,8 +191,8 @@ class SupplierClass():
                           return
         else: 
                  try:
-                     sql="""insert into supplier (Name,CurrencyId,PrimaryAddress,Phone,Mobile,Email,website,VatNumber,Mof,Balance_LL,Balance_USD) 
-                     Values(?,?,?,?,?,?,?,?,?,NULL,NULL)"""
+                     sql="""insert into supplier (Name,CurrencyId,PrimaryAddress,Phone,Mobile,Email,website,VatNumber,Mof,Balance_LL,Balance_USD)
+                     Values(?,?,?,?,?,?,?,?,?,0.00,0.00)"""
                      values=(sname,1,saddress,sphone,smobile,emailaddress,swebsite,svat,smof)
                      inserttosupplier.insertingtodatabase(sql,values)
                  except Exception as ex :

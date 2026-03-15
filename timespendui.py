@@ -1,90 +1,111 @@
 from nicegui import ui
 from connection import connection
 from datetime import datetime, date
-from uiaggridtheme import uiAggridTheme
+from modern_design_system import ModernDesignSystem as MDS
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernStats, ModernButton, ModernInput, ModernTable
+import json
 
 class TimeSpendUI:
     def __init__(self, show_header=True):
-        self.from_date = None
-        self.to_date = None
+        self.from_date = date.today().strftime('%Y-%m-%d')
+        self.to_date = date.today().strftime('%Y-%m-%d')
         self.hourly_rate = 0.0
         self.total_minutes = 0
         self.total_hours = 0.0
         self.total_cost = 0.0
+        self.session_data = []
 
+        # Initialize UI inside a Page Layout
         if show_header:
-            with ui.header().classes('items-center justify-between'):
-                ui.label('Time Spend Analysis').classes('text-2xl font-bold')
-                ui.button('Back to Dashboard', on_click=lambda: ui.navigate.to('/dashboard')).props('flat color=white')
-
-        # Initialize UI
-        self.create_ui()
+            with ModernPageLayout("Time Spend Analysis"):
+                self.create_ui()
+        else:
+            self.create_ui()
 
     def create_ui(self):
-        """Create the main UI layout."""
-        with ui.element('div').classes('flex w-full h-screen p-4'):
-            # Filters section
-            with ui.element('div').classes('w-full mb-4'):
-                with ui.row().classes('w-full items-center gap-4 p-4 bg-blue-50 rounded-lg'):
-                    ui.label('Date Filters:').classes('text-lg font-semibold')
+        """Create the main UI layout with premium components."""
+        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
+            
+            # --- TOP SECTION: FILTERS ---
+            with ModernCard().classes('w-full p-6'):
+                with ui.row().classes('w-full items-center justify-between gap-4'):
+                    with ui.row().classes('items-center gap-4'):
+                        ui.icon('calendar_today').classes('text-2xl text-accent')
+                        ui.label('Analysis Period').classes('text-xl font-bold text-primary-dark')
+                    
+                    with ui.row().classes('items-center gap-4'):
+                        self.from_date_input = ui.input('From', value=self.from_date).props('type=date outlined dense').classes('w-44')
+                        self.to_date_input = ui.input('To', value=self.to_date).props('type=date outlined dense').classes('w-44')
+                        
+                        ModernButton.create('Filter Data', icon='filter_alt', on_click=self.filter_data)
+                        ui.button(icon='refresh', on_click=self.load_data).props('flat round color=primary').tooltip('Refresh original data')
 
-                    # From date picker
-                    self.from_date_input = ui.input('From Date', value=date.today().strftime('%Y-%m-%d')).classes('w-40')
-                    self.from_date_input.props('type=date')
+            # --- MIDDLE SECTION: STATS CARDS ---
+            with ui.row().classes('w-full gap-4'):
+                self.sessions_card = ModernStats.create(
+                    label='Total Sessions',
+                    value='0',
+                    icon='history',
+                    color=MDS.SECONDARY
+                ).classes('flex-1')
+                
+                self.hours_card = ModernStats.create(
+                    label='Total Hours',
+                    value='0.00',
+                    icon='timer',
+                    color=MDS.ACCENT
+                ).classes('flex-1')
+                
+                self.cost_card = ModernStats.create(
+                    label='Total Cost',
+                    value='$0.00',
+                    icon='payments',
+                    color=MDS.SUCCESS
+                ).classes('flex-1')
 
-                    # To date picker
-                    self.to_date_input = ui.input('To Date', value=date.today().strftime('%Y-%m-%d')).classes('w-40')
-                    self.to_date_input.props('type=date')
+            # --- BOTTOM SECTION: DATA GRID & COST CALC ---
+            with ui.row().classes('w-full gap-6 items-start'):
+                # Data Grid Column
+                with ui.column().classes('flex-1'):
+                    with ModernCard().classes('w-full p-4 overflow-hidden'):
+                        ui.label('Session Details').classes('text-lg font-bold mb-4 ml-2')
+                        
+                        columns = [
+                            {'headerName': 'Date', 'field': 'login_date', 'sortable': True, 'filter': True},
+                            {'headerName': 'User', 'field': 'username', 'sortable': True, 'filter': True},
+                            {'headerName': 'Login', 'field': 'login_time'},
+                            {'headerName': 'Logout', 'field': 'logout_time'},
+                            {'headerName': 'Duration (Min)', 'field': 'session_duration_minutes', 'type': 'numericColumn', 'sortable': True}
+                        ]
+                        
+                        self.aggrid = ui.aggrid({
+                            'columnDefs': columns,
+                            'rowData': [],
+                            'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
+                            'rowSelection': 'single',
+                        }).classes('w-full h-[400px] ag-theme-quartz-dark')
 
-                    # Filter button
-                    ui.button('Filter Data', on_click=self.filter_data).props('color=primary').classes('px-6')
-
-                    # Refresh button
-                    ui.button('Refresh', on_click=self.load_data).props('color=secondary').classes('px-6')
-
-            # AG Grid container
-            with ui.element('div').classes('w-full h-[calc(100vh-400px)] border rounded-lg bg-white shadow-sm mb-4'):
-                uiAggridTheme.addingtheme()
-
-                # Define columns for the grid
-                self.columns = [
-                    {'headerName': 'Date', 'field': 'login_date', 'width': 120, 'filter': True, 'headerClass': 'green-header'},
-                    {'headerName': 'User', 'field': 'username', 'width': 150, 'filter': True, 'headerClass': 'green-header'},
-                    {'headerName': 'Login Time', 'field': 'login_time', 'width': 120, 'filter': True, 'headerClass': 'green-header'},
-                    {'headerName': 'Logout Date', 'field': 'logout_date', 'width': 120, 'filter': True, 'headerClass': 'green-header'},
-                    {'headerName': 'Logout Time', 'field': 'logout_time', 'width': 120, 'filter': True, 'headerClass': 'green-header'},
-                    {'headerName': 'Duration (Minutes)', 'field': 'session_duration_minutes', 'width': 150, 'filter': True, 'headerClass': 'green-header'}
-                ]
-
-                # Create AG Grid
-                self.aggrid = ui.aggrid({
-                    'columnDefs': self.columns,
-                    'rowData': [],
-                    'defaultColDef': {'flex': 1, 'minWidth': 80, 'sortable': True, 'filter': True},
-                    'rowSelection': 'single',
-                    'domLayout': 'normal'
-                }).classes('w-full h-full p-2 ag-theme-quartz-custom')
-
-            # Summary section
-            with ui.element('div').classes('w-full p-4 bg-gray-50 rounded-lg mb-4'):
-                with ui.row().classes('w-full justify-between items-center'):
-                    # Left side - totals
-                    with ui.column().classes('gap-2'):
-                        ui.label('Summary').classes('text-xl font-bold text-gray-700')
-                        self.total_sessions_label = ui.label('Total Sessions: 0').classes('text-lg')
-                        self.total_minutes_label = ui.label('Total Minutes: 0').classes('text-lg')
-                        self.total_hours_label = ui.label('Total Hours: 0.00').classes('text-lg font-semibold text-blue-600')
-
-                    # Right side - calculation system
-                    with ui.column().classes('gap-2 items-end'):
-                        ui.label('Cost Calculation').classes('text-xl font-bold text-gray-700')
-
-                        with ui.row().classes('items-center gap-2'):
-                            ui.label('Hourly Rate ($):').classes('text-lg')
-                            self.hourly_rate_input = ui.number('Hourly Rate', value=0.0, min=0, step=0.01).classes('w-32')
-                            self.hourly_rate_input.on('change', self.calculate_cost)
-
-                        self.total_cost_label = ui.label('Total Cost: $0.00').classes('text-2xl font-bold text-green-600')
+                # Cost Calculation Column
+                with ui.column().classes('w-80'):
+                    with ModernCard().classes('w-full p-6'):
+                        ui.icon('calculate').classes('text-3xl text-accent mb-2')
+                        ui.label('Cost Calculator').classes('text-xl font-bold mb-4')
+                        
+                        ui.label('Set your hourly rate to estimate total labor costs for this period.').classes('text-sm text-muted mb-4')
+                        
+                        self.hourly_rate_input = ui.number(
+                            'Hourly Rate ($)', 
+                            value=0.0, 
+                            min=0, 
+                            step=1.0,
+                            format='%.2f',
+                            on_change=self.calculate_cost
+                        ).props('outlined dense prefix=$').classes('w-full mb-6')
+                        
+                        with ui.element('div').classes('p-4 rounded-xl bg-primary/5 border border-primary/10'):
+                            ui.label('Estimated Expenditure').classes('text-xs font-bold uppercase tracking-widest text-muted mb-1')
+                            self.summary_cost_label = ui.label('$0.00').classes('text-3xl font-black text-primary-dark')
 
             # Load initial data
             self.load_data()
@@ -92,24 +113,15 @@ class TimeSpendUI:
     def load_data(self):
         """Load session data from database."""
         try:
-            # Query to get session data with user information
             sql = """
-            SELECT
-                us.login_date,
-                u.username,
-                us.login_time,
-                us.logout_date,
-                us.logout_time,
-                us.session_duration_minutes
+            SELECT us.login_date, u.username, us.login_time, us.logout_date, us.logout_time, us.session_duration_minutes
             FROM user_sessions us
             INNER JOIN users u ON us.user_id = u.id
             ORDER BY us.login_date DESC, us.login_time DESC
             """
-
             raw_data = []
             connection.contogetrows(sql, raw_data)
 
-            # Convert to AG Grid format
             self.session_data = []
             for row in raw_data:
                 self.session_data.append({
@@ -121,18 +133,13 @@ class TimeSpendUI:
                     'session_duration_minutes': int(row[5]) if row[5] else 0
                 })
 
-            # Update grid
             self.aggrid.options['rowData'] = self.session_data
             self.aggrid.update()
-
-            # Calculate totals
-            self.calculate_totals()
-
-            ui.notify(f'Loaded {len(self.session_data)} session records', color='green')
+            self.calculate_totals(self.session_data)
+            ui.notify(f'Loaded {len(self.session_data)} records', color='positive')
 
         except Exception as e:
-            ui.notify(f'Error loading data: {str(e)}', color='red')
-            print(f'Error loading session data: {str(e)}')
+            ui.notify(f'Error loading data: {str(e)}', color='negative')
 
     def filter_data(self):
         """Filter data based on date range."""
@@ -141,67 +148,45 @@ class TimeSpendUI:
             to_date_str = self.to_date_input.value
 
             if not from_date_str or not to_date_str:
-                ui.notify('Please select both from and to dates', color='red')
+                ui.notify('Select a valid date range', color='warning')
                 return
 
-            from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
-            to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+            f_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+            t_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
 
-            # Filter the data
-            filtered_data = []
-            for row in self.session_data:
-                if row['login_date']:
-                    try:
-                        session_date = datetime.strptime(row['login_date'], '%Y-%m-%d').date()
-                        if from_date <= session_date <= to_date:
-                            filtered_data.append(row)
-                    except ValueError:
-                        continue
+            filtered = [
+                row for row in self.session_data 
+                if row['login_date'] and f_date <= datetime.strptime(row['login_date'], '%Y-%m-%d').date() <= t_date
+            ]
 
-            # Update grid with filtered data
-            self.aggrid.options['rowData'] = filtered_data
+            self.aggrid.options['rowData'] = filtered
             self.aggrid.update()
-
-            # Calculate totals for filtered data
-            self.calculate_totals(filtered_data)
-
-            ui.notify(f'Filtered to {len(filtered_data)} records between {from_date_str} and {to_date_str}', color='green')
+            self.calculate_totals(filtered)
+            ui.notify(f'Displaying {len(filtered)} filtered records', color='info')
 
         except Exception as e:
-            ui.notify(f'Error filtering data: {str(e)}', color='red')
-            print(f'Error filtering data: {str(e)}')
+            ui.notify(f'Filtering error: {str(e)}', color='negative')
 
-    def calculate_totals(self, data=None):
-        """Calculate totals for the data."""
-        if data is None:
-            data = self.session_data
-
+    def calculate_totals(self, data):
+        """Update stat cards and internal totals."""
         total_sessions = len(data)
-        total_minutes = sum(row['session_duration_minutes'] for row in data if row['session_duration_minutes'])
-        total_hours = total_minutes / 60.0
+        total_minutes = sum(row['session_duration_minutes'] for row in data)
+        self.total_hours = total_minutes / 60.0
 
-        # Update labels
-        self.total_sessions_label.text = f'Total Sessions: {total_sessions}'
-        self.total_minutes_label.text = f'Total Minutes: {total_minutes}'
-        self.total_hours_label.text = f'Total Hours: {total_hours:.2f}'
-
-        # Store values for cost calculation
-        self.total_minutes = total_minutes
-        self.total_hours = total_hours
-
-        # Recalculate cost if hourly rate is set
+        self.sessions_card.update_value(str(total_sessions))
+        self.hours_card.update_value(f"{self.total_hours:.2f}")
         self.calculate_cost()
 
     def calculate_cost(self):
-        """Calculate total cost based on hourly rate."""
+        """Update cost visibility based on hourly rate."""
         try:
-            hourly_rate = float(self.hourly_rate_input.value or 0)
-            total_cost = self.total_hours * hourly_rate
-
-            self.total_cost_label.text = f'Total Cost: ${total_cost:.2f}'
-
+            rate = float(self.hourly_rate_input.value or 0)
+            cost = self.total_hours * rate
+            cost_str = f"${cost:,.2f}"
+            self.cost_card.update_value(cost_str)
+            self.summary_cost_label.set_text(cost_str)
         except ValueError:
-            self.total_cost_label.text = 'Total Cost: $0.00'
+            pass
 
 @ui.page('/timespend')
 def timespend_page_route():

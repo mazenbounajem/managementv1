@@ -7,27 +7,14 @@ from decimal import Decimal
 from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernStats
+from modern_design_system import ModernDesignSystem as MDS
 
+@ui.page('/expenses')
 def expenses_page():
-    uiAggridTheme.addingtheme()
-
-    # Check if user is logged in
-    user = session_storage.get('user')
-    if not user:
-        ui.notify('Please login to access this page', color='red')
-        ui.run_javascript('window.location.href = "/login"')
-        return
-
-    # Get user permissions
-    permissions = connection.get_user_permissions(user['role_id'])
-    allowed_pages = {page for page, can_access in permissions.items() if can_access}
-
-    # Create enhanced navigation instance
-    navigation = EnhancedNavigation(permissions, user)
-    navigation.create_navigation_drawer()  # Create drawer first
-    navigation.create_navigation_header()  # Then create header with toggle button
-
-    ExpensesUI()
+    with ModernPageLayout("Expense Management"):
+        ExpensesUI()
 
 class ExpensesUI:
 
@@ -481,162 +468,148 @@ class ExpensesUI:
             ui.notify(f'Error loading auxiliary options: {str(e)}')
 
     def create_ui(self):
-        with ui.element('div').classes('flex w-full h-screen'):
-            with ui.element('div').classes('w-1/12 bg-gray-100 p-1 flex flex-col gap-1'):
-                ui.button('🆕 New', on_click=self.clear_inputs).classes('text-xs py-1 px-2 w-full')
-                ui.button('💾 Save', on_click=self.save_expense).classes('text-xs py-1 px-2 w-full')
-                ui.button('↩️ Undo', on_click=self.show_undo_confirmation).classes('text-xs py-1 px-2 w-full')
-                ui.button('🗑️ Delete', on_click=self.delete_expense).classes('text-xs py-1 px-2 w-full')
-                ui.button('🔄 Refresh', on_click=self.refresh_expenses_table).classes('text-xs py-1 px-2 w-full')
-                            
-            with ui.element('div').classes('w-11/12 p-1 flex flex-col gap-1 overflow-y-auto'):
-                with ui.splitter(horizontal=True, value=35).classes('w-full h-full') as main_splitter:
-                    with main_splitter.separator:
-                        ui.icon('lightbulb').classes('text-blue text-sm')
-                    with main_splitter.before:
-                        with ui.element('div').classes('w-full h-full p-1'):
-                            ui.label('Expenses History').classes('text-sm font-bold text-gray-700 mb-1')
-                            
-                            expenses_columns = [
-                                {'headerName': 'ID', 'field': 'id', 'width': 40, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Date', 'field': 'expense_date', 'width': 70, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Type', 'field': 'expense_type', 'width': 80, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Description', 'field': 'description', 'width': 100, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Amount', 'field': 'amount', 'width': 60,  'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Payment', 'field': 'payment_method', 'width': 60, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Invoice', 'field': 'invoice_number', 'width': 80, 'filter': True, 'headerClass': 'blue-header'},
-                                {'headerName': 'Auxiliary', 'field': 'auxiliary_id', 'width': 80, 'filter': True, 'headerClass': 'blue-header'}
-                            ]
+        # Action Bar
+        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
+            with ui.row().classes('gap-3'):
+                ModernButton('New Expense', icon='add', on_click=self.clear_inputs, variant='primary')
+                ModernButton('Save All', icon='save', on_click=self.save_expense, variant='success')
+                ModernButton('Undo', icon='undo', on_click=self.show_undo_confirmation, variant='secondary')
+                ModernButton('Delete', icon='delete', on_click=self.delete_expense, variant='error')
+            
+            ModernButton('Refresh', icon='refresh', on_click=self.refresh_expenses_table, variant='outline').classes('text-white border-white/20')
 
-                            raw_expenses_data = []
+        with ui.column().classes('w-full gap-6'):
+            # Row 1: History
+            with ModernCard(glass=True).classes('w-full p-6'):
+                ui.label('Expenses History').classes('text-xl font-black mb-4 text-white')
+                
+                expenses_columns = [
+                    {'headerName': 'ID', 'field': 'id', 'width': 70, 'filter': True},
+                    {'headerName': 'Date', 'field': 'expense_date', 'width': 120, 'filter': True},
+                    {'headerName': 'Type', 'field': 'expense_type', 'width': 130, 'filter': True},
+                    {'headerName': 'Description', 'field': 'description', 'width': 200, 'filter': True},
+                    {'headerName': 'Amount', 'field': 'amount', 'width': 100,  'filter': True, 'valueFormatter': "'$' + x.toLocaleString()"},
+                    {'headerName': 'Payment', 'field': 'payment_method', 'width': 120, 'filter': True},
+                    {'headerName': 'Invoice', 'field': 'invoice_number', 'width': 130, 'filter': True},
+                    {'headerName': 'Auxiliary', 'field': 'auxiliary_id', 'width': 130, 'filter': True}
+                ]
+
+                self.expenses_aggrid = ui.aggrid({
+                    'columnDefs': expenses_columns,
+                    'rowData': [],
+                    'defaultColDef': MDS.get_ag_grid_default_def(),
+                    'rowSelection': 'single',
+                }).classes('w-full h-64 ag-theme-quartz-dark mt-2')
+                
+                async def handle_expenses_aggrid_click():
+                    try:
+                        selected_row = await self.expenses_aggrid.get_selected_row()
+                        if selected_row and isinstance(selected_row, dict) and 'id' in selected_row:
+                            expense_id = selected_row['id']
+                            self.current_expense_id = expense_id
+                            
+                            expense_data = []
                             connection.contogetrows(
-                                "SELECT id, expense_date, expense_type, description, amount, payment_method, payment_status, invoice_number, auxiliary_id FROM expenses ORDER BY id DESC",
-                                raw_expenses_data
+                                f"SELECT expense_date, expense_type, description, amount, payment_method, payment_status, invoice_number, auxiliary_id FROM expenses WHERE id = {expense_id}",
+                                expense_data
                             )
 
-                            expenses_data = []
-                            for row in raw_expenses_data:
-                                expenses_data.append({
-                                    'id': row[0],
-                                    'expense_date': str(row[1]),
-                                    'expense_type': str(row[2]),
-                                    'description': str(row[3]),
-                                    'amount': float(row[4]),
-                                    'payment_method': str(row[5]),
-                                    'payment_status': str(row[6]),
-                                    'invoice_number': str(row[7]),
-                                    'auxiliary_id': str(row[8]) if row[8] else ''
+                            if expense_data:
+                                self.rows.clear()
+                                self.rows.append({
+                                    'expense_date': str(expense_data[0][0]),
+                                    'expense_type': expense_data[0][1],
+                                    'description': expense_data[0][2],
+                                    'amount': float(expense_data[0][3]),
+                                    'payment_method': expense_data[0][4],
+                                    'payment_status': expense_data[0][5],
+                                    'invoice_number': expense_data[0][6],
+                                    'auxiliary_id': expense_data[0][7]
                                 })
-
-                            self.expenses_aggrid = ui.aggrid({
-                                'columnDefs': expenses_columns,
-                                'rowData': expenses_data,
-                                'defaultColDef': {'flex': 1, 'minWidth': 30, 'sortable': True, 'filter': True},
-                                'rowSelection': 'single',
-                                'domLayout': 'normal',
-                            }).classes('w-full rounded border border-blue-200 ag-theme-quartz-custom').style('overflow-y: auto;height:200px;')
                             
-                            async def handle_expenses_aggrid_click():
-                                try:
-                                    selected_row = await self.expenses_aggrid.get_selected_row()
-                                    if selected_row and isinstance(selected_row, dict) and 'id' in selected_row:
-                                        expense_id = selected_row['id']
-                                        
-                                        ui.notify(f'Loading expense ID: {expense_id}')
-                                        
-                                        self.current_expense_id = expense_id
-                                        
-                                        expense_data = []
-                                        connection.contogetrows(
-                                            f"SELECT expense_date, expense_type, description, amount, payment_method, payment_status, invoice_number, auxiliary_id FROM expenses WHERE id = {expense_id}",
-                                            expense_data
-                                        )
-
-                                        if expense_data:
-                                            self.rows.clear()
-                                            self.rows.append({
-                                                'expense_date': str(expense_data[0][0]),
-                                                'expense_type': expense_data[0][1],
-                                                'description': expense_data[0][2],
-                                                'amount': float(expense_data[0][3]),
-                                                'payment_method': expense_data[0][4],
-                                                'payment_status': expense_data[0][5],
-                                                'invoice_number': expense_data[0][6],
-                                                'auxiliary_id': expense_data[0][7]
-                                            })
-                                        
-                                            self.aggrid.options['rowData'] = self.rows
-                                            self.aggrid.update()
-                                            
-                                            self.total_amount = sum(row['amount'] for row in self.rows)
-                                            self.total_label.text = f"Total: ${self.total_amount:.2f}"
-                                            
-                                            ui.notify(f'✅ Loaded expense ID: {expense_id}')
-                                            
-                                except Exception as ex:
-                                    ui.notify(f'❌ Error loading expense: {str(ex)}')
-                            
-                            self.expenses_aggrid.on('cellClicked', handle_expenses_aggrid_click)
-                            
-                            ui.timer(0.1, self.load_max_expense, once=True)
+                                self.aggrid.options['rowData'] = self.rows
+                                self.aggrid.update()
+                                
+                                self.total_amount = sum(row['amount'] for row in self.rows)
+                                self.total_label.set_text(f"${self.total_amount:,.2f}")
+                                ui.notify(f'Loaded expense ID: {expense_id}', color='positive')
+                    except Exception as ex:
+                        ui.notify(f'Error loading expense: {str(ex)}', color='negative')
                 
-                    with main_splitter.after:
-                        with ui.element('div').classes('w-full'):
-                            with ui.row().classes('w-full items-center gap-1 mb-1 p-1 bg-gray-50 rounded'):
-                                self.auxiliary_select = ui.select(options=[], label='Auxiliary').props('placeholder="Select Auxiliary"').classes('w-28 h-7 text-xs').on('focus', self.populate_auxiliary_options)
+                self.expenses_aggrid.on('cellClicked', handle_expenses_aggrid_click)
 
-                                self.date_input = ui.input('Date', value=str(dt.today())).classes('w-24 h-7 text-xs')
+            # Row 2: Form and Current Items
+            with ui.row().classes('w-full gap-6'):
+                # Input Form
+                with ModernCard(glass=True).classes('w-1/3 p-6'):
+                    ui.label('Add/Edit Expense').classes('text-lg font-black mb-6 text-white')
+                    
+                    with ui.column().classes('w-full gap-4'):
+                        self.auxiliary_select = ModernInput('Auxiliary', icon='account_balance').classes('w-full')
+                        # Convert to select
+                        self.auxiliary_select = ui.select(options=[], label='Auxiliary').classes('w-full glass-input text-white').props('dark rounded outlined')
+                        self.auxiliary_select.on('focus', self.populate_auxiliary_options)
 
-                                self.type_input = ui.select(options=[], label='Type').props('placeholder="Select Expense Type"').classes('w-28 h-7 text-xs')
+                        self.date_input = ui.input('Date').classes('w-full glass-input text-white').props('dark rounded outlined type=date')
+                        self.date_input.value = str(dt.today())
 
-                                self.description_input = ui.input('Description', placeholder='Description').classes('w-40 h-7 text-xs')
+                        self.type_input = ui.select(options=[], label='Expense Type').classes('w-full glass-input text-white').props('dark rounded outlined')
+                        
+                        self.description_input = ui.input('Description').classes('w-full glass-input text-white').props('dark rounded outlined')
+                        
+                        self.amount_input = ui.number('Amount', value=0.0, format='%.2f').classes('w-full glass-input text-white').props('dark rounded outlined')
 
-                                self.amount_input = ui.number('Amount', value=0.0, min=0, step=0.01).classes('w-20 h-7 text-xs')
+                        with ui.column().classes('w-full gap-2 mt-2'):
+                            ui.label('Payment Method').classes('text-xs font-bold text-gray-400 uppercase tracking-wider')
+                            self.payment_method = ui.radio(options=['Cash', 'Card', 'Bank Transfer'], value='Cash').props('inline dark')
 
-                                # Payment method - compact
-                                ui.label('Payment:').classes('text-xs font-medium h-7')
-                                self.payment_method = ui.radio(options=['Cash', 'Card', 'Bank Transfer'], value='Cash').props('inline')
+                        self.invoice_input = ui.input('Invoice # (Optional)').classes('w-full glass-input text-white').props('dark rounded outlined')
+                        self.notes_input = ui.textarea('Internal Notes').classes('w-full glass-input text-white').props('dark rounded outlined')
+                        
+                        ModernButton('Add to List', icon='playlist_add', on_click=self.add_expense, variant='primary').classes('w-full mt-4')
 
-                                self.invoice_input = ui.input('Invoice', placeholder='Invoice #').classes('w-20 h-7 text-xs')
+                # Current Items Table
+                with ModernCard(glass=True).classes('flex-1 p-6'):
+                    with ui.row().classes('w-full justify-between items-center mb-4'):
+                        ui.label('Expense Items').classes('text-xl font-black text-white')
+                        with ui.column().classes('items-end'):
+                            ui.label('Total Amount').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider')
+                            self.total_label = ui.label('$0.00').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
 
-                                self.notes_input = ui.input('Notes', placeholder='Notes').classes('w-32 h-7 text-xs')
+                    self.aggrid = ui.aggrid({
+                        'columnDefs': self.columns,
+                        'rowData': self.rows,
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-96 ag-theme-quartz-dark')
+                    
+                    async def handle_aggrid_click():
+                        try:
+                            selected_row = await self.aggrid.get_selected_row()
+                            if selected_row:
+                                self.open_edit_dialog(selected_row)
+                        except Exception as ex:
+                            ui.notify(f'Error: {str(ex)}', color='negative')
+                    
+                    self.aggrid.on('cellClicked', handle_aggrid_click)
 
-                        with ui.element('div').classes('w-full '):
-                            with ui.row().classes('w-full items-center gap-3 p-3 bg-gray-100 rounded-lg shadow-sm'):
-                                ui.button('Add Expense', on_click=self.add_expense).props('size=md').classes('h-10 px-4 text-sm font-medium')
-                            
-                            uiAggridTheme.addingtheme()
-                            
-                            with ui.element('div').classes('w-full h-[calc(100vh-480px)] min-h-48 border rounded-lg bg-white shadow-sm mt-4'):
-                                self.aggrid = ui.aggrid({
-                                    'columnDefs': self.columns,
-                                    'rowData': self.rows,
-                                    'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
-                                    'rowSelection': 'single',
-                                    'domLayout': 'normal',
-                                }).classes('w-full h-full p-2')
-                                
-                                async def handle_aggrid_click():
-                                    try:
-                                        selected_row = await self.aggrid.get_selected_row()
-                                        if selected_row:
-                                            self.open_edit_dialog(selected_row)
-                                    except Exception as ex:
-                                        ui.notify(f'Error: {str(ex)}')
-                                
-                                self.aggrid.on('cellClicked', handle_aggrid_click)
+        # Initialize
+        ui.timer(0.1, self.refresh_expenses_table, once=True)
+        ui.timer(0.2, self.populate_expense_types, once=True)
+        ui.timer(0.3, self.load_max_expense, once=True)
 
-                        with ui.element('div').classes('w-full p-4 bg-gray-100 border-t border-gray-300 fixed bottom-0 left-0 right-0 z-10'):
-                            with ui.row().classes('w-full justify-between items-center'):
-                                with ui.column().classes('gap-1'):
-                                    ui.label('SUMMARY').classes('text-sm font-bold text-gray-700')
-                                    self.summary_label = ui.label(f'{len(self.rows)} expense(s)').classes('text-sm text-gray-600')
-                                
-                                with ui.column().classes('gap-1 items-end'):
-                                    self.total_label = ui.label('Total: $0.00').classes('text-3xl font-bold text-blue-600')
-
-        # Populate expense types after UI is created
-        ui.timer(0.1, self.populate_expense_types, once=True)
+    def clear_inputs(self):
+        self.rows.clear()
+        self.aggrid.options['rowData'] = self.rows
+        self.aggrid.update()
+        self.total_amount = 0
+        self.total_label.set_text("$0.00")
+        self.current_expense_id = None
+        self.description_input.value = ''
+        self.amount_input.value = 0.0
+        self.invoice_input.value = ''
+        self.notes_input.value = ''
+        ui.notify('Ready for new entry', color='info')
 
 @ui.page('/expenses')
 def expenses_page_route():
