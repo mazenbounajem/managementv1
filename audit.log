@@ -1788,3 +1788,7 @@
 2026-03-15 00:14:16,802 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 4734}
 2026-03-15 00:23:18,913 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2026-03-15 00:23:18,997 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 4735}
+2026-03-15 00:29:23,755 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-03-15 00:29:26,225 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-03-15 00:29:32,770 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
+2026-03-15 00:29:32,803 - AUDIT - USER_ACTION: user_id=7, action=SESSION_CREATED, details={'session_id': 4736}

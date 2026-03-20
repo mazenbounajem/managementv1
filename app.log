@@ -884,3 +884,6 @@
 2026-03-14 23:00:02,433 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2026-03-15 00:14:16,566 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
 2026-03-15 00:23:18,914 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
+2026-03-15 00:29:23,800 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-03-15 00:29:26,225 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-03-15 00:29:32,770 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=7, details={'username': 'mazen'}
