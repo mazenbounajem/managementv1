@@ -51,6 +51,7 @@ class POSSystem:
         self.date_entry = tb.Entry(trans_frame, bootstyle="info", width=12)
         self.date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
         self.date_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.date_entry.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
         
         # Customer
         tb.Label(trans_frame, text="Customer:", bootstyle="info").grid(row=0, column=2, padx=5, pady=5)
@@ -71,6 +72,7 @@ class POSSystem:
         self.invoice_entry = tb.Entry(trans_frame, bootstyle="info", width=15)
         self.invoice_entry.insert(0, self.generate_invoice_number())
         self.invoice_entry.grid(row=0, column=7, padx=5, pady=5)
+        self.invoice_entry.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
         
     def create_product_entry_frame(self, parent):
         """Create product entry frame"""
@@ -81,6 +83,7 @@ class POSSystem:
         tb.Label(entry_frame, text="Barcode:", bootstyle="info").grid(row=0, column=0, padx=5, pady=5)
         self.barcode_entry = tb.Entry(entry_frame, bootstyle="info", width=15)
         self.barcode_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.barcode_entry.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
         self.barcode_entry.bind('<Return>', self.lookup_product)
         
         # Product Name
@@ -94,12 +97,14 @@ class POSSystem:
         tb.Label(entry_frame, text="Qty:", bootstyle="info").grid(row=0, column=4, padx=5, pady=5)
         self.qty_entry = tb.Entry(entry_frame, bootstyle="info", width=8)
         self.qty_entry.insert(0, "1")
+        self.qty_entry.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
         self.qty_entry.grid(row=0, column=5, padx=5, pady=5)
         
         # Unit Price
         tb.Label(entry_frame, text="Price:", bootstyle="info").grid(row=0, column=6, padx=5, pady=5)
         self.price_entry = tb.Entry(entry_frame, bootstyle="info", width=10)
         self.price_entry.grid(row=0, column=7, padx=5, pady=5)
+        self.price_entry.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
         
         # VAT
         self.vat_var = tk.BooleanVar()

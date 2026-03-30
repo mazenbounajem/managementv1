@@ -64,6 +64,23 @@ class ModernReportsUI:
                     self.date_from.strftime('%Y-%m-%d'),
                     self.date_to.strftime('%Y-%m-%d')
                 )
+            elif self.current_report_type == 'discount_trace':
+                self.report_data = Reports.fetch_user_discounts(
+                    self.date_from.strftime('%Y-%m-%d'),
+                    self.date_to.strftime('%Y-%m-%d')
+                )
+            elif self.current_report_type == 'trial_balance':
+                self.report_data = Reports.fetch_trial_balance()
+            elif self.current_report_type == 'statement_account':
+                account_number = getattr(self, 'selected_account_number', None)
+                if account_number:
+                    self.report_data = Reports.fetch_statement_of_account(
+                        account_number,
+                        self.date_from.strftime('%Y-%m-%d'),
+                        self.date_to.strftime('%Y-%m-%d')
+                    )
+                else:
+                    self.report_data = []
             else:
                 self.report_data = []
 
@@ -400,13 +417,43 @@ class ModernReportsUI:
             self.create_filters_section()
 
             # Key metrics dashboard
-            self.create_metrics_dashboard()
+            self.metrics_container = ui.row().classes('w-full gap-4 mb-6')
+            self.create_metrics_dashboard_content()
 
             # Charts and visualizations
-            self.create_charts_section()
+            self.charts_container = ui.column().classes('w-full gap-6 mb-6')
+            self.create_charts_section_content()
 
             # Data table
-            self.create_data_table()
+            self.data_table_container = ui.column().classes('w-full')
+            self.create_data_table_content()
+
+    def refresh_ui_elements(self):
+        """Update the data table and charts with new data"""
+        if hasattr(self, 'data_table_container'):
+            self.data_table_container.clear()
+            with self.data_table_container:
+                self.create_data_table_content()
+        
+        # Re-trigger chart updates via Javascript
+        self.prepare_chart_data()
+        self.update_charts_js()
+        
+        # Update metrics
+        self.calculate_metrics()
+        if hasattr(self, 'metrics_container'):
+            self.metrics_container.clear()
+            with self.metrics_container:
+                self.create_metrics_dashboard_content()
+
+    def update_charts_js(self):
+        """Update Chart.js visualizations via JS"""
+        ui.run_javascript(f"if(window.salesTrendChart) window.salesTrendChart.destroy();")
+        ui.run_javascript(f"if(window.topProductsChart) window.topProductsChart.destroy();")
+        ui.run_javascript(f"if(window.categoryChart) window.categoryChart.destroy();")
+        ui.run_javascript(f"if(window.monthlyChart) window.monthlyChart.destroy();")
+        # Re-run chart creation scripts (need to refactor create_charts_section to be reusable)
+        self.create_charts_section_content()
 
     def create_filters_section(self):
         """Create the filters and controls section"""
@@ -423,11 +470,29 @@ class ModernReportsUI:
                             'sales': 'Sales Performance',
                             'purchases': 'Purchase Analysis',
                             'inventory': 'Inventory Status',
-                            'financial': 'Financial Summary'
+                            'financial': 'Financial Summary',
+                            'discount_trace': 'User Discount Trace',
+                            'statement_account': 'Statement of Account',
+                            'trial_balance': 'Trial Balance'
                         },
                         value=self.current_report_type,
                         on_change=self.on_report_type_change
                     ).classes('w-48')
+
+                # Account selection for Statement of Account (visible only when needed)
+                with ui.column().classes('gap-2') as self.account_col:
+                    self.account_col.set_visibility(self.current_report_type == 'statement_account')
+                    ui.label('Select Account').classes('text-sm font-medium')
+                    
+                    # Fetch auxiliary accounts
+                    aux_data = []
+                    connection.contogetrows("SELECT number, account_name FROM auxiliary", aux_data)
+                    aux_options = {row[0]: f"{row[0]} - {row[1]}" for row in aux_data}
+                    
+                    self.account_select = ui.select(
+                        options=aux_options,
+                        on_change=lambda e: setattr(self, 'selected_account_number', e.value)
+                    ).classes('w-64')
 
                 # Date range
                 with ui.column().classes('gap-2'):
@@ -459,110 +524,56 @@ class ModernReportsUI:
                     on_click=self.apply_filters
                 )
 
-    def create_metrics_dashboard(self):
-        """Create the key metrics dashboard"""
-        with ui.row().classes('w-full gap-4 mb-6'):
+    def create_metrics_dashboard_content(self):
+        """Populate the key metrics dashboard content"""
+        with self.metrics_container:
             if self.current_report_type == 'sales':
-                ModernStats.create(
-                    'Total Sales',
-                    f'${self.metrics["total_sales"]:,.2f}',
-                    'trending_up',
-                    trend='+12.5%',
-                    trend_positive=True
-                )
-                ModernStats.create(
-                    'Total Orders',
-                    str(self.metrics['record_count']),
-                    'shopping_cart',
-                    trend='+8.2%'
-                )
-                ModernStats.create(
-                    'Average Order',
-                    f'${self.metrics["total_sales"]/max(1, self.metrics["record_count"]):,.2f}',
-                    'attach_money'
-                )
-                ModernStats.create(
-                    'Active Customers',
-                    '247',
-                    'people',
-                    trend='+5.1%'
-                )
+                ModernStats.create('Total Sales', f'${self.metrics["total_sales"]:,.2f}', 'trending_up', trend='+12.5%', trend_positive=True)
+                ModernStats.create('Total Orders', str(self.metrics['record_count']), 'shopping_cart', trend='+8.2%')
+                ModernStats.create('Average Order', f'${self.metrics["total_sales"]/max(1, self.metrics["record_count"]):,.2f}', 'attach_money')
+                ModernStats.create('Active Customers', '247', 'people', trend='+5.1%')
 
             elif self.current_report_type == 'purchases':
-                ModernStats.create(
-                    'Total Purchases',
-                    f'${self.metrics["total_purchases"]:,.2f}',
-                    'shopping_bag',
-                    trend='+15.3%'
-                )
-                ModernStats.create(
-                    'Purchase Orders',
-                    str(self.metrics['record_count']),
-                    'assignment'
-                )
-                ModernStats.create(
-                    'Top Supplier',
-                    'ABC Corp',
-                    'business'
-                )
-                ModernStats.create(
-                    'Pending Orders',
-                    '12',
-                    'schedule',
-                    color=MDS.WARNING
-                )
+                ModernStats.create('Total Purchases', f'${self.metrics["total_purchases"]:,.2f}', 'shopping_bag', trend='+15.3%')
+                ModernStats.create('Purchase Orders', str(self.metrics['record_count']), 'assignment')
+                ModernStats.create('Top Supplier', 'ABC Corp', 'business')
+                ModernStats.create('Pending Orders', '12', 'schedule', color=MDS.WARNING)
 
             elif self.current_report_type == 'inventory':
-                ModernStats.create(
-                    'Inventory Value',
-                    f'${self.metrics["total_inventory_value"]:,.2f}',
-                    'inventory'
-                )
-                ModernStats.create(
-                    'Total Items',
-                    str(self.metrics['record_count']),
-                    'package'
-                )
-                ModernStats.create(
-                    'Low Stock Items',
-                    '8',
-                    'warning',
-                    color=MDS.ERROR
-                )
-                ModernStats.create(
-                    'Out of Stock',
-                    '3',
-                    'error',
-                    color=MDS.ERROR
-                )
+                ModernStats.create('Inventory Value', f'${self.metrics["total_inventory_value"]:,.2f}', 'inventory')
+                ModernStats.create('Total Items', str(self.metrics['record_count']), 'package')
+                ModernStats.create('Low Stock Items', '8', 'warning', color=MDS.ERROR)
+                ModernStats.create('Out of Stock', '3', 'error', color=MDS.ERROR)
 
             elif self.current_report_type == 'financial':
-                ModernStats.create(
-                    'Total Revenue',
-                    f'${self.metrics["total_sales"]:,.2f}',
-                    'trending_up',
-                    trend='+18.7%',
-                    trend_positive=True
-                )
-                ModernStats.create(
-                    'Total Expenses',
-                    f'${self.metrics["total_purchases"]:,.2f}',
-                    'trending_down',
-                    trend='+7.2%',
-                    trend_positive=False
-                )
-                ModernStats.create(
-                    'Net Profit',
-                    f'${self.metrics["total_profit"]:,.2f}',
-                    'account_balance',
-                    trend='+22.1%',
-                    trend_positive=True
-                )
-                ModernStats.create(
-                    'Profit Margin',
-                    '24.5%',
-                    'percent'
-                )
+                ModernStats.create('Total Revenue', f'${self.metrics["total_sales"]:,.2f}', 'trending_up', trend='+18.7%', trend_positive=True)
+                ModernStats.create('Total Expenses', f'${self.metrics["total_purchases"]:,.2f}', 'trending_down', trend='+7.2%', trend_positive=False)
+                ModernStats.create('Net Profit', f'${self.metrics["total_profit"]:,.2f}', 'account_balance', trend='+22.1%', trend_positive=True)
+                ModernStats.create('Profit Margin', '24.5%', 'percent')
+
+            elif self.current_report_type == 'discount_trace':
+                total_disc = sum(float(row.get('discount_amount', 0)) for row in self.report_data)
+                ModernStats.create('Total Discounts', f'${total_disc:,.2f}', 'percent', color=MDS.WARNING)
+                ModernStats.create('Traced Records', str(len(self.report_data)), 'history', trend='Live')
+                avg_disc = total_disc / max(1, len(self.report_data))
+                ModernStats.create('Avg Discount', f'${avg_disc:,.2f}', 'trending_down')
+
+            elif self.current_report_type == 'trial_balance':
+                debit_sum = sum(float(row.get('Total Debit', row.get('total_debit', 0))) for row in self.report_data)
+                credit_sum = sum(float(row.get('Total Credit', row.get('total_credit', 0))) for row in self.report_data)
+                ModernStats.create('Total Debit', f'${debit_sum:,.2f}', 'add_circle', color=MDS.SUCCESS)
+                ModernStats.create('Total Credit', f'${credit_sum:,.2f}', 'remove_circle', color=MDS.ERROR)
+                diff = abs(debit_sum - credit_sum)
+                ModernStats.create('Balance Diff', f'${diff:,.2f}', 'balance', color=MDS.PRIMARY if diff < 0.01 else MDS.ERROR)
+                ModernStats.create('Status', 'Balanced' if diff < 0.01 else 'Out of Balance', 'info', color=MDS.SUCCESS if diff < 0.01 else MDS.ERROR)
+
+            elif self.current_report_type == 'statement_account':
+                total_debit = sum(float(row.get('Debit', 0)) for row in self.report_data)
+                total_credit = sum(float(row.get('Credit', 0)) for row in self.report_data)
+                ModernStats.create('Account Debit', f'${total_debit:,.2f}', 'arrow_upward', color=MDS.PRIMARY)
+                ModernStats.create('Account Credit', f'${total_credit:,.2f}', 'arrow_downward', color=MDS.SECONDARY)
+                net = total_debit - total_credit
+                ModernStats.create('Net Balance', f'${abs(net):,.2f}', 'account_balance_wallet', trend='Debit' if net > 0 else 'Credit')
 
     def create_charts_section(self):
         """Create charts and visualizations"""
@@ -694,59 +705,34 @@ class ModernReportsUI:
                             }});
                         ''')
 
-    def create_data_table(self):
-        """Create the data table section"""
-        with ModernCard.create(title='Detailed Report Data'):
-            # Table controls
-            with ui.row().classes('w-full justify-between items-center mb-4'):
-                # Search
-                ModernSearchBar.create(
-                    placeholder='Search records...',
-                    on_search=self.on_table_search
-                )
+    def create_data_table_content(self):
+        """Populate the data table content"""
+        with self.data_table_container:
+            with ModernCard.create(title=f'Detailed {self.current_report_type.replace("_", " ").title()} Data'):
+                # Table controls
+                with ui.row().classes('w-full justify-between items-center mb-4'):
+                    ModernSearchBar.create(placeholder='Search records...', on_search=self.on_table_search)
+                    with ui.row().classes('gap-2'):
+                        ModernButton.create('Columns', 'view_column', size='sm', on_click=self.show_column_selector)
+                        ModernButton.create('Export', 'download', size='sm', on_click=self.export_pdf)
 
-                # Table actions
-                with ui.row().classes('gap-2'):
-                    ModernButton.create('Columns', 'view_column', size='sm', on_click=self.show_column_selector)
-                    ModernButton.create('Filter', 'filter_list', size='sm', on_click=self.show_filter_modal)
-                    ModernButton.create('Sort', 'sort', size='sm', on_click=self.show_sort_options)
-
-            # Data table
-            if self.report_data:
-                # Prepare column definitions
-                columns = []
                 if self.report_data:
+                    columns = []
                     sample_row = self.report_data[0]
-                    for key, value in sample_row.items():
-                        display_name = key.replace('_', ' ').title()
-                        columns.append({
-                            'headerName': display_name,
-                            'field': key,
-                            'sortable': True,
-                            'filter': True,
-                            'resizable': True
-                        })
+                    for key in sample_row.keys():
+                        columns.append({'headerName': key.replace('_', ' ').title(), 'field': key, 'sortable': True, 'filter': True})
 
-                self.data_table = ModernTable.create(
-                    columns=columns,
-                    rows=self.report_data,
-                    selectable=True,
-                    sortable=True,
-                    filterable=True,
-                    pagination=True,
-                    page_size=25,
-                    on_row_click=self.on_row_click
-                )
-            else:
-                # Empty state
-                with ui.column().classes('items-center justify-center py-12'):
-                    ui.icon('analytics').classes('text-6xl text-gray-300 mb-4')
-                    ui.label('No data available for the selected filters').classes('text-lg text-gray-500 mb-2')
-                    ui.label('Try adjusting your date range or report type').classes('text-sm text-gray-400')
+                    self.data_table = ModernTable.create(columns=columns, rows=self.report_data, pagination=True, page_size=20)
+                else:
+                    with ui.column().classes('items-center justify-center py-12'):
+                        ui.icon('analytics').classes('text-6xl text-gray-300 mb-4')
+                        ui.label('No data available for filters').classes('text-lg text-gray-500')
 
     def on_report_type_change(self, e):
         """Handle report type change"""
         self.current_report_type = e.value
+        if hasattr(self, 'account_col'):
+            self.account_col.set_visibility(e.value == 'statement_account')
         self.load_report_data()
         # Would trigger UI refresh in real implementation
 
@@ -782,6 +768,7 @@ class ModernReportsUI:
                 asyncio.sleep(0.1)
 
             self.load_report_data()
+            self.refresh_ui_elements()
             self.is_loading = False
 
         ModernToast.show('Report data updated successfully', 'success')

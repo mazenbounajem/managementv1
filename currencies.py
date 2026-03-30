@@ -136,76 +136,84 @@ class CurrencyUI:
             print(f"Error loading max currency: {e}")
 
     def create_ui(self):
-        # Action Bar
-        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-            with ui.row().classes('gap-3'):
-                ModernButton('New Currency', icon='add', on_click=self.clear_input_fields, variant='primary')
-                ModernButton('Save', icon='save', on_click=self.save_currency, variant='success')
-                ModernButton('Undo', icon='undo', on_click=self.undo_changes, variant='secondary')
-                ModernButton('Delete', icon='delete', on_click=self.delete_currency, variant='error')
-            
-            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+        with ui.row().classes('w-full gap-6 items-start'):
+            # Left Column: List
+            with ui.column().classes('w-1/2 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    with ui.row().classes('w-full justify-between items-center mb-4'):
+                        ui.label('Active Currencies').classes('text-xl font-black text-white uppercase tracking-widest opacity-70')
+                        self.search_input = ui.input(placeholder='Search currencies...').classes('w-48 glass-input text-white text-sm').props('dark rounded outlined dense')
+                        self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
-        with ui.column().classes('w-full gap-6'):
-            # Top: List
-            with ModernCard(glass=True).classes('w-full p-6'):
-                with ui.row().classes('w-full justify-between items-center mb-4'):
-                    ui.label('Currencies').classes('text-xl font-black text-white')
-                    self.search_input = ui.input(placeholder='Search currencies...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
-                    self.search_input.on('input', lambda e: self.filter_rows(e.value))
+                    column_defs = [
+                        {'headerName': 'Code', 'field': 'currency_code', 'width': 80},
+                        {'headerName': 'Name', 'field': 'currency_name', 'flex': 1},
+                        {'headerName': 'Rate', 'field': 'exchange_rate', 'width': 90},
+                        {'headerName': 'Active', 'field': 'is_active', 'width': 80, 'cellRenderer': 'agCheckboxRenderer'},
+                    ]
 
-                column_defs = [
-                    {'headerName': 'ID', 'field': 'id', 'width': 80},
-                    {'headerName': 'Code', 'field': 'currency_code', 'width': 100},
-                    {'headerName': 'Currency Name', 'field': 'currency_name', 'width': 200},
-                    {'headerName': 'Symbol', 'field': 'symbol', 'width': 80},
-                    {'headerName': 'Rate', 'field': 'exchange_rate', 'width': 100},
-                    {'headerName': 'Status', 'field': 'is_active', 'width': 100, 'cellRenderer': 'params => params.value ? "Active" : "Inactive"'},
-                    {'headerName': 'Created At', 'field': 'created_at', 'width': 180}
-                ]
+                    self.table = ui.aggrid({
+                        'columnDefs': column_defs,
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[550px] ag-theme-quartz-dark shadow-inner')
+                    
+                    async def on_row_click():
+                        try:
+                            selected_row = await self.table.get_selected_row()
+                            if selected_row:
+                                self.input_refs['id'].value = str(selected_row['id'])
+                                self.input_refs['currency_code'].value = selected_row['currency_code']
+                                self.input_refs['currency_name'].value = selected_row['currency_name']
+                                self.input_refs['symbol'].value = selected_row['symbol']
+                                self.input_refs['exchange_rate'].value = selected_row['exchange_rate']
+                                self.input_refs['is_active'].value = selected_row['is_active']
+                                
+                                self.initial_values = {
+                                    'currency_code': selected_row['currency_code'],
+                                    'currency_name': selected_row['currency_name'],
+                                    'symbol': selected_row['symbol'],
+                                    'exchange_rate': selected_row['exchange_rate'],
+                                    'is_active': selected_row['is_active'],
+                                    'id': str(selected_row['id'])
+                                }
+                                ui.notify(f'Selected: {selected_row["currency_code"]}', color='info')
+                        except Exception as e:
+                            ui.notify(f'Error selecting currency: {str(e)}', color='negative')
+                    self.table.on('cellClicked', on_row_click)
 
-                self.table = ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': [],
-                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                    'rowSelection': 'single',
-                }).classes('w-full h-80 ag-theme-quartz-dark')
-                
-                async def on_row_click():
-                    try:
-                        selected_row = await self.table.get_selected_row()
-                        if selected_row:
-                            self.input_refs['id'].value = str(selected_row['id'])
-                            self.input_refs['currency_code'].value = selected_row['currency_code']
-                            self.input_refs['currency_name'].value = selected_row['currency_name']
-                            self.input_refs['symbol'].value = selected_row['symbol']
-                            self.input_refs['exchange_rate'].value = selected_row['exchange_rate']
-                            self.input_refs['is_active'].value = selected_row['is_active']
-                            
-                            self.initial_values = {
-                                'currency_code': selected_row['currency_code'],
-                                'currency_name': selected_row['currency_name'],
-                                'symbol': selected_row['symbol'],
-                                'exchange_rate': selected_row['exchange_rate'],
-                                'is_active': selected_row['is_active'],
-                                'id': str(selected_row['id'])
-                            }
-                            ui.notify(f'Selected: {selected_row["currency_code"]}', color='info')
-                    except Exception as e:
-                        ui.notify(f'Error selecting currency: {str(e)}', color='negative')
-                
-                self.table.on('cellClicked', on_row_click)
+            # Center Column: Details Form
+            with ui.column().classes('flex-1 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Exchange Rate Settings').classes('text-lg font-black mb-6 text-white uppercase tracking-widest')
+                    
+                    with ui.column().classes('w-full gap-4'):
+                        with ui.row().classes('w-full gap-4'):
+                            self.input_refs['currency_code'] = ui.input('Currency Code').classes('flex-1 glass-input text-white').props('dark rounded outlined dense')
+                            self.input_refs['symbol'] = ui.input('Currency Symbol').classes('w-32 glass-input text-white').props('dark rounded outlined dense')
+                        
+                        self.input_refs['currency_name'] = ui.input('Full Currency Name').classes('w-full glass-input text-white').props('dark rounded outlined dense')
+                        
+                        with ui.row().classes('w-full gap-4'):
+                            self.input_refs['exchange_rate'] = ui.number('Base Exchange Rate').classes('flex-1 glass-input text-white').props('dark rounded outlined dense')
+                            self.input_refs['is_active'] = ui.switch('Status: Primary/Active', value=True).classes('text-white scale-90')
+                        
+                        self.input_refs['id'] = ui.input('System Reference ID').classes('w-full glass-input text-white opacity-50 font-mono').props('dark rounded outlined readonly dense')
 
-            # Bottom: Details Form
-            with ModernCard(glass=True).classes('w-full p-6'):
-                ui.label('Currency Details').classes('text-lg font-black mb-6 text-white')
-                with ui.row().classes('w-full gap-6 items-center'):
-                    self.input_refs['currency_code'] = ui.input('Currency Code').classes('w-48 glass-input text-white').props('dark rounded outlined')
-                    self.input_refs['currency_name'] = ui.input('Currency Name').classes('flex-1 glass-input text-white').props('dark rounded outlined')
-                    self.input_refs['symbol'] = ui.input('Symbol').classes('w-32 glass-input text-white').props('dark rounded outlined')
-                    self.input_refs['exchange_rate'] = ui.number('Exchange Rate').classes('w-48 glass-input text-white').props('dark rounded outlined')
-                    self.input_refs['is_active'] = ui.checkbox('Active').classes('text-white').props('dark')
-                    self.input_refs['id'] = ui.input('ID (Auto)').classes('w-32 glass-input text-white').props('dark rounded outlined readonly')
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                from modern_ui_components import ModernActionBar
+                ModernActionBar(
+                    on_new=self.clear_input_fields,
+                    on_save=self.save_currency,
+                    on_undo=self.undo_changes,
+                    on_delete=self.delete_currency,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_refresh=self.refresh_table,
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
         ui.timer(0.1, self.refresh_table, once=True)
         ui.timer(0.2, self.load_max_currency, once=True)

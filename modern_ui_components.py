@@ -466,6 +466,62 @@ def ModernSearchBar(placeholder: str = 'Search...',
 ModernSearchBar.create = ModernSearchBar
 
 
+class ModernActionBar(ui.column):
+    """
+    Standardized vertical action sidebar for pages.
+    Provides buttons for: New, Save, Undo, Delete, Print, Print Special, Refresh.
+    """
+    def __init__(self, 
+                 on_new: Optional[Callable] = None,
+                 on_save: Optional[Callable] = None,
+                 on_undo: Optional[Callable] = None,
+                 on_delete: Optional[Callable] = None,
+                 on_print: Optional[Callable] = None,
+                 on_print_special: Optional[Callable] = None,
+                 on_refresh: Optional[Callable] = None,
+                 on_chatgpt: Optional[Callable] = None,
+                 on_order: Optional[Callable] = None,
+                 classes: str = 'fixed right-3 top-24',
+                 button_class: str = ''):
+        super().__init__()
+        self.classes(f'{classes} gap-2 p-2 glass z-[1000] animate-fade-in')
+        self.style('border-radius: 16px; width: 52px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);')
+        
+        with self:
+            self.new_btn = self._create_btn('add_circle', 'New', on_new, 'primary', size='lg', extra_class=button_class)
+            self.save_btn = self._create_btn('save', 'Save', on_save, 'success', size='lg', extra_class=button_class)
+            self.order_btn = self._create_btn('assignment', 'Save as Order', on_order, 'warning', size='lg', extra_class=button_class)
+            self.undo_btn = self._create_btn('undo', 'Undo', on_undo, 'warning', size='lg', extra_class=button_class)
+            self.delete_btn = self._create_btn('delete', 'Delete', on_delete, 'error', size='lg', extra_class=button_class)
+            ui.element('div').classes('w-full h-px bg-white/20 my-1')
+            self.print_btn = self._create_btn('print', 'Print', on_print, 'secondary', size='lg', extra_class=button_class)
+            self.print_special_btn = self._create_btn('auto_awesome', 'Special Print', on_print_special, 'accent', size='lg', extra_class=button_class)
+            ui.element('div').classes('w-full h-px bg-white/20 my-1')
+            self.chatgpt_btn = self._create_btn('chat', 'ChatGPT', on_chatgpt, 'info', size='lg', extra_class=button_class)
+            self.refresh_btn = self._create_btn('refresh', 'Refresh', on_refresh, 'info', size='lg', extra_class=button_class)
+
+    def _create_btn(self, icon: str, tooltip: str, callback: Optional[Callable], variant: str, size: str = 'lg', extra_class: str = ''):
+        btn = ModernButton("", icon=icon, variant=variant, on_click=callback).props(f'flat round size={size}')
+        btn.classes(f'w-12 h-12 transition-all hover:scale-110 active:scale-95 {extra_class}')
+        if size == 'md':
+            btn.classes('w-10 h-10')
+        elif size == 'sm':
+            btn.classes('w-8 h-8')
+        
+        # Override height if extra_class contains height
+        if 'h-' in extra_class:
+            btn.classes(extra_class)
+        btn.tooltip(tooltip)
+        if not callback:
+            btn.props('disabled')
+            btn.classes('opacity-30 grayscale')
+        return btn
+
+    @staticmethod
+    def create(*args, **kwargs):
+        return ModernActionBar(*args, **kwargs)
+
+
 
 class ModernTimeline(ui.column):
     """Modern timeline component"""

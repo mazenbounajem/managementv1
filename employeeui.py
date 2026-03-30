@@ -126,76 +126,83 @@ class EmployeeUI:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
 
     def create_ui(self):
-        # Action Bar
-        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-            with ui.row().classes('gap-3'):
-                ModernButton('New Employee', icon='add', on_click=self.clear_input_fields, variant='primary')
-                ModernButton('Save', icon='save', on_click=self.save_employee, variant='success')
-                ModernButton('Delete', icon='delete', on_click=self.delete_employee, variant='error')
-            
-            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+        with ui.row().classes('w-full gap-6 items-start'):
+            # Left Column: History Table
+            with ui.column().classes('w-1/3 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Employee Repository').classes('text-lg font-bold mb-4 text-white')
+                    self.table = ui.aggrid({
+                        'columnDefs': [
+                            {'headerName': 'ID', 'field': 'id', 'width': 70},
+                            {'headerName': 'Name', 'field': 'first_name', 'flex': 1},
+                            {'headerName': 'Position', 'field': 'position', 'width': 120},
+                            {'headerName': 'Dept', 'field': 'department', 'width': 100},
+                            {'headerName': 'Active', 'field': 'is_active', 'width': 80, 'cellRenderer': 'agCheckboxRenderer'}
+                        ],
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[600px] ag-theme-quartz-dark')
+                    
+                    async def on_row_click():
+                        selected = await self.table.get_selected_row()
+                        if selected:
+                            self.load_employee_details(selected['id'])
+                    self.table.on('cellClicked', on_row_click)
 
-        with ui.column().classes('w-full gap-6'):
-            # Table
-            with ModernCard(glass=True).classes('w-full p-6'):
-                self.table = ui.aggrid({
-                    'columnDefs': [
-                        {'headerName': 'ID', 'field': 'id', 'width': 80},
-                        {'headerName': 'First Name', 'field': 'first_name', 'width': 150},
-                        {'headerName': 'Last Name', 'field': 'last_name', 'width': 150},
-                        {'headerName': 'Position', 'field': 'position', 'width': 150},
-                        {'headerName': 'Dept', 'field': 'department', 'width': 120},
-                        {'headerName': 'Status', 'field': 'is_active', 'width': 100, 'cellRenderer': 'params => params.value ? "Active" : "Inactive"'}
-                    ],
-                    'rowData': [],
-                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                    'rowSelection': 'single',
-                }).classes('w-full h-64 ag-theme-quartz-dark')
-                
-                async def on_row_click():
-                    selected = await self.table.get_selected_row()
-                    if selected:
-                        self.load_employee_details(selected['id'])
-                self.table.on('cellClicked', on_row_click)
+            # Center Column: Details Form
+            with ui.column().classes('flex-1 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Employee Profile').classes('text-xl font-black mb-6 text-white')
+                    
+                    with ui.row().classes('w-full gap-6'):
+                        with ui.column().classes('flex-1 gap-4'):
+                            ui.label('Personal Info').classes('text-sm font-bold text-white/60')
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['first_name'] = ui.input('First Name').classes('flex-1 glass-input').props('dark rounded outlined')
+                                self.input_refs['last_name'] = ui.input('Last Name').classes('flex-1 glass-input').props('dark rounded outlined')
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['email'] = ui.input('Email').classes('flex-1 glass-input').props('dark rounded outlined')
+                                self.input_refs['phone'] = ui.input('Phone').classes('w-48 glass-input').props('dark rounded outlined')
+                            self.input_refs['address'] = ui.input('Address').classes('w-full glass-input').props('dark rounded outlined')
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['city'] = ui.input('City').classes('flex-1 glass-input').props('dark rounded outlined')
+                                self.input_refs['state'] = ui.input('State').classes('w-32 glass-input').props('dark rounded outlined')
+                                self.input_refs['zip_code'] = ui.input('ZIP').classes('w-32 glass-input').props('dark rounded outlined')
 
-            # Details Form
-            with ModernCard(glass=True).classes('w-full p-6'):
-                ui.label('Employee Profile').classes('text-xl font-black mb-6 text-white')
-                
-                with ui.row().classes('w-full gap-6'):
-                    with ui.column().classes('flex-1 gap-4'):
-                        ui.label('Personal Info').classes('text-sm font-bold text-white/60')
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['first_name'] = ui.input('First Name').classes('flex-1 glass-input').props('dark rounded outlined')
-                            self.input_refs['last_name'] = ui.input('Last Name').classes('flex-1 glass-input').props('dark rounded outlined')
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['email'] = ui.input('Email').classes('flex-1 glass-input').props('dark rounded outlined')
-                            self.input_refs['phone'] = ui.input('Phone').classes('w-48 glass-input').props('dark rounded outlined')
-                        self.input_refs['address'] = ui.input('Address').classes('w-full glass-input').props('dark rounded outlined')
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['city'] = ui.input('City').classes('flex-1 glass-input').props('dark rounded outlined')
-                            self.input_refs['state'] = ui.input('State').classes('w-32 glass-input').props('dark rounded outlined')
-                            self.input_refs['zip_code'] = ui.input('ZIP').classes('w-32 glass-input').props('dark rounded outlined')
+                        with ui.column().classes('flex-1 gap-4'):
+                            ui.label('Employment & Access').classes('text-sm font-bold text-white/60')
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['position'] = ui.select(['Manager', 'Cashier', 'Sales', 'Other'], label='Position').classes('flex-1 glass-input').props('dark rounded outlined')
+                                self.input_refs['department'] = ui.select(['Ops', 'Sales', 'HR', 'Admin'], label='Department').classes('flex-1 glass-input').props('dark rounded outlined')
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['hire_date'] = ui.input('Hire Date').classes('flex-1 glass-input').props('dark rounded outlined type=date')
+                                self.input_refs['salary'] = ui.input('Salary').classes('w-32 glass-input').props('dark rounded outlined')
+                            
+                            self.input_refs['role_id'] = ui.select({}, label='System Role').classes('w-full glass-input').props('dark rounded outlined')
+                            
+                            with ui.row().classes('w-full gap-4'):
+                                self.input_refs['username'] = ui.input('Username').classes('flex-1 glass-input').props('dark rounded outlined')
+                                self.input_refs['password'] = ui.input('Password', password=True).classes('flex-1 glass-input').props('dark rounded outlined')
+                            
+                            with ui.row().classes('w-full items-center justify-between'):
+                                self.input_refs['is_active'] = ui.switch('Active Status', value=True).classes('text-white')
+                                self.input_refs['termination_date'] = ui.input('Termination').classes('w-48 glass-input').props('dark rounded outlined type=date')
+                                self.input_refs['id'] = ui.input('ID').classes('w-20 glass-input').props('dark rounded outlined readonly')
 
-                    with ui.column().classes('flex-1 gap-4'):
-                        ui.label('Employment & Access').classes('text-sm font-bold text-white/60')
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['position'] = ui.select(['Manager', 'Cashier', 'Sales', 'Other'], label='Position').classes('flex-1 glass-input').props('dark rounded outlined')
-                            self.input_refs['department'] = ui.select(['Ops', 'Sales', 'HR', 'Admin'], label='Department').classes('flex-1 glass-input').props('dark rounded outlined')
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['hire_date'] = ui.input('Hire Date').classes('flex-1 glass-input').props('dark rounded outlined type=date')
-                            self.input_refs['salary'] = ui.input('Salary').classes('w-32 glass-input').props('dark rounded outlined')
-                        
-                        self.input_refs['role_id'] = ui.select({}, label='System Role').classes('w-full glass-input').props('dark rounded outlined')
-                        
-                        with ui.row().classes('w-full gap-4'):
-                            self.input_refs['username'] = ui.input('Username').classes('flex-1 glass-input').props('dark rounded outlined')
-                            self.input_refs['password'] = ui.input('Password', password=True).classes('flex-1 glass-input').props('dark rounded outlined')
-                        
-                        with ui.row().classes('w-full items-center justify-between'):
-                            self.input_refs['is_active'] = ui.switch('Active Status', value=True).classes('text-white')
-                            self.input_refs['termination_date'] = ui.input('Termination').classes('w-48 glass-input').props('dark rounded outlined type=date')
-                            self.input_refs['id'] = ui.input('ID').classes('w-20 glass-input').props('dark rounded outlined readonly')
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                from modern_ui_components import ModernActionBar
+                ModernActionBar(
+                    on_new=self.clear_input_fields,
+                    on_save=self.save_employee,
+                    on_undo=lambda: ui.notify('Undo not implemented for employees'),
+                    on_delete=self.delete_employee,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_refresh=self.refresh_table,
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
         ui.timer(0.1, self.refresh_table, once=True)
 

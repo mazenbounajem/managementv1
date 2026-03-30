@@ -11,6 +11,21 @@ import io
 import base64
 
 def product_page():
+    ui.add_head_html("""
+    <style>
+    input[type="text"], input[type="number"], input[type="date"], .q-field__control, .q-field__native, .q-input__native {
+        background-color: #c05884 !important;
+        color: white !important;
+        border: 1px solid #a0456a !important;
+    }
+    input[type="text"]::placeholder, input[type="number"]::placeholder {
+        color: rgba(255,255,255,0.7) !important;
+    }
+    .q-field__control {
+        border-radius: 8px !important;
+    }
+    </style>
+    """)
     uiAggridTheme.addingtheme()
 
     # Check if user is logged in

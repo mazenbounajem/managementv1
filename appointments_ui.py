@@ -52,19 +52,35 @@ class AppointmentsUI:
         self.render_calendar()
 
     def create_ui(self):
-        # Action Bar
-        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-            with ui.row().classes('gap-3'):
-                ModernButton('Previous', icon='chevron_left', on_click=self.prev_month, variant='secondary')
-                self.month_label = ui.label('').classes('text-2xl font-black text-white min-w-[200px] text-center')
-                ModernButton('Next', icon='chevron_right', on_click=self.next_month, variant='secondary')
-                ModernButton('Today', icon='today', on_click=self.go_today, variant='outline').classes('text-white border-white/20')
-            
-            with ui.row().classes('gap-3'):
-                ModernButton('New Appointment', icon='add', on_click=self.new_appointment, variant='primary')
-                ModernButton('Refresh', icon='refresh', on_click=self.refresh_data, variant='outline').classes('text-white border-white/20')
+        with ui.row().classes('w-full gap-6 items-start'):
+            # Left Column: Calendar Grid
+            with ui.column().classes('flex-1 gap-4'):
+                with ui.row().classes('w-full justify-between items-center mb-4 px-2'):
+                    self.month_label = ui.label('').classes('text-3xl font-black text-white uppercase tracking-widest')
+                    with ui.row().classes('items-baseline gap-2 opacity-50'):
+                        ui.icon('calendar_today', size='sm').classes('text-white')
+                        ui.label('Appointments').classes('text-lg font-bold text-white')
 
-        self.calendar_grid = ui.grid(columns=7).classes('w-full gap-4')
+                self.calendar_grid = ui.grid(columns=7).classes('w-full gap-4')
+
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                from modern_ui_components import ModernActionBar
+                ModernActionBar(
+                    on_new=self.new_appointment,
+                    on_save=self.go_today, # Mapping 'Today' to save icon temporarily as placeholder or just use custom buttons
+                    # Custom mapping for calendar navigation
+                    on_refresh=self.refresh_data,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                
+                # Navigation Overrides/Additions
+                with ui.column().classes('mt-4 gap-4 items-center'):
+                    ModernButton('', icon='chevron_left', on_click=self.prev_month, variant='secondary').classes('w-14 h-14 rounded-2xl')
+                    ModernButton('', icon='today', on_click=self.go_today, variant='primary').classes('w-14 h-14 rounded-2xl')
+                    ModernButton('', icon='chevron_right', on_click=self.next_month, variant='secondary').classes('w-14 h-14 rounded-2xl')
 
     def render_calendar(self):
         self.month_label.text = f"{calendar.month_name[self.current_date.month]} {self.current_date.year}"

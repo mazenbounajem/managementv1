@@ -48,50 +48,58 @@ class SupplierClass():
         lbl_name=tb.Label(third_frame,bootstyle="info",text="Name:")
         lbl_name.grid(row=0,column=0,padx=10,pady=5)
         
-        self.entry_name=tb.Entry(third_frame,textvariable=self.var_name,bootstyle="info")
+self.entry_name=tb.Entry(third_frame,textvariable=self.var_name,bootstyle="info")
         self.entry_name.grid(row=0,column=1,padx=10,pady=5)
+self.entry_name.configure(fg='#c05884', relief='flat')
 
         lbl_address=tb.Label(third_frame,bootstyle="info",text="Address:")
         lbl_address.grid(row=0,column=2,padx=10,pady=5)
         
-        self.entry_address=tb.Entry(third_frame,textvariable=self.var_address,bootstyle="info")
+self.entry_address=tb.Entry(third_frame,textvariable=self.var_address,bootstyle="info")
         self.entry_address.grid(row=0,column=3,padx=10,pady=5)
+self.entry_address.configure(fg='#c05884', relief='flat')
 
         lbl_phone=tb.Label(third_frame,bootstyle="info",text="Phone:")
         lbl_phone.grid(row=0,column=4,padx=10,pady=5)
         
-        self.entry_phone=tb.Entry(third_frame,textvariable=self.var_phone,bootstyle="info")
+self.entry_phone=tb.Entry(third_frame,textvariable=self.var_phone,bootstyle="info")
         self.entry_phone.grid(row=0,column=5,padx=10,pady=5)
+        self.entry_phone.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
 
         lbl_email=tb.Label(third_frame,bootstyle="info",text="Email:")
         lbl_email.grid(row=1,column=0,padx=10,pady=5)
         
-        self.entry_email=tb.Entry(third_frame,textvariable=self.var_email,bootstyle="info")
+self.entry_email=tb.Entry(third_frame,textvariable=self.var_email,bootstyle="info")
         self.entry_email.grid(row=1,column=1,padx=10,pady=5)
+        self.entry_email.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
 
         lbl_mof=tb.Label(third_frame,bootstyle="info",text="MOF:")
         lbl_mof.grid(row=1,column=2,padx=10,pady=5)
         
-        self.entry_mof=tb.Entry(third_frame,textvariable=self.var_mof,bootstyle="info")
+self.entry_mof=tb.Entry(third_frame,textvariable=self.var_mof,bootstyle="info")
         self.entry_mof.grid(row=1,column=3,padx=10,pady=5)
+        self.entry_mof.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
 
         lbl_vat=tb.Label(third_frame,bootstyle="info",text="Vat:")
         lbl_vat.grid(row=1,column=4,padx=10,pady=5)
         
-        self.entry_vat=tb.Entry(third_frame,textvariable=self.var_vat,bootstyle="info")
+self.entry_vat=tb.Entry(third_frame,textvariable=self.var_vat,bootstyle="info")
         self.entry_vat.grid(row=1,column=5,padx=10,pady=5)
+        self.entry_vat.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
 
         lbl_project=tb.Label(third_frame,bootstyle="info",text="Website:")
         lbl_project.grid(row=1,column=6,padx=10,pady=5)
         
-        self.entry_project=tb.Entry(third_frame,textvariable=self.var_website,bootstyle="info")
+self.entry_project=tb.Entry(third_frame,textvariable=self.var_website,bootstyle="info")
         self.entry_project.grid(row=1,column=7,padx=10,pady=5)
+        self.entry_project.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')
 
         lbl_referncedby=tb.Label(third_frame,bootstyle="info",text="Mobile:")
         lbl_referncedby.grid(row=0,column=6,padx=10,pady=5)
         
-        self.entry_reference=tb.Entry(third_frame,textvariable=self.var_mobile,bootstyle="info")
-        self.entry_reference.grid(row=0,column=7,padx=10,pady=5)     
+self.entry_reference=tb.Entry(third_frame,textvariable=self.var_mobile,bootstyle="info")
+        self.entry_reference.grid(row=0,column=7,padx=10,pady=5)
+        self.entry_reference.configure(bg='#c05884', fg='white', insertcolor='white', relief='flat')     
 
         self.tabletouse()
         self.tableview.bind_all('<<TreeviewSelect>>',self.getData)

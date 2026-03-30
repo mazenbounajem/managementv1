@@ -23,6 +23,7 @@ from productui import product_page_route
 from supplierui import supplier_page_route
 from salesui_aggrid_compact import sales_page_route
 from purchaseui import purchase_page_route
+
 from employeeui import employee_page_route
 from supplier_payment_ui_fixed_v2 import supplier_payment_page_route
 from customer_receipt_ui_fixed_v2 import customer_receipt_page_route
@@ -54,6 +55,7 @@ from voucher_subtype_ui import voucher_subtype_page_route
 
 # Import modern design system pages
 from modern_sales_ui import modern_sales_page
+from modern_purchase_ui import modern_purchase_page
 
 # Stock Reports page
 @ui.page('/stock-reports')

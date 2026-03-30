@@ -18,6 +18,11 @@ class PurchaseService:
 
         supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id = purchase_header[0]
         purchase_items = self.repository.get_purchase_items(purchase_id)
+        
+        # Get exchange rate for denormalization
+        exchange_rate = 1.0
+        if currency_id:
+            exchange_rate = float(self.repository.get_exchange_rate(currency_id) or 1.0)
 
         rows = []
         for item in purchase_items:
@@ -25,13 +30,13 @@ class PurchaseService:
                 'barcode': str(item[0]) if item[0] else '',
                 'product': str(item[1]) if item[1] else 'Unknown Product',
                 'quantity': int(item[2]) if item[2] else 0,
-                'discount': float(item[3]) if item[3] else 0.0,
-                'cost': float(item[4]) if item[4] else 0.0,
-                'subtotal': float(item[5]) if item[5] else 0.0,
-                'price': float(item[6]) if item[6] else 0.0,
-                'profit': float(item[7]) if item[7] else 0.0,
-                'old_cost_price': float(item[4]) if item[4] else None,
-                'old_price': float(item[6]) if item[6] else None,
+                'discount': float(item[3]) * exchange_rate if item[3] else 0.0,
+                'cost': float(item[4]) * exchange_rate if item[4] else 0.0,
+                'subtotal': float(item[5]) * exchange_rate if item[5] else 0.0,
+                'price': float(item[6]) * exchange_rate if item[6] else 0.0,
+                'profit': float(item[7]) * exchange_rate if item[7] else 0.0,
+                'old_cost_price': float(item[4]) * exchange_rate if item[4] else None,
+                'old_price': float(item[6]) * exchange_rate if item[6] else None,
                 'highlighted': False,
             })
 
@@ -149,11 +154,16 @@ class PurchaseService:
             self._create_new_purchase(purchase_data, rows)
 
     def _create_new_purchase(self, data, rows):
-        invoice_number = self.generate_invoice_number()
+        invoice_number = data.get('invoice_number') or self.generate_invoice_number()
+        currency_id = data.get('currency_id', 1)
+        exchange_rate = float(self.repository.get_exchange_rate(currency_id) or 1.0)
 
         last_purchase_id = self.repository.create_purchase(
-            data['purchase_date'], data['supplier_id'], data['subtotal'], data['discount_amount'],
-            data['final_total'], invoice_number, data['created_at'], data['payment_status'], data.get('currency_id', 1)
+            data['purchase_date'], data['supplier_id'], 
+            data['subtotal'] / exchange_rate, 
+            data['discount_amount'] / exchange_rate,
+            data['final_total'] / exchange_rate, 
+            invoice_number, data['created_at'], data['payment_status'], currency_id
         )
 
         # Get ledger id for purchases (6011)
@@ -175,7 +185,7 @@ class PurchaseService:
             # Update purchase with auxiliary_number
             self.repository.update_purchase_auxiliary_number(last_purchase_id, f"{next_sub:05d}")
 
-        self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows, data.get('currency_id', 1))
+        self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows, currency_id, exchange_rate)
 
         self._handle_payment_logic(
             purchase_id=last_purchase_id,
@@ -188,14 +198,20 @@ class PurchaseService:
         self._revert_previous_financials(purchase_id, data['user']['user_id'])
         self._revert_previous_stock(purchase_id)
 
+        currency_id = data.get('currency_id', 1)
+        exchange_rate = float(self.repository.get_exchange_rate(currency_id) or 1.0)
+
         self.repository.update_purchase(
-            data['purchase_date'], data['supplier_id'], data['subtotal'], data['discount_amount'],
-            data['final_total'], data['created_at'], data['payment_status'], purchase_id
+            data['purchase_date'], data['supplier_id'], 
+            data['subtotal'] / exchange_rate, 
+            data['discount_amount'] / exchange_rate,
+            data['final_total'] / exchange_rate, 
+            data['created_at'], data['payment_status'], purchase_id
         )
         
         self.repository.delete_purchase_items(purchase_id)
         
-        self._process_purchase_items(purchase_id, data['created_at'], data['user'], data['session_id'], rows, data.get('currency_id', 1))
+        self._process_purchase_items(purchase_id, data['created_at'], data['user'], data['session_id'], rows, currency_id, exchange_rate)
         
         invoice_number = self.repository.get_invoice_number(purchase_id)
         self._handle_payment_logic(
@@ -205,7 +221,7 @@ class PurchaseService:
             **data
         )
 
-    def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows, purchase_currency_id=None):
+    def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows, purchase_currency_id, exchange_rate):
         for row in rows:
             product_id = self.repository.get_product_id_by_name(row['product'])
             barcode = row['barcode']
@@ -213,8 +229,12 @@ class PurchaseService:
             final_product_id = product_id_from_barcode or product_id
 
             self.repository.insert_purchase_item(
-                purchase_id, row['barcode'], final_product_id, row['quantity'], row['cost'],
-                row['subtotal'], row['price'], row['profit'], row['discount']
+                purchase_id, row['barcode'], final_product_id, row['quantity'], 
+                row['cost'] / exchange_rate,
+                row['subtotal'] / exchange_rate, 
+                row['price'] / exchange_rate, 
+                row['profit'] / exchange_rate, 
+                row['discount'] / exchange_rate
             )
 
             old_price = row.get('old_price')
@@ -227,14 +247,11 @@ class PurchaseService:
             product_currency_id = self.repository.get_product_currency(final_product_id)
             if purchase_currency_id and product_currency_id and purchase_currency_id != product_currency_id:
                 # Get exchange rates
-                purchase_rate = self.repository.get_exchange_rate(purchase_currency_id)
                 product_rate = self.repository.get_exchange_rate(product_currency_id)
 
-                if purchase_rate and product_rate and purchase_rate > 0 and product_rate > 0:
+                if exchange_rate and product_rate and exchange_rate > 0 and product_rate > 0:
                     # Convert from purchase currency to product currency
-                    # If purchase_rate is 1 USD = X L.L., and product_rate is 1 USD = Y L.L.
-                    # Then to convert from L.L. to USD: divide by purchase_rate
-                    conversion_factor = purchase_rate / product_rate
+                    conversion_factor = exchange_rate / product_rate
                     new_price = new_price / conversion_factor
                     new_cost_price = new_cost_price / conversion_factor
 

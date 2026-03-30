@@ -5,6 +5,8 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable
 from session_storage import session_storage
 from datetime import datetime
+import base64
+import io
 
 def category_page(standalone=False):
     # Auth
@@ -17,38 +19,55 @@ def category_page(standalone=False):
 
     # State
     input_refs = {}
+    # Removed category_photos cache to keep memory lightweight
+
+    def handle_photo_upload(e):
+        try:
+            content = e.content.read()
+            base64_str = base64.b64encode(content).decode('ascii')
+            input_refs['photo'].set_value(f"data:image/png;base64,{base64_str}")
+            photo_preview.set_source(f"data:image/png;base64,{base64_str}")
+            ui.notify('Category photo uploaded', color='positive')
+        except Exception as ex:
+            ui.notify(f'Upload error: {ex}', color='negative')
 
     def refresh_table():
         data = []
-        sql = "SELECT id, category_name, description, created_at FROM categories ORDER BY id DESC"
+        # Select metadata and flag for photo existence
+        sql = "SELECT id, category_name, description, created_at, CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo FROM categories ORDER BY id DESC"
         connection.contogetrows(sql, data)
         rows = []
-        cols = ['id', 'name', 'description', 'created_at']
+        
         for r in data:
-            rows.append({cols[i]: r[i] for i in range(len(cols))})
+            cid, name, desc, created, has_p = r
+            rows.append({
+                'id': cid, 
+                'name': name, 
+                'description': desc, 
+                'created_at': created, 
+                'has_photo': bool(has_p)
+            })
         table.options['rowData'] = rows
         table.update()
 
     def clear_inputs():
         for k, ref in input_refs.items():
             ref.set_value('')
+        photo_preview.set_source('https://via.placeholder.com/150')
         table.run_method('deselectAll')
 
     def save_category():
         try:
-            name = input_refs['name'].value
-            desc = input_refs['description'].value
-            cid = input_refs['id'].value
-
-            if not name:
+            c_data = {k: ref.value for k, ref in input_refs.items()}
+            if not c_data['name']:
                 return ui.notify('Category name required', color='negative')
 
-            if cid:
-                sql = "UPDATE categories SET category_name=?, description=? WHERE id=?"
-                params = (name, desc, cid)
+            if c_data['id']:
+                sql = "UPDATE categories SET category_name=?, description=?, photo=? WHERE id=?"
+                params = (c_data['name'], c_data['description'], c_data['photo'], c_data['id'])
             else:
-                sql = "INSERT INTO categories (category_name, description, created_at) VALUES (?, ?, GETDATE())"
-                params = (name, desc)
+                sql = "INSERT INTO categories (category_name, description, photo, created_at) VALUES (?, ?, ?, GETDATE())"
+                params = (c_data['name'], c_data['description'], c_data['photo'])
 
             connection.insertingtodatabase(sql, params)
             ui.notify('Category saved', color='positive')
@@ -67,21 +86,16 @@ def category_page(standalone=False):
     with ModernPageLayout("Category Management"):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
-            # Action Bar
-            with ModernCard().classes('w-full p-4'):
-                with ui.row().classes('w-full items-center justify-between'):
-                    with ui.row().classes('items-center gap-4'):
-                        ui.icon('category').classes('text-3xl text-accent')
-                        ui.label('Category Catalog').classes('text-2xl font-black text-primary-dark')
-                    
-                    with ui.row().classes('gap-2'):
-                        ModernButton.create('New', icon='add', on_click=clear_inputs, variant='primary')
-                        ModernButton.create('Save', icon='save', on_click=save_category, variant='success')
-                        ModernButton.create('Delete', icon='delete', on_click=delete_category, variant='error')
-
             with ui.row().classes('w-full gap-6 items-start'):
                 # Left Column: Form
-                with ui.column().classes('w-1/3 gap-4'):
+                with ui.column().classes('w-[380px] gap-4'):
+                    # Category Photo
+                    with ModernCard().classes('w-full p-6 flex flex-col items-center'):
+                        ui.label('Category Banner').classes('text-lg font-bold mb-4 w-full text-center')
+                        photo_preview = ui.image('https://via.placeholder.com/150').classes('w-full h-32 rounded-xl object-cover border-2 border-accent/10 mb-4 shadow-sm')
+                        input_refs['photo'] = ui.input().classes('hidden') # State holder
+                        ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dense label="Upload Banner" accept=".jpg,.png,.jpeg"').classes('w-full')
+
                     with ModernCard().classes('w-full p-6'):
                         ui.label('Category Info').classes('text-lg font-bold mb-4')
                         input_refs['id'] = ui.input('ID').props('readonly outlined dense').classes('hidden')
@@ -94,11 +108,24 @@ def category_page(standalone=False):
                         ui.label('Available Categories').classes('text-lg font-bold mb-4 ml-2')
                         
                         cols = [
+                            {'headerName': 'Icon', 'field': 'photo', 'width': 60, 'cellRenderer': 'img_renderer'},
                             {'headerName': 'Name', 'field': 'name', 'flex': 1},
                             {'headerName': 'Description', 'field': 'description', 'flex': 2},
                             {'headerName': 'Created', 'field': 'created_at', 'width': 180}
                         ]
                         
+                        ui.add_body_html('''
+                        <script>
+                        window.img_renderer = (params) => {
+                            if (!params.data.has_photo) return "";
+                            // Using the tiny preview stored in the grid
+                            return `<div style="width: 24px; height: 24px; border-radius: 4px; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                <span style="font-size: 8px; color: #aaa;">IMG</span>
+                            </div>`;
+                        };
+                        </script>
+                        ''')
+
                         table = ui.aggrid({
                             'columnDefs': cols,
                             'rowData': [],
@@ -106,19 +133,55 @@ def category_page(standalone=False):
                             'rowSelection': 'single',
                         }).classes('w-full h-[500px] ag-theme-quartz-dark')
 
-                        async def on_row():
-                            row = await table.get_selected_row()
-                            if row:
-                                input_refs['id'].set_value(row['id'])
-                                input_refs['name'].set_value(row['name'])
-                                input_refs['description'].set_value(row['description'])
+                        def on_row(e):
+                            try:
+                                # Instant response from click event data
+                                row = e.args.get('data')
+                                if not row: return
+                                
+                                cid = row.get('id')
+                                if cid is None: return
+                                
+                                # Update inputs immediately
+                                input_refs['id'].set_value(str(cid))
+                                input_refs['name'].set_value(row.get('name') or row.get('category_name', ''))
+                                input_refs['description'].set_value(row.get('description', ''))
+                                
+                                # Fetch high-res photo on-demand from database
+                                photo_data = []
+                                connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
+                                full_photo = photo_data[0][0] if photo_data else None
+                                
+                                input_refs['photo'].set_value(full_photo or '')
+                                if full_photo:
+                                    photo_preview.set_source(full_photo)
+                                else:
+                                    photo_preview.set_source('https://via.placeholder.com/150')
+                            except Exception as ex:
+                                print(f"Category selection error: {ex}")
+                                ui.notify(f'Display error: {ex}', color='warning')
+
                         table.on('cellClicked', on_row)
 
+                # Action Bar Panel (Right Side of Editor)
+                with ui.column().classes('w-80px items-center'):
+                    from modern_ui_components import ModernActionBar
+                    ModernActionBar(
+                        on_new=clear_inputs,
+                        on_save=save_category,
+                        on_delete=delete_category,
+                        on_refresh=refresh_table,
+                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        button_class='h-16',
+                        classes=' '
+                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+
     ui.timer(0.1, refresh_table, once=True)
+
+
 
 @ui.page('/category')
 def category_page_route():
     category_page()
 
-# Alias for legacy compatibility
 category_content = lambda standalone=False, user=None: category_page(standalone)

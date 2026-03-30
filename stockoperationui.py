@@ -2,9 +2,10 @@ from nicegui import ui
 from connection import connection
 from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
-from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable, ModernActionBar
 from session_storage import session_storage
 from datetime import datetime
+import datetime as dt # Added for convenience
 
 def stock_operations_page(standalone=False):
     # Auth
@@ -39,56 +40,63 @@ def stock_operations_page(standalone=False):
             else: ref.set_value('')
         input_refs['date'].set_value(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
-    with ModernPageLayout("Stock Operations"):
-        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
-            
-            # Header Action Bar
-            with ModernCard().classes('w-full p-4'):
-                with ui.row().classes('w-full items-center justify-between'):
-                    with ui.row().classes('items-center gap-4'):
-                        ui.icon('inventory').classes('text-3xl text-primary')
-                        ui.label('Stock Control Center').classes('text-2xl font-black text-primary-dark')
+    with ModernPageLayout("Stock Control Center"):
+        with ui.row().classes('w-full gap-6 items-start animate-fade-in'):
+            # Left Column: Active Operation / Inputs
+            with ui.column().classes('w-[360px] gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Operation Detail').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest mb-4')
+                    with ui.column().classes('w-full gap-4'):
+                        input_refs['date'] = ui.input('Date/Time').classes('w-full glass-input').props('dark rounded outlined dense type=datetime-local')
+                        input_refs['date'].value = datetime.now().strftime('%Y-%m-%dT%H:%M')
+                        
+                        input_refs['type'] = ui.select(
+                            ['manual_adjustment', 'stock_count', 'return', 'damage'], 
+                            value='manual_adjustment', 
+                            label='Operation Type'
+                        ).classes('w-full glass-input').props('dark rounded outlined dense')
+                        
+                        input_refs['ref'] = ui.input('Reference #').classes('w-full glass-input').props('dark rounded outlined dense')
+
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Item Entry').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest mb-4')
+                    with ui.column().classes('w-full gap-4'):
+                        input_refs['barcode'] = ui.input('Scan Barcode').classes('w-full glass-input').props('dark rounded outlined dense')
+                        input_refs['quantity'] = ui.number('Quantity', value=1).classes('w-full glass-input').props('dark rounded outlined dense')
+                        input_refs['reason'] = ui.textarea('Adjustment Reason').classes('w-full glass-input').props('dark rounded outlined dense')
+                        ModernButton('Add to Operation', icon='playlist_add', on_click=lambda: ui.notify('Item added (Simulation)', color='info'), variant='primary').classes('w-full h-12 mt-2')
+
+            # Center Column: History Registry
+            with ui.column().classes('flex-1 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Operations Registry').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
                     
-                    with ui.row().classes('gap-2'):
-                        ModernButton.create('New Operation', icon='add', on_click=clear_form, variant='primary')
-                        ModernButton.create('Save All', icon='save', variant='success')
-                        ModernButton.create('Refresh History', icon='history', on_click=refresh_history, variant='outline')
+                    history_cols = [
+                        {'headerName': 'ID', 'field': 'id', 'width': 70},
+                        {'headerName': 'Date', 'field': 'date', 'flex': 1},
+                        {'headerName': 'Type', 'field': 'type', 'width': 130},
+                        {'headerName': 'Items', 'field': 'items', 'width': 80},
+                        {'headerName': 'Ref', 'field': 'ref', 'width': 120}
+                    ]
+                    
+                    history_grid = ui.aggrid({
+                        'columnDefs': history_cols,
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
 
-            with ui.row().classes('w-full gap-6 items-start'):
-                # Left Column: Active Operation
-                with ui.column().classes('w-1/3 gap-4'):
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Operation Details').classes('text-lg font-bold mb-4')
-                        input_refs['date'] = ui.input('Date', value=datetime.now().strftime('%Y-%m-%d %H:%M:%S')).props('outlined dense').classes('w-full')
-                        input_refs['type'] = ui.select(['manual_adjustment', 'stock_count', 'return', 'damage'], value='manual_adjustment', label='Type').classes('w-full mt-2').props('outlined dense')
-                        input_refs['ref'] = ModernInput('Reference #', icon='tag')
-
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Add Item').classes('text-lg font-bold mb-4')
-                        input_refs['barcode'] = ModernInput('Barcode', icon='qr_code')
-                        input_refs['quantity'] = ui.number('Quantity', value=1).classes('w-full mt-2').props('outlined dense')
-                        input_refs['reason'] = ui.input('Reason').props('outlined dense').classes('w-full mt-2')
-                        ModernButton.create('Add to List', icon='playlist_add').classes('w-full mt-4')
-
-                # Right Column: History & Current Items
-                with ui.column().classes('flex-1 gap-4'):
-                    with ModernCard().classes('w-full p-4'):
-                        ui.label('Operation History').classes('text-lg font-bold mb-4 ml-2')
-                        
-                        history_cols = [
-                            {'headerName': 'ID', 'field': 'id', 'width': 70},
-                            {'headerName': 'Date', 'field': 'date', 'width': 160},
-                            {'headerName': 'Type', 'field': 'type'},
-                            {'headerName': 'Items', 'field': 'items', 'width': 80},
-                            {'headerName': 'Ref', 'field': 'ref'}
-                        ]
-                        
-                        history_grid = ui.aggrid({
-                            'columnDefs': history_cols,
-                            'rowData': [],
-                            'defaultColDef': {'sortable': True, 'filter': True},
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[400px] ag-theme-quartz-dark')
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                ModernActionBar(
+                    on_new=clear_form,
+                    on_save=lambda: ui.notify('Operation saved successfully (Simulation)', color='positive'),
+                    on_undo=lambda: ui.notify('Undo not applicable here', color='warning'),
+                    on_refresh=refresh_history,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
     ui.timer(0.1, refresh_history, once=True)
 

@@ -2,9 +2,10 @@ from nicegui import ui
 from connection import connection
 from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
-from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable, ModernActionBar
 from session_storage import session_storage
 from datetime import datetime
+import datetime as dt # Added for convenience
 
 def supplier_payment_page(standalone=False):
     # Auth
@@ -86,48 +87,56 @@ def supplier_payment_page(standalone=False):
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
-    with ModernPageLayout("Supplier Payments"):
-        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
-            
-            # Action Bar
-            with ModernCard().classes('w-full p-4'):
-                with ui.row().classes('w-full items-center justify-between'):
-                    with ui.row().classes('items-center gap-4'):
-                        ui.icon('payments').classes('text-3xl text-secondary')
-                        ui.label('Payable Management').classes('text-2xl font-black text-primary-dark')
-                    
-                    with ui.row().classes('gap-2'):
-                        ModernButton.create('Clear', icon='refresh', on_click=lambda: input_refs['amount'].set_value(0))
-                        ModernButton.create('Process', icon='check_circle', on_click=process_payment, variant='success')
-
-            with ui.row().classes('w-full gap-6 items-start'):
-                # Left: Process Form
-                with ui.column().classes('w-1/3 gap-4'):
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('New Payment').classes('text-lg font-bold mb-4')
-                        input_refs['supplier'] = ui.input('Supplier').props('readonly outlined dense').classes('w-full')
+    with ModernPageLayout("Payable Management"):
+        with ui.row().classes('w-full gap-6 items-start animate-fade-in'):
+            # Left Column: Process Form
+            with ui.column().classes('w-[360px] gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Disbursement Details').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest mb-4')
+                    with ui.column().classes('w-full gap-4'):
+                        input_refs['supplier'] = ui.input('Supplier Entity').props('readonly rounded outlined dense').classes('w-full glass-input')
                         input_refs['supplier'].on('click', select_supplier)
-                        input_refs['amount'] = ui.number('Amount paid', value=0).props('outlined dense').classes('w-full mt-2')
-                        input_refs['method'] = ui.select(['Cash', 'Card', 'Visa', 'OMT'], value='Cash', label='Method').classes('w-full mt-2').props('outlined dense')
+                        
+                        input_refs['amount'] = ui.number('Payment Amount', value=0).props('rounded outlined dense').classes('w-full glass-input mt-2')
+                        input_refs['method'] = ui.select(
+                            ['Cash', 'Card', 'Visa', 'OMT'], 
+                            value='Cash', 
+                            label='Disbursement Channel'
+                        ).classes('w-full glass-input mt-2').props('rounded outlined dense')
+                        
+                        ModernButton('Execute Payment', icon='payment', on_click=process_payment, variant='primary').classes('w-full h-12 mt-4')
 
-                # Right: History
-                with ui.column().classes('flex-1'):
-                    with ModernCard().classes('w-full p-4'):
-                        ui.label('Payment History').classes('text-lg font-bold mb-4 ml-2')
-                        
-                        cols = [
-                            {'headerName': 'ID', 'field': 'id', 'width': 80},
-                            {'headerName': 'Date', 'field': 'date', 'width': 180},
-                            {'headerName': 'Supplier', 'field': 'supplier', 'flex': 1},
-                            {'headerName': 'Amount', 'field': 'amount', 'width': 120},
-                            {'headerName': 'Method', 'field': 'method', 'width': 120}
-                        ]
-                        
-                        history_table = ui.aggrid({
-                            'columnDefs': cols,
-                            'rowData': [],
-                            'defaultColDef': {'sortable': True, 'filter': True},
-                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
+            # Center Column: History
+            with ui.column().classes('flex-1 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Payment Register').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
+                    
+                    cols = [
+                        {'headerName': 'ID', 'field': 'id', 'width': 80},
+                        {'headerName': 'Date', 'field': 'date', 'flex': 1},
+                        {'headerName': 'Vendor', 'field': 'supplier', 'flex': 1.5},
+                        {'headerName': 'Amount', 'field': 'amount', 'width': 110, 'valueFormatter': '"$" + x.toLocaleString()'},
+                        {'headerName': 'Channel', 'field': 'method', 'width': 100}
+                    ]
+                    
+                    history_table = ui.aggrid({
+                        'columnDefs': cols,
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
+
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                ModernActionBar(
+                    on_new=lambda: input_refs['amount'].set_value(0),
+                    on_save=process_payment,
+                    on_undo=lambda: ui.notify('Undo not implemented for supplier payments', color='warning'),
+                    on_refresh=refresh_history,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
     ui.timer(0.1, refresh_history, once=True)
 

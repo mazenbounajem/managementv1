@@ -1,9 +1,6 @@
-from nicegui import ui
-from connection import connection
-from datetime import datetime
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
-from session_storage import session_storage
+from modern_page_layout import ModernPageLayout
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernActionBar
+from modern_design_system import ModernDesignSystem as MDS
 
 class CustomerPayment:
     def __init__(self):
@@ -33,96 +30,110 @@ class CustomerPayment:
             ui.notify(f'Error loading currencies: {e}', color='red')
 
     def setup_ui(self):
-        # Main content area with splitter layout
-        with ui.element('div').classes('flex w-full h-screen'):
-            # Left drawer for action buttons
-            with ui.column().classes('w-48 p-4 bg-gray-100 flex-shrink-0'):
-                ui.label('Actions').classes('text-lg font-bold mb-4')
-                ui.button('Process Payment', icon='payment', on_click=self.process_payment).classes('bg-green-500 text-white w-full mb-2')
-                ui.button('Refresh', icon='refresh', on_click=self.refresh_table).classes('bg-purple-500 text-white w-full mb-2')
+        with ui.row().classes('w-full gap-6 items-start'):
+            # Left Column: Payment History
+            with ui.column().classes('w-1/3 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Recent Settlements').classes('text-lg font-black mb-4 text-white uppercase tracking-widest opacity-70')
+                    
+                    self.table = ui.aggrid({
+                        'columnDefs': [
+                            {'headerName': 'Date', 'field': 'payment_date', 'width': 120},
+                            {'headerName': 'Customer', 'field': 'customer_name', 'flex': 1},
+                            {'headerName': 'Amount', 'field': 'amount', 'width': 90},
+                            {'headerName': 'Currency', 'field': 'currency', 'width': 90},
+                        ],
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
+                    self.refresh_table()
 
-            # Main content area
-            with ui.column().classes('flex-1 p-4 overflow-y-auto'):
-                ui.label('Customer Payment Settlement').classes('text-2xl font-bold mb-4')
+            # Center Column: Payment Processing
+            with ui.column().classes('flex-1 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Settlement Processor').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
+                    
+                    # Selection Area
+                    with ui.row().classes('w-full gap-4 items-center mb-6'):
+                        self.customer_input = ui.input('Target Customer').classes('flex-1 glass-input').props('dark rounded outlined readonly')
+                        self.customer_input.on('click', lambda: self.customer_dialog.open())
+                        ModernButton('Browse', icon='search', on_click=lambda: self.customer_dialog.open(), variant='primary').classes('h-14')
 
-                # Customer selection and balance display
-                with ui.row().classes('w-full mb-4'):
-                    self.customer_input = ui.input('Customer', placeholder='Select Customer').classes('w-1/4 mr-2')
-                    self.customer_input.on('click', lambda: self.customer_dialog.open())
+                    # Balance Display
+                    with ui.row().classes('w-full gap-4 mb-8 bg-white/5 p-4 rounded-2xl'):
+                        with ui.column().classes('flex-1 items-center'):
+                            ui.label('Balance LL').classes('text-[10px] uppercase text-white/40 font-bold')
+                            self.balance_ll_label = ui.label('0.00').classes('text-lg font-black text-white')
+                        with ui.column().classes('flex-1 items-center border-x border-white/10'):
+                            ui.label('Balance USD').classes('text-[10px] uppercase text-white/40 font-bold')
+                            self.balance_usd_label = ui.label('$0.00').classes('text-lg font-black text-white')
+                        with ui.column().classes('flex-1 items-center'):
+                            ui.label('Balance EUR').classes('text-[10px] uppercase text-white/40 font-bold')
+                            self.balance_eur_label = ui.label('€0.00').classes('text-lg font-black text-white')
 
-                    self.balance_ll_input = ui.input('Balance LL', value='0.00', readonly=True).classes('w-1/5 mr-2')
-                    self.balance_usd_input = ui.input('Balance USD', value='0.00', readonly=True).classes('w-1/5 mr-2')
-                    self.balance_eur_input = ui.input('Balance EUR', value='0.00', readonly=True).classes('w-1/5 mr-2')
-
-                # Payment details
-                with ui.row().classes('w-full mb-4'):
-                    self.payment_amount_input = ui.input('Payment Amount', value='0.00').classes('w-1/4 mr-2')
-                    self.payment_currency_select = ui.select(
-                        options=['L.L.', '$', '€'],
-                        value='L.L.',
-                        label='Payment Currency'
-                    ).classes('w-1/4 mr-2')
-
-                    ui.button('Calculate Exchange', icon='calculate', on_click=self.calculate_exchange).classes('w-1/4 mr-2 bg-blue-500 text-white')
-
-                # Payment breakdown display
-                self.payment_breakdown_label = ui.label('Payment Breakdown:').classes('text-lg font-bold mb-2')
+                    # Payment Inputs
+                    with ui.row().classes('w-full gap-4 items-start'):
+                        with ui.column().classes('flex-1 gap-4'):
+                            self.payment_amount_input = ui.number('Payment Amount', value=0.0).classes('w-full glass-input').props('dark rounded outlined')
+                            self.payment_currency_select = ui.select(
+                                options=['L.L.', '$', '€'],
+                                value='L.L.',
+                                label='Settlement Currency'
+                            ).classes('w-full glass-input').props('dark rounded outlined')
+                            
+                        with ui.column().classes('flex-1 gap-4 justify-center h-full pt-6'):
+                            ModernButton('Calculate Exchange', icon='calculate', on_click=self.calculate_exchange, variant='outline').classes('w-full h-14 border-white/20 text-white')
+                            self.payment_breakdown_label = ui.label('').classes('text-xs font-bold text-primary italic px-2')
 
                 # Customer dialog
                 self.customer_dialog = ui.dialog()
-                with self.customer_dialog, ui.card().classes('w-full max-w-4xl'):
-                    ui.label('Select Customer').classes('text-xl font-bold mb-4')
+                with self.customer_dialog:
+                    with ModernCard(glass=True).classes('w-[800px] p-8'):
+                        ui.label('Select Target Customer').classes('text-2xl font-black mb-6 text-white')
+                        
+                        data = []
+                        connection.contogetrows("SELECT id, customer_name, phone, balance_ll, balance_usd, balance_eur FROM customers", data)
+                        rows = []
+                        for r in data:
+                            rows.append({'id': r[0], 'customer_name': r[1], 'phone': r[2], 'balance_ll': r[3], 'balance_usd': r[4], 'balance_eur': r[5]})
 
-                    headers = []
-                    connection.contogetheaders("SELECT id, customer_name, phone, balance_ll, balance_usd, balance_eur FROM customers", headers)
-                    columns = [{'name': header, 'label': header.title(), 'field': header, 'sortable': True} for header in headers]
+                        table = ui.aggrid({
+                            'columnDefs': [
+                                {'headerName': 'Name', 'field': 'customer_name', 'flex': 1},
+                                {'headerName': 'Phone', 'field': 'phone', 'width': 120},
+                                {'headerName': 'LL', 'field': 'balance_ll', 'width': 100},
+                                {'headerName': 'USD', 'field': 'balance_usd', 'width': 100},
+                                {'headerName': 'EUR', 'field': 'balance_eur', 'width': 100},
+                            ],
+                            'rowData': rows,
+                            'defaultColDef': MDS.get_ag_grid_default_def(),
+                            'rowSelection': 'single',
+                        }).classes('w-full h-96 ag-theme-quartz-dark')
 
-                    data = []
-                    connection.contogetrows("SELECT id, customer_name, phone, balance_ll, balance_usd, balance_eur FROM customers", data)
-                    rows = []
-                    for row in data:
-                        row_dict = {}
-                        for i, header in enumerate(headers):
-                            row_dict[header] = row[i]
-                        rows.append(row_dict)
+                        async def handle_customer_selection():
+                            selected = await table.get_selected_row()
+                            if selected:
+                                self.customer_input.value = selected['customer_name']
+                                self.balance_ll_label.set_text(f"{selected['balance_ll']:.2f}")
+                                self.balance_usd_label.set_text(f"${selected['balance_usd']:.2f}")
+                                self.balance_eur_label.set_text(f"€{selected['balance_eur']:.2f}")
+                                self.selected_customer = selected
+                                self.customer_dialog.close()
 
-                    table = ui.table(columns=columns, rows=rows, pagination=5).classes('w-full')
-                    ui.input('Search').bind_value(table, 'filter').classes('text-xs')
+                        table.on('cellDoubleClicked', handle_customer_selection)
+                        ModernButton('Confirm Selection', on_click=handle_customer_selection, variant='primary').classes('w-full mt-6')
 
-                    def on_row_click(row_data):
-                        selected_row = row_data.args[1]
-                        self.customer_input.value = selected_row['customer_name']
-                        self.balance_ll_input.value = f"{selected_row['balance_ll']:.2f}"
-                        self.balance_usd_input.value = f"{selected_row['balance_usd']:.2f}"
-                        self.balance_eur_input.value = f"{selected_row['balance_eur']:.2f}"
-                        self.selected_customer = selected_row
-                        self.customer_dialog.close()
-
-                    table.on('rowClick', on_row_click)
-
-                # Payment history table
-                ui.label('Payment History').classes('text-xl font-bold mb-2')
-
-                column_defs = [
-                    {'headerName': 'ID', 'field': 'id', 'sortable': True, 'filter': True, 'width': 80},
-                    {'headerName': 'Date', 'field': 'payment_date', 'sortable': True, 'filter': True, 'width': 150},
-                    {'headerName': 'Customer', 'field': 'customer_name', 'sortable': True, 'filter': True, 'width': 200},
-                    {'headerName': 'Amount', 'field': 'amount', 'sortable': True, 'filter': True, 'width': 120},
-                    {'headerName': 'Currency', 'field': 'currency', 'sortable': True, 'filter': True, 'width': 100},
-                    {'headerName': 'Method', 'field': 'payment_method', 'sortable': True, 'filter': True, 'width': 100}
-                ]
-
-                self.table = ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': [],
-                    'defaultColDef': {'flex': 1, 'minWidth': 100, 'sortable': True, 'filter': True},
-                    'rowSelection': 'single',
-                    'domLayout': 'normal',
-                    'pagination': True,
-                    'paginationPageSize': 10
-                }).classes('w-full ag-theme-quartz-custom').style('height: 300px;')
-
-                self.refresh_table()
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                ModernActionBar(
+                    on_new=lambda: ui.notify('Clear form feature coming soon'),
+                    on_save=self.process_payment,
+                    on_refresh=self.refresh_table,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
     def calculate_exchange(self):
         """Calculate payment breakdown in different currencies"""
@@ -225,11 +236,11 @@ class CustomerPayment:
             ))
 
             # Update UI
-            self.balance_ll_input.value = f"{new_ll_balance:.2f}"
-            self.balance_usd_input.value = f"{new_usd_balance:.2f}"
-            self.balance_eur_input.value = f"{new_eur_balance:.2f}"
+            self.balance_ll_label.set_text(f"{new_ll_balance:.2f}")
+            self.balance_usd_label.set_text(f"${new_usd_balance:.2f}")
+            self.balance_eur_label.set_text(f"€{new_eur_balance:.2f}")
 
-            ui.notify(f'Payment of {payment_currency}{payment_amount:.2f} processed successfully!', color='green')
+            ui.notify(f'Payment processed successfully!', color='green')
             self.refresh_table()
 
         except Exception as e:
@@ -290,4 +301,5 @@ def customer_payment_page_route():
     navigation.create_navigation_drawer()
     navigation.create_navigation_header()
 
-    CustomerPayment()
+    with ModernPageLayout("Settlement"):
+        CustomerPayment()

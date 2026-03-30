@@ -65,16 +65,7 @@ def supplier_page(standalone=False):
     with ModernPageLayout("Supplier Management"):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
-            # Action Bar
-            with ModernCard().classes('w-full p-4'):
-                with ui.row().classes('w-full items-center justify-between'):
-                    with ui.row().classes('items-center gap-4'):
-                        ui.icon('local_shipping').classes('text-3xl text-secondary')
-                        ui.label('Supply Chain Partners').classes('text-2xl font-black text-primary-dark')
-                    
-                    with ui.row().classes('gap-2'):
-                        ModernButton.create('New', icon='person_add', on_click=clear_inputs, variant='primary')
-                        ModernButton.create('Save', icon='save', on_click=save_supplier, variant='success')
+            # Redundant Horizontal Action Bar removed
 
             with ui.row().classes('w-full gap-6 items-start'):
                 # Left Column: Form
@@ -82,16 +73,16 @@ def supplier_page(standalone=False):
                     with ModernCard().classes('w-full p-6'):
                         ui.label('Supplier Profile').classes('text-lg font-bold mb-4')
                         input_refs['id'] = ui.input('ID').props('readonly outlined dense').classes('hidden')
-                        input_refs['name'] = ModernInput('Company Name', icon='business')
-                        input_refs['contact'] = ModernInput('Contact Person', icon='person')
-                        input_refs['email'] = ModernInput('Email', icon='email')
-                        input_refs['phone'] = ModernInput('Phone', icon='phone')
+                        input_refs['name'] = ModernInput('Company Name', icon='business').style('color: #c05884')
+                        input_refs['contact'] = ModernInput('Contact Person', icon='person').style('color: #c05884')
+                        input_refs['email'] = ModernInput('Email', icon='email').style('color: #c05884')
+                        input_refs['phone'] = ModernInput('Phone', icon='phone').style('color: #c05884')
 
                     with ModernCard().classes('w-full p-6'):
                         ui.label('Address & Status').classes('text-lg font-bold mb-4')
-                        input_refs['address'] = ui.input('Address').props('outlined dense').classes('w-full')
-                        input_refs['city'] = ui.input('City').props('outlined dense').classes('w-full mt-2')
-                        input_refs['balance'] = ui.number('Current Balance').props('outlined dense').classes('w-full mt-2')
+                        input_refs['address'] = ui.input('Address').style('color: #c05884').props('outlined dense').classes('w-full')
+                        input_refs['city'] = ui.input('City').style('color: #c05884').props('outlined dense').classes('w-full mt-2')
+                        input_refs['balance'] = ui.number('Current Balance').style('color: #c05884').props('outlined dense').classes('w-full mt-2')
                         input_refs['is_active'] = ui.checkbox('Active', value=True).classes('mt-2')
 
                 # Right Column: List
@@ -121,7 +112,22 @@ def supplier_page(standalone=False):
                                     if k in row: input_refs[k].set_value(row[k])
                         table.on('cellClicked', on_row)
 
+                # Action Bar Panel (Right Side of Editor)
+                with ui.column().classes('w-80px items-center'):
+                    from modern_ui_components import ModernActionBar
+                    ModernActionBar(
+                        on_new=clear_inputs,
+                        on_save=save_supplier,
+                        on_undo=lambda: ui.notify('Undo not implemented for suppliers'),
+                        on_delete=lambda: ui.notify('Delete currently disabled'),
+                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_refresh=refresh_table,
+                        button_class='h-16',
+                        classes=' '
+                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+
     ui.timer(0.1, refresh_table, once=True)
+
 
 @ui.page('/suppliers')
 def supplier_page_route():

@@ -391,6 +391,27 @@ class ModernDesignSystem:
             .q-table th {{ color: var(--accent) !important; }}
             .q-table td {{ color: var(--text-main) !important; }}
 
+            /* Fix for input text visibility in whole software */
+            .q-input input, .q-field__native, .q-field__prefix, .q-field__suffix, .q-field__native span {{
+                color: #f1f5f9 !important;
+                -webkit-text-fill-color: #f1f5f9 !important;
+            }}
+
+            /* Ensure placeholder is visible */
+            .q-placeholder, .q-field__label {{
+                color: #94a3b8 !important;
+            }}
+
+            /* Dropdown boxes visibility */
+            .q-select .q-field__native {{
+                color: #f1f5f9 !important;
+            }}
+            .q-menu {{
+                background-color: #1e293b !important;
+                color: #f1f5f9 !important;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }}
+
             /* ============= SCROLLBAR ============= */
             ::-webkit-scrollbar {{
                 width: 8px;

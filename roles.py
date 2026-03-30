@@ -114,53 +114,65 @@ class RolesUI:
             print(f"Error loading perms: {e}")
 
     def create_ui(self):
-        # Action Bar
-        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-            with ui.row().classes('gap-3'):
-                ModernButton('New Role', icon='add', on_click=self.clear_input_fields, variant='primary')
-                ModernButton('Save Role', icon='save', on_click=self.save_role, variant='success')
-                ModernButton('Delete Role', icon='delete', on_click=self.delete_role, variant='error')
-            
-            ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+        with ui.row().classes('w-full gap-6 items-start'):
+            # Left Column: Role List
+            with ui.column().classes('w-1/3 gap-4'):
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Roles Directory').classes('text-lg font-black mb-4 text-white uppercase tracking-widest opacity-70')
+                    self.table = ui.aggrid({
+                        'columnDefs': [
+                            {'headerName': 'ID', 'field': 'id', 'width': 70},
+                            {'headerName': 'Role Name', 'field': 'name', 'flex': 1},
+                        ],
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                        'rowSelection': 'single',
+                    }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
+                    
+                    async def on_row_click():
+                        selected = await self.table.get_selected_row()
+                        if selected:
+                            self.input_refs['id'].value = str(selected['id'])
+                            self.input_refs['name'].value = selected['name']
+                            self.input_refs['description'].value = selected['description']
+                            self.load_permissions(selected['id'])
+                            if self.table:
+                                self.table.classes(remove='dimmed')
+                    self.table.on('cellClicked', on_row_click)
 
-        with ui.column().classes('w-full gap-6'):
-            # Top: List
-            with ModernCard(glass=True).classes('w-full p-6'):
-                self.table = ui.aggrid({
-                    'columnDefs': [
-                        {'headerName': 'ID', 'field': 'id', 'width': 80},
-                        {'headerName': 'Role Name', 'field': 'name', 'width': 200},
-                        {'headerName': 'Description', 'field': 'description', 'width': 300, 'flex': 1}
-                    ],
-                    'rowData': [],
-                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                    'rowSelection': 'single',
-                }).classes('w-full h-64 ag-theme-quartz-dark')
-                
-                async def on_row_click():
-                    selected = await self.table.get_selected_row()
-                    if selected:
-                        self.input_refs['id'].value = str(selected['id'])
-                        self.input_refs['name'].value = selected['name']
-                        self.input_refs['description'].value = selected['description']
-                        self.load_permissions(selected['id'])
-                        if self.table:
-                            self.table.classes(remove='dimmed')
-                self.table.on('cellClicked', on_row_click)
+            # Center Column: Details & Permissions
+            with ui.column().classes('flex-1 gap-4'):
+                with ui.row().classes('w-full gap-6 items-start'):
+                    # Info Card
+                    with ModernCard(glass=True).classes('flex-1 p-6'):
+                        ui.label('Role Definition').classes('text-xl font-black mb-6 text-white')
+                        with ui.column().classes('w-full gap-4'):
+                            self.input_refs['name'] = ui.input('Role Name').classes('w-full glass-input').props('dark rounded outlined dense')
+                            self.input_refs['description'] = ui.textarea('Official Description').classes('w-full glass-input').props('dark rounded outlined h-32')
+                            self.input_refs['id'] = ui.input('Reference ID').classes('w-48 glass-input opacity-50').props('dark rounded outlined readonly dense')
 
-            # Bottom: Details & Permissions
-            with ui.row().classes('w-full gap-6'):
-                with ModernCard(glass=True).classes('flex-1 p-6'):
-                    ui.label('Role Info').classes('text-xl font-black mb-6 text-white')
-                    self.input_refs['name'] = ui.input('Role Name').classes('w-full glass-input mb-4').props('dark rounded outlined')
-                    self.input_refs['description'] = ui.textarea('Description').classes('w-full glass-input h-32').props('dark rounded outlined')
-                    self.input_refs['id'] = ui.input('Internal ID').classes('w-24 glass-input').props('dark rounded outlined readonly')
+                    # Permissions Card
+                    with ModernCard(glass=True).classes('w-[500px] p-6'):
+                        ui.label('Page Permissions').classes('text-xl font-black mb-6 text-white')
+                        with ui.grid(columns=2).classes('w-full gap-x-6 gap-y-3 max-h-[500px] overflow-y-auto pr-4 scroll-slim'):
+                            for page in self.available_pages:
+                                display = page.replace('-', ' ').title()
+                                with ui.row().classes('items-center justify-between w-full border-b border-white/5 pb-2'):
+                                    ui.label(display).classes('text-white text-xs font-bold font-mono opacity-80')
+                                    self.input_refs[f'perm_{page}'] = ui.checkbox('').classes('text-white scale-110')
 
-                with ModernCard(glass=True).classes('w-[500px] p-6'):
-                    ui.label('Permissions').classes('text-xl font-black mb-6 text-white')
-                    with ui.grid(columns=2).classes('w-full gap-x-4 gap-y-2 max-h-[400px] overflow-y-auto pr-2'):
-                        for page in self.available_pages:
-                            display = page.replace('-', ' ').title()
-                            self.input_refs[f'perm_{page}'] = ui.checkbox(display).classes('text-white text-sm')
+            # Right Column: Action Bar
+            with ui.column().classes('w-80px items-center'):
+                from modern_ui_components import ModernActionBar
+                ModernActionBar(
+                    on_new=self.clear_input_fields,
+                    on_save=self.save_role,
+                    on_undo=lambda: ui.notify('Undo not implemented for roles'),
+                    on_delete=self.delete_role,
+                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_refresh=self.refresh_table,
+                    button_class='h-16',
+                    classes=' '
+                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
         ui.timer(0.1, self.refresh_table, once=True)

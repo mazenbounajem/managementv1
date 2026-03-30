@@ -110,6 +110,115 @@ class Reports:
         # Convert to list of dicts with column names
         return [dict(zip(headers, row)) for row in data]
 
+    @staticmethod
+    def fetch_user_discounts(from_date=None, to_date=None):
+        """Fetch sales with discount tracing per user"""
+        headers = []
+        data = []
+        
+        sql = """
+            SELECT s.sale_date, s.invoice_number, c.customer_name, u.username, 
+                   s.subtotal, s.discount_amount, s.total_amount
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.id
+            LEFT JOIN users u ON s.user_id = u.id
+            WHERE s.discount_amount > 0
+        """
+        params = []
+        if from_date and to_date:
+            sql += " AND s.sale_date BETWEEN ? AND ?"
+            params = [from_date, to_date]
+        
+        sql += " ORDER BY s.sale_date DESC"
+        
+        connection.contogetheaders(sql + " AND 1=0", headers)
+        connection.contogetrows_with_params(sql, data, params)
+        
+        return [dict(zip(headers, row)) for row in data]
+
+    @staticmethod
+    def fetch_statement_of_account(account_number, from_date=None, to_date=None):
+        """Fetch detailed transactions for a specific auxiliary account from all sources"""
+        headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit']
+        data = []
+        
+        # Sources: Journal Vouchers, Sales Payments (Customer accounts), Purchase Payments (Supplier accounts)
+        sql = """
+            SELECT date, ref as [Reference], descr as [Description], debit, credit FROM (
+                SELECT jvh.date, jvh.voucher_number as ref, jvl.remark as descr, 
+                       jvl.debit, jvl.credit
+                FROM journal_voucher_lines jvl
+                JOIN journal_voucher_header jvh ON jvl.header_id = jvh.id
+                WHERE jvl.account = ?
+                
+                UNION ALL
+                
+                SELECT sp.sale_date, sp.invoice_number, 'Sale Payment' + ISNULL(' (' + sp.notes + ')', ''), 
+                       sp.debit, sp.credit
+                FROM sales_payment sp
+                JOIN customers c ON sp.customer_id = c.id
+                WHERE c.auxiliary_number = ?
+                
+                UNION ALL
+                
+                SELECT pp.purchase_date, pp.purchase_invoice_number, 'Purchase Payment' + ISNULL(' (' + pp.notes + ')', ''), 
+                       pp.debit, pp.credit
+                FROM purchase_payment pp
+                JOIN suppliers s ON pp.supplier_id = s.id
+                WHERE s.auxiliary_number = ?
+            ) t
+        """
+        params = [account_number, account_number, account_number]
+        
+        if from_date and to_date:
+            sql += " WHERE date BETWEEN ? AND ?"
+            params.extend([from_date, to_date])
+            
+        sql += " ORDER BY date ASC"
+        
+        connection.contogetrows_with_params(sql, data, params)
+        
+        return [dict(zip(headers, row)) for row in data]
+
+    @staticmethod
+    def fetch_trial_balance():
+        """Fetch summary of all account balances from all ledger sources"""
+        headers = ['Account Number', 'Account Name', 'Total Debit', 'Total Credit', 'Net Balance']
+        data = []
+        
+        sql = """
+            SELECT number, account_name, SUM(debit) as total_debit, SUM(credit) as total_credit, 
+                   SUM(debit) - SUM(credit) as net_balance
+            FROM (
+                -- Journal Vouchers
+                SELECT a.number, a.account_name, ISNULL(jvl.debit, 0) as debit, ISNULL(jvl.credit, 0) as credit
+                FROM auxiliary a
+                JOIN journal_voucher_lines jvl ON a.number = jvl.account
+                
+                UNION ALL
+                
+                -- Sales Payments
+                SELECT c.auxiliary_number, c.customer_name, ISNULL(sp.debit, 0), ISNULL(sp.credit, 0)
+                FROM sales_payment sp
+                JOIN customers c ON sp.customer_id = c.id
+                WHERE c.auxiliary_number IS NOT NULL
+                
+                UNION ALL
+                
+                -- Purchase Payments
+                SELECT s.auxiliary_number, s.name, ISNULL(pp.debit, 0), ISNULL(pp.credit, 0)
+                FROM purchase_payment pp
+                JOIN suppliers s ON pp.supplier_id = s.id
+                WHERE s.auxiliary_number IS NOT NULL
+            ) t
+            GROUP BY number, account_name
+            HAVING SUM(debit) <> 0 OR SUM(credit) <> 0
+        """
+        
+        connection.contogetrows(sql, data)
+        
+        return [dict(zip(headers, row)) for row in data]
+
 import io
 
 def export_csv(data, headers):
