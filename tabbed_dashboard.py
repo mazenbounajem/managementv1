@@ -1,17 +1,40 @@
 from nicegui import ui
+import accounting_finance
+import appointments_ui
+import cashdrawer_ui
 from connection import connection
 import datetime
 
 # Import content methods
 from category_content_method import category_content_method
+import currencies
+import customer_receipt_ui_fixed_v2
+import journal_voucher_ui
+import ledgerui
+import reports_ui
+import roles
 from sales_content_method import sales_content
 from customer_content_method import customer_content
 from product_content_method import product_content
+import services_ui
+import stockopeartionuimethod
+import stockoperationui
 from supplier_content_method import supplier_content
 from purchase_content_method import purchase_content
 from employee_content_method import employee_content
 from database_content_method import database_content
+import supplier_payment_ui_fixed_v2
 from timespendui import TimeSpendUI
+import sys
+from ledgerui import ledger_content
+from auxiliaryui import auxiliary_content
+import voucher_subtype_ui
+
+# Global registries for tab management
+current_open_tab = None
+tab_refresh_callbacks = {}
+tab_dirty_callbacks = {}
+
 
 # Import existing modules for authentication
 from config import config
@@ -47,56 +70,237 @@ def tabbed_dashboard_page():
         ui.run_javascript('window.location.href = "/login"')
         return
 
+    # Add global styles
+    from modern_design_system import ModernDesignSystem as MDS
+    ui.add_head_html(MDS.get_global_styles())
+
     # Get user permissions
     permissions = connection.get_user_permissions(user['role_id'])
     allowed_pages = {page for page, can_access in permissions.items() if can_access}
 
     # Create enhanced navigation instance
     navigation = EnhancedNavigation(permissions, user)
-    navigation.create_navigation_drawer()  # Create drawer first
-    navigation.create_navigation_header()  # Then create header with toggle button
+    navigation.tabbed_mode = True
+    navigation.create_navigation_header()
+    navigation.create_navigation_drawer()
 
-    # Define available tabs based on permissions
-    tab_definitions = [
-        ('Dashboard', 'dashboard', lambda: create_dashboard_content()),
-        ('Sales', 'sales', sales_content),
-        ('Purchase', 'purchase', purchase_content),
-        ('Products', 'products', product_content),
-        ('Customers', 'customers', customer_content),
-        ('Suppliers', 'suppliers', supplier_content),
-        ('Time Analysis', 'timespend', lambda: TimeSpendUI(show_header=False)),
-        ('Categories', 'category', category_content_method),
-        ('Employees', 'employees', employee_content),
-        ('Backup', 'backup', database_content),
-    ]
+    # Map of page keys to their content functions and labels
+    def make_iframe(path):
+        """Generic loader: embed the page in a full-height iframe inside the tab."""
+        def _loader():
+            ui.html(
+                f'<iframe src="{path}" style="width:100%;height:calc(100vh - 130px);border:none;display:block;"></iframe>'
+            )
+        return _loader
 
-    # Filter tabs based on permissions
-    available_tabs = []
-    tab_objects = []
+   # In tabbed_dashboard.py, update the content_map entries:
 
-    with ui.tabs().classes('w-full bg-white/5 glass border-b border-white/10 text-white').style('backdrop-filter: blur(20px);') as tabs:
-        tabs.props('active-color=purple-400 indicator-color=purple-400')
-        for tab_name, page_key, content_func in tab_definitions:
-            if page_key in allowed_pages or page_key == 'dashboard':
-                tab_obj = ui.tab(tab_name).classes('px-6 py-4 font-black uppercase tracking-[0.2em] text-[10px] hover:text-purple-300 transition-all')
-                tab_objects.append((tab_obj, content_func))
-                available_tabs.append(tab_name)
+   # Update the content_map:
+    content_map = {
+    'dashboard':        {'label': 'Dashboard',        'func': create_dashboard_content,   'icon': 'dashboard'},
+    'sales':            {'label': 'Sales',             'func': sales_content,               'icon': 'point_of_sale'},
+    'purchase':         {'label': 'Purchase',          'func': purchase_content,            'icon': 'shopping_bag'},
+    'modern-purchase':  {'label': 'Modern Purchase',   'func': make_iframe('/modern-purchase'), 'icon': 'shopping_cart'},
+    'products':         {'label': 'Products',          'func': product_content,             'icon': 'inventory'},
+    'customers':        {'label': 'Customers',         'func': customer_content,            'icon': 'person'},
+    'suppliers':        {'label': 'Suppliers',         'func': supplier_content,            'icon': 'business'},
+    'timespend':        {'label': 'Time Analysis',     'func': lambda: TimeSpendUI(show_header=False), 'icon': 'schedule'},
+    'category':         {'label': 'Categories',        'func': category_content_method,     'icon': 'category'},
+    'employees':        {'label': 'Employees',         'func': employee_content,            'icon': 'badge'},
+    'backup':           {'label': 'Backup',            'func': database_content,            'icon': 'backup'},
+    'stockoperations':  {'label': 'Stock Operations',  'func': stockoperationui.stock_operations_page, 'icon': 'inventory_2'},
+    'supplierpayment':  {'label': 'Supplier Payment',  'func': supplier_payment_ui_fixed_v2.supplier_payment_page, 'icon': 'payment'},
+    'expenses':         {'label': 'Expenses',          'func': lambda: __import__('expenses').expenses_content(standalone=False), 'icon': 'money_off'},
+    'expensestype':     {'label': 'Expense Types',     'func': lambda: __import__('expensestype').expensestype_content(standalone=False), 'icon': 'category'},
+    'currencies':       {'label': 'Currencies',        'func': lambda: currencies.currencies_content(standalone=False), 'icon': 'currency_exchange'},
+    'accounting':       {'label': 'Accounting',        'func': lambda: accounting_finance.accounting_finance_content(standalone=False), 'icon': 'account_balance'},
+    'cash-drawer':      {'label': 'Cash Drawer',       'func': lambda: cashdrawer_ui.cash_drawer_content(standalone=False), 'icon': 'account_balance_wallet'},
+    'ledger':           {'label': 'Ledger',            'func': lambda: ledgerui.ledger_content(standalone=False), 'icon': 'account_balance'},
+    'auxiliary':        {'label': 'Auxiliary',         'func': lambda: auxiliary_content(standalone=False), 'icon': 'account_balance'},
+    'journal_voucher':  {'label': 'Journal Voucher',   'func': lambda: journal_voucher_ui.journal_voucher_content(standalone=False), 'icon': 'receipt_long'},
+    'voucher_subtype':  {'label': 'Voucher Subtype',   'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
+    'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.customer_receipt_page(standalone=False), 'icon': 'receipt'},
+    'reports':          {'label': 'Reports',           'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
+    'roles':            {'label': 'Roles',             'func': lambda: roles.roles_content(standalone=False), 'icon': 'group'},
+    'appointments':     {'label': 'Appointments',      'func': lambda: appointments_ui.appointments_content(standalone=False), 'icon': 'event'},
+    'services':         {'label': 'Services',          'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
+    'company':          {'label': 'Company',           'func': make_iframe('/company'),     'icon': 'business_center'},
+    'profile':          {'label': 'My Account',        'func': make_iframe('/profile'),     'icon': 'manage_accounts'},
+}
 
-    # Create tab panels
-    global current_tab_panels, global_tab_objects
-    current_tab_panels = ui.tab_panels(tabs, value=tab_objects[0][0] if tab_objects else None).classes('w-full flex-1 bg-transparent')
-    global_tab_objects = tab_objects
 
-    for tab_obj, content_func in tab_objects:
-        with ui.tab_panel(tab_obj):
+    # State for Split View
+    state = {
+        'is_split': False,
+        'active_side': 'left', # 'left' or 'right'
+        'right_open_tabs': {}, # name -> tab_obj
+    }
+
+    # Main Layout Container
+    with ui.column().classes('w-full flex-1 gap-0 mesh-gradient') as main_container:
+        # Splitter for Side-by-Side view
+        splitter = ui.splitter(value=100, reverse=False).classes('w-full flex-1')
+        splitter.props('separator-class=bg-[#7048E8]/20 separator-style=width:4px')
+        
+        with splitter.before:
+            # Primary Tab Panels Container
+            tab_panels_left = ui.tab_panels(navigation.tabs_ui).classes('w-full h-full bg-transparent')
+            navigation.tab_panels_ui = tab_panels_left
+        
+        with splitter.after:
+            # Secondary Area (Initially hidden by splitter value=100)
+            with ui.column().classes('w-full h-full bg-black/5 border-l border-white/10') as right_area:
+                with ui.row().classes('w-full items-center justify-between p-2 bg-white/5 border-b border-white/10'):
+                    with ui.row().classes('items-center gap-2'):
+                        ui.icon('space_dashboard', size='xs').classes('text-[#7048E8] ml-2')
+                        ui.label('Secondary Workspace').classes('text-[10px] font-black uppercase tracking-widest text-[#7048E8]')
+                    
+                    with ui.row().classes('items-center gap-2'):
+                        # Module selector for the right side
+                        right_selector = ui.select(
+                            {k: v['label'] for k, v in content_map.items()},
+                            label='Open Module',
+                            on_change=lambda e: open_tab_callback(e.value, side='right')
+                        ).props('dense outlined size=xs').classes('w-32 bg-white/50')
+                        
+                        ui.button(icon='close', on_click=lambda: toggle_split_view()).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500')
+                
+                # Secondary Tabs and Panels
+                tabs_right = ui.tabs().classes('w-full text-gray-600 border-b border-white/5')
+                tabs_right.props('active-color=#7048E8 indicator-color=#7048E8 dense ripple=False')
+                tab_panels_right = ui.tab_panels(tabs_right).classes('w-full flex-1 bg-transparent')
+
+    def toggle_split_view():
+        """Toggle split view mode"""
+        state['is_split'] = not state['is_split']
+        splitter.set_value(50 if state['is_split'] else 100)
+        if not state['is_split']:
+            state['active_side'] = 'left'
+            navigation.tab_panels_ui = tab_panels_left
+            # Link header tabs back to left panels
+            navigation.tabs_ui.props(f'value={tab_panels_left.value}')
+        else:
+            ui.notify('Split View active. Use the secondary area for side-by-side work.', color='#7048E8')
+        return state['is_split']
+
+    # Link toggle to navigation
+    navigation.split_view_callback = toggle_split_view
+
+    def open_tab_callback(page_key, new_instance=False, side='left'):
+        """Callback for navigation to open or switch to a tab"""
+        global current_open_tab, tab_refresh_callbacks
+        
+        if page_key not in content_map:
+            ui.notify(f"Module {page_key} not found", color='warning')
+            return
+            
+        config = content_map[page_key]
+        label = config['label']
+        
+        # Determine target containers based on side
+        target_panels = tab_panels_right if side == 'right' else tab_panels_left
+        target_tabs = tabs_right if side == 'right' else navigation.tabs_ui
+        target_open_tabs = state['right_open_tabs'] if side == 'right' else navigation.open_tabs
+
+        # Determine unique key for this instance
+        if new_instance:
+            instance_count = sum(1 for k in navigation.open_tabs if k.startswith(page_key)) + \
+                             sum(1 for k in state['right_open_tabs'] if k.startswith(page_key))
+            tab_key = f"{page_key}_{instance_count + 1}"
+            display_label = f"{label} #{instance_count + 1}"
+        else:
+            tab_key = page_key
+            display_label = label
+        
+        # Check if tab already exists in the TARGET side
+        if tab_key in target_open_tabs:
+            tab_obj = target_open_tabs[tab_key]
+            tab_obj.set_visibility(True)
+            target_panels.value = tab_obj
+            
+            # Refresh if registered
+            refresh_key = page_key if page_key in tab_refresh_callbacks else tab_key
+            if refresh_key in tab_refresh_callbacks:
+                try: tab_refresh_callbacks[refresh_key]()
+                except: pass
+            
+            # If side was right, ensure split view is shown
+            if side == 'right' and not state['is_split']: toggle_split_view()
+            return
+
+        # Create new tab in the target side
+        with target_tabs:
+            with ui.tab(display_label, icon=config['icon']).classes('px-4 active:bg-[#7048E8]/10') as new_tab:
+                if page_key != 'dashboard' or side == 'right':
+                    # Close button
+                    ui.button(icon='close', on_click=lambda k=tab_key, s=side: close_tab(k, s)).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500 ml-2')
+            target_open_tabs[tab_key] = new_tab
+            
+        # Create new panel
+        with target_panels:
+            with ui.tab_panel(new_tab).classes('p-0'):
+                try:
+                    config['func']()
+                except Exception as e:
+                    ui.notify(f'Error loading {display_label}: {str(e)}', color='red')
+        
+        target_panels.value = new_tab
+        if side == 'right' and not state['is_split']:
+            toggle_split_view()
+
+    def force_close_tab(page_key, side):
+        """Actually close the tab and its panel"""
+        target_open_tabs = state['right_open_tabs'] if side == 'right' else navigation.open_tabs
+        target_panels = tab_panels_right if side == 'right' else tab_panels_left
+        
+        if page_key in target_open_tabs:
+            tab_obj = target_open_tabs[page_key]
+            if target_panels.value == tab_obj:
+                # Switch to another tab if closing active
+                remaining = [t for t in target_open_tabs.values() if t != tab_obj]
+                if remaining: 
+                    target_panels.value = remaining[0]
+                elif side == 'left' and navigation.open_tabs.get('dashboard'):
+                    target_panels.value = navigation.open_tabs.get('dashboard')
+            
             try:
-                # Call the content function
-                content_func()
+                tab_obj.set_visibility(False)
+                del target_open_tabs[page_key]
+            except: pass
+
+    def close_tab(page_key, side='left'):
+        """Close a tab, warning if it has unsaved changes"""
+        is_dirty = False
+        
+        # Handle unique tab keys (e.g. sales_2) by extracting the base key
+        base_key = page_key.split('_')[0] if '_' in page_key else page_key
+        cb_key = page_key if page_key in tab_dirty_callbacks else base_key
+        
+        if cb_key in tab_dirty_callbacks:
+            try:
+                is_dirty = tab_dirty_callbacks[cb_key]()
             except Exception as e:
-                ui.notify(f'Error loading {tab_obj._text}: {str(e)}', color='red')
-                with ui.column().classes('p-4 w-full items-center justify-center'):
-                    ui.label(f'Error loading {tab_obj._text}').classes('text-xl font-bold text-red-600 mb-4')
-                    ui.label('Please try refreshing the page.').classes('text-lg text-gray-600')
+                print(f"Error checking dirty state for {cb_key}: {e}")
+                
+        if is_dirty:
+            with ui.dialog() as dialog, ui.card().classes('p-6 rounded-xl shadow-lg'):
+                ui.label('Unsaved Changes').classes('text-xl font-bold text-red-500 mb-2')
+                ui.label('You have unsaved changes in this tab. Do you want to close it anyway?').classes('mb-6 text-gray-700')
+                with ui.row().classes('w-full justify-end gap-3'):
+                    ui.button('Cancel', on_click=dialog.close).props('outline color=gray')
+                    ui.button('Close Tab', color='red', on_click=lambda: (dialog.close(), force_close_tab(page_key, side)))
+            dialog.open()
+        else:
+            force_close_tab(page_key, side)
+
+    # Set the callback in navigation
+    navigation.open_tab_callback = open_tab_callback
+    
+    # Store globally for other modules to use
+    current_open_tab = open_tab_callback
+
+    # Open Dashboard by default
+    open_tab_callback('dashboard')
 
     # Footer with system time, company name, and username
     with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
@@ -126,7 +330,7 @@ def create_dashboard_content():
         # Header Section
         with ui.row().classes('w-full justify-between items-center bg-white/5 p-6 rounded-3xl glass border border-white/10'):
             with ui.column().classes('gap-1'):
-                ui.label('Enterprise Overview').classes('text-sm font-black uppercase tracking-[0.2em] text-purple-400')
+                ui.label('Enterprise Overview').classes('text-sm font-black uppercase tracking-[0.2em] text-[#7048E8]')
                 ui.label('Executive Performance Dashboard').classes('text-4xl font-black text-white').style('font-family: "Outfit", sans-serif;')
             
             with ui.row().classes('gap-4'):
@@ -205,151 +409,10 @@ def create_dashboard_content():
                     for cat, desc, time in activities:
                         with ui.row().classes('w-full justify-between items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all'):
                             with ui.column().classes('gap-0'):
-                                ui.label(cat).classes('text-[10px] font-black uppercase text-purple-400')
+                                ui.label(cat).classes('text-[10px] font-black uppercase text-[#7048E8]')
                                 ui.label(desc).classes('text-xs font-bold text-gray-700')
                             ui.label(time).classes('text-[10px] text-gray-400')
 
 
-# Keep the existing authentication pages
-@ui.page('/')
-def home_page():
-    """Home page that redirects to login"""
-    ui.run_javascript('window.location.href = "/login";')
-
-@ui.page('/login')
-def login_page():
-    """Dedicated login page"""
-    # Check if user is already logged in
-    if session_storage.get('user'):
-        ui.run_javascript('window.location.href = "/tabbed-dashboard";')
-        return
-
-    with ui.card().classes('w-96 mx-auto my-16 p-8 shadow-lg rounded-lg'):
-        ui.label('Login').classes('text-3xl font-bold text-center mb-6')
-
-        with ui.column().classes('w-full items-center'):
-            username_input = ui.input('Username').classes('w-full mb-4')
-            password_input = ui.input('Password', password=True).classes('w-full mb-6')
-
-            ui.button('Login', on_click=lambda: handle_login(
-                username_input.value,
-                password_input.value
-            )).classes('w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded')
-
-            ui.link('Sign Up', '/signup').classes('text-sm text-blue-500 cursor-pointer mt-2')
-
-@handle_errors
-def handle_login(username, password):
-    """Handle user login using AuthService"""
-    try:
-        # Use AuthService for authentication
-        success, user_data = AuthService.authenticate_user(username, password)
-
-        if success and user_data:
-            # Store user info in session storage
-            session_storage['user'] = user_data
-
-            # Create user session entry using AuthService
-            session_id = AuthService.create_user_session(user_data)
-            if session_id:
-                session_storage['session_id'] = session_id
-
-            ui.notify(f'Login successful. Welcome {username}!', color='green')
-            # Redirect to the tabbed dashboard
-            ui.run_javascript('window.location.href = "/tabbed-dashboard";')
-        else:
-            ui.notify('Invalid username or password, or user not approved', color='red')
-
-    except Exception as e:
-        app_logger.log_error(e, "handle_login")
-        ui.notify('An error occurred during login. Please try again.', color='red')
-
-# Include other necessary pages (signup, logout, etc.)
-@ui.page('/signup')
-def signup_page_route():
-    """Dedicated signup page with premium design"""
-    from signup_page import signup_page as modern_signup_page
-    modern_signup_page()
-
-@handle_errors
-def handle_signup(username, email, password, confirm_password):
-    """Handle user signup using AuthService"""
-    try:
-        if not username or not password:
-            ui.notify('Username and password are required', color='red')
-            return
-
-        if password != confirm_password:
-            ui.notify('Passwords do not match', color='red')
-            return
-
-        # Use AuthService for user creation
-        success, message = AuthService.create_user(username, password, email=email, role_id=2)
-
-        if success:
-            ui.notify(message, color='green')
-            app_logger.log_security_event('USER_SIGNUP_SUCCESS', details={'username': username})
-            # Redirect to login page
-            ui.run_javascript('window.location.href = "/login";')
-        else:
-            ui.notify(message, color='red')
-            app_logger.log_security_event('USER_SIGNUP_FAILED', details={'username': username, 'reason': message})
-
-    except Exception as e:
-        app_logger.log_error(e, "handle_signup")
-        ui.notify('An error occurred during signup. Please try again.', color='red')
-
-@ui.page('/logout')
-def logout_page():
-    """Dedicated logout page"""
-    try:
-        # Handle logout using AuthService
-        user = session_storage.get('user')
-        session_id = session_storage.get('session_id')
-
-        if session_id:
-            success = AuthService.logout_user(session_id, user)
-            if success:
-                app_logger.log_user_action(
-                    user['user_id'] if user else None,
-                    'LOGOUT_SUCCESS',
-                    {'session_id': session_id}
-                )
-            else:
-                app_logger.log_error(
-                    Exception("Failed to logout user"),
-                    "logout_page"
-                )
-
-        # Clear session storage
-        session_storage.pop('user', None)
-        session_storage.pop('session_id', None)
-
-        with ui.card().classes('w-96 mx-auto my-16 p-8 shadow-lg rounded-lg'):
-            ui.label('Logged Out Successfully').classes('text-2xl font-bold text-center mb-6 text-green-600')
-            ui.label('Thank you for using the system.').classes('text-center mb-4')
-
-            ui.button('Login Again', on_click=lambda: ui.run_javascript('window.location.href = "/login";')).classes(
-                'w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
-            )
-
-    except Exception as e:
-        app_logger.log_error(e, "logout_page")
-        ui.notify('An error occurred during logout. Please try again.', color='red')
-
-# Global variables to store tab panels and tab objects
-current_tab_panels = None
-global_tab_objects = []
-
-def switch_to_tab(tab_name):
-    """Switch to a specific tab by name"""
-    global current_tab_panels, global_tab_objects
-    if current_tab_panels and global_tab_objects:
-        # Find the tab object with the matching name
-        for tab_obj, _ in global_tab_objects:
-            if tab_obj._text == tab_name:
-                current_tab_panels.value = tab_obj
-                break
-
 # Export the session storage for use in other modules
-__all__ = ['session_storage', 'check_page_access', 'require_login', 'get_current_user', 'switch_to_tab']
+__all__ = ['session_storage', 'check_page_access', 'require_login', 'get_current_user', 'current_open_tab', 'tab_refresh_callbacks', 'tab_dirty_callbacks']

@@ -7,13 +7,22 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
 from modern_design_system import ModernDesignSystem as MDS
 
+def auxiliary_content(standalone=False):
+    """Content method for auxiliary management that can be used in tabs"""
+    if standalone:
+        with ModernPageLayout("Auxiliary Management"):
+            AuxiliaryUI(standalone=False)
+    else:
+        AuxiliaryUI(standalone=False)
+
 @ui.page('/auxiliary')
 def auxiliary_page_route():
     with ModernPageLayout("Auxiliary Management"):
-        AuxiliaryUI()
+        AuxiliaryUI(standalone=True)
 
 class AuxiliaryUI:
-    def __init__(self):
+    def __init__(self, standalone=True):
+        self.standalone = standalone
         self.input_refs = {}
         self.initial_values = {}
         self.row_data = []
@@ -112,7 +121,6 @@ class AuxiliaryUI:
 
     def update_code_options(self):
         try:
-            # Re-fetch unique codes for the dropdown if needed
             codes = sorted(list(set(row['auxiliary_id'] for row in self.row_data if row['auxiliary_id'])))
             self.input_refs['aux_code'].options = [None] + codes
             self.input_refs['aux_code'].update()
@@ -130,7 +138,7 @@ class AuxiliaryUI:
             
             ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
 
-        with ui.column().classes('w-full gap-6'):
+        with ui.column().classes('w-full gap-6 p-4'):
             # Top: List
             with ModernCard(glass=True).classes('w-full p-6'):
                 with ui.row().classes('w-full justify-between items-center mb-4'):

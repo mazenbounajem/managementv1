@@ -5,9 +5,10 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable, ModernActionBar
 from session_storage import session_storage
 from datetime import datetime
-import datetime as dt # Added for convenience
+import datetime as dt
 
 def stock_operations_page(standalone=False):
+    """Stock Operations UI - can be used standalone or embedded in tabs"""
     # Auth
     user = session_storage.get('user')
     if not user:
@@ -38,10 +39,19 @@ def stock_operations_page(standalone=False):
         for k, ref in input_refs.items():
             if k == 'quantity': ref.set_value(1)
             else: ref.set_value('')
-        input_refs['date'].set_value(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        input_refs['date'].set_value(datetime.now().strftime('%Y-%m-%dT%H:%M'))
+        try:
+            update_saved_state()
+            ui.run_javascript("sessionStorage.removeItem('draft_stockops');")
+        except: pass
 
-    with ModernPageLayout("Stock Control Center"):
-        with ui.row().classes('w-full gap-6 items-start animate-fade-in'):
+    # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
+    if standalone:
+        layout_container = ModernPageLayout("Stock Control Center")
+        layout_container.__enter__()
+    
+    try:
+        with ui.row().classes('w-full gap-6 items-start animate-fade-in p-4'):
             # Left Column: Active Operation / Inputs
             with ui.column().classes('w-[360px] gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
@@ -98,11 +108,102 @@ def stock_operations_page(standalone=False):
                     classes=' '
                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
-    ui.timer(0.1, refresh_history, once=True)
+        # Dirty state tracking for unsaved changes warning
+        saved_state = {}
+
+        def capture_state():
+            state = {}
+            for k, ref in input_refs.items():
+                if hasattr(ref, 'value'):
+                    state[k] = ref.value
+            return state
+
+        def update_saved_state():
+            nonlocal saved_state
+            saved_state = capture_state().copy()
+
+        def is_dirty():
+            current_state = capture_state()
+            
+            # If barcode is empty, it's not dirty
+            if not current_state.get('barcode'):
+                return False
+                
+            for k, v in current_state.items():
+                if k == 'date': continue
+                s_val = saved_state.get(k, '')
+                
+                v_str = str(v) if v is not None else ''
+                s_str = str(s_val) if s_val is not None else ''
+                
+                if v_str != s_str:
+                    if not v_str and not s_str: continue
+                    if k == 'quantity' and v_str == '1' and s_str in ('', '0'): continue
+                    if k == 'type' and v_str == 'manual_adjustment' and s_str == '': continue
+                    return True
+            return False
+            
+        try:
+            from tabbed_dashboard import tab_dirty_callbacks
+            tab_dirty_callbacks['stockoperations'] = is_dirty
+            tab_dirty_callbacks['stockoperationui'] = is_dirty
+        except ImportError:
+            pass
+
+        ui.timer(0.1, refresh_history, once=True)
+        ui.timer(0.2, update_saved_state, once=True)
+
+        # Auto-Save Drafts
+        def save_draft():
+            if not is_dirty(): return
+            import json
+            try:
+                state = capture_state()
+                state.pop('date', None)
+                encoded = json.dumps(state).replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
+                ui.run_javascript(f"sessionStorage.setItem('draft_stockops', '{encoded}');")
+            except Exception: pass
+
+        def restore_draft_values(state_json):
+            import json
+            try:
+                state = json.loads(state_json)
+                for k, v in state.items():
+                    if k in input_refs and hasattr(input_refs[k], 'set_value'):
+                        input_refs[k].set_value(v)
+                update_saved_state()
+                ui.run_javascript("sessionStorage.removeItem('draft_stockops');")
+            except Exception as ex:
+                print(f"Stock ops draft restore error: {ex}")
+
+        async def check_for_draft():
+            import json
+            result = await ui.run_javascript("sessionStorage.getItem('draft_stockops');", timeout=5.0)
+            if result:
+                try:
+                    state = json.loads(result)
+                    barcode = state.get('barcode', '')
+                    hint = f'barcode "{barcode}"' if barcode else 'an unsaved stock operation'
+                    with ui.dialog() as d, ui.card().classes('p-6 rounded-xl'):
+                        ui.label('\U0001f4dd Unsaved Draft Found').classes('text-lg font-bold mb-2')
+                        ui.label(f'You have an unsaved draft for {hint}.').classes('text-gray-600 mb-4 text-sm')
+                        with ui.row().classes('w-full justify-end gap-3'):
+                            ui.button('Discard', on_click=lambda: (ui.run_javascript("sessionStorage.removeItem('draft_stockops');"), d.close())).props('flat color=gray')
+                            ui.button('Restore Draft', color='purple', on_click=lambda: (restore_draft_values(result), d.close())).props('unelevated')
+                    d.open()
+                except Exception: pass
+
+        ui.timer(5.0, save_draft)
+        ui.timer(1.5, check_for_draft, once=True)
+        
+    finally:
+        if standalone:
+            layout_container.__exit__(None, None, None)
+
 
 @ui.page('/stockoperations')
 def stock_operations_page_route():
-    stock_operations_page()
+    stock_operations_page(standalone=True)
 
 # Alias for legacy imports
 StockOperationUI = stock_operations_page_route

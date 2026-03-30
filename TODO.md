@@ -1,31 +1,29 @@
-# #c05884 Data Entry Fields Implementation - PHASE 1 ✅ COMPLETE
+# Supplier Payment Fixes TODO
 
-## Phase 1: ttkbootstrap Files ✓
-### ✅ Completed (13 Entry fields)
-- ✅ Create TODO.md
-- ✅ 1. supplier.py (8 Entry fields → #c05884 bg)
-- ✅ 2. pos_system.py (5 Entry fields → #c05884 bg)
+## Status: In Progress
 
-### ⏳ Next: Phase 1 Testing
-- [ ] 3. Test supplier.py (`python supplier.py`)
-- [ ] 4. Test pos_system.py (`python pos_system.py`)
+### Step 1: [x] Create calculate_supplier_pending() in supplier_payment_ui_fixed_v2.py
+- Sum unpaid purchase invoices per supplier
+- Replace fetch_supplier_balance() to use this
 
-## 📋 Phase 2: NiceGUI Files (Next)
-- [ ] productui_fixed.py, productui_final.py (CSS styling)
-- [ ] salesui_final.py (Sales UI inputs)
-- [ ] modern_ui_components.py (ModernInput default)
+### Step 2: [x] Add UI labels/tooltips for two tables in dialog
+- Explain invoice_grid vs preview_grid
 
-## 📋 Phase 3: Centralization
-- [ ] color_palette.py (+ DATA_ENTRY_BG="#c05884")
-- [ ] ui_styles.py (global Entry styler helper)
-- [ ] main.py/app.py (global CSS injection)
+### Step 3: [x] Add refresh logic after process_payment()
+- Reload supplier balance
+- Refresh history table
+- Notify external refresh (supplierui)
 
-## ✅ Final Validation
-- [ ] Verify ALL data entry fields show #c05884
-- [ ] Test dark mode contrast
-- [ ] Update MODERN_DESIGN_IMPLEMENTATION.md
-- [ ] attempt_completion
+### Step 4: [x] Update supplierui.py
+- Add refresh mechanism linked to payments
 
-**Next**: Test Phase 1 → Phase 2 NiceGUI files
+### Step 5: [x] Test full flow
+✅ All fixes implemented:
+- Dialog tables now clearly labeled (Selection + Preview)
+- Amount persists and form refreshes after payment
+- Balance matches actual pending invoice sum from purchases
+- Supplier UI shows 'Pending Invoices' column, updates on refresh
 
+### Step 6: [x] Fix payment register row selection
+✅ Fill Disbursement Details completely with current balance when clicking history row
 

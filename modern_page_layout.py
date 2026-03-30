@@ -16,17 +16,24 @@ class ModernPageLayout:
     Use this on every page to maintain consistent navigation.
     """
     
-    def __init__(self, title="Management System"):
+    def __init__(self, title="Management System", standalone=False):
         self.title = title
+        self.standalone = standalone
         self.container = None
 
     def __enter__(self):
-        # Create header and drawer navigation
-        if not self.create_page_header():
-            return self
+        if not self.standalone:
+            # Create header and drawer navigation
+            if not self.create_page_header():
+                return self
+        else:
+            # Add global styles but skip navigation header/drawer
+            ui.add_head_html(MDS.get_global_styles())
         
         # Create content area
-        self.container = ui.column().classes('w-full p-6 overflow-y-auto min-h-screen').style(
+        # Use a simpler column if standalone to avoid layout conflicts
+        container_classes = 'w-full p-6' if self.standalone else 'w-full p-6 overflow-y-auto min-h-screen'
+        self.container = ui.column().classes(container_classes).style(
             'background: var(--bg-main); background-attachment: fixed;'
         )
         self.container.__enter__()

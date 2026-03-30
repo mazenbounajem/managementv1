@@ -20,13 +20,27 @@ def supplier_page(standalone=False):
 
     def refresh_table():
         data = []
-        sql = """SELECT id, name, contact_person, email, phone, address, city, balance, is_active 
-                 FROM suppliers ORDER BY id DESC"""
+        sql = """
+            SELECT 
+                s.id, s.name, s.contact_person, s.email, s.phone, s.address, s.city, 
+                s.balance as balance_ll, s.balance_usd,
+                ISNULL(SUM(CASE WHEN p.payment_status = 'pending' THEN p.total_amount ELSE 0 END), 0) as pending_invoices,
+                s.is_active 
+            FROM suppliers s 
+            LEFT JOIN purchases p ON p.supplier_id = s.id
+            GROUP BY s.id, s.name, s.contact_person, s.email, s.phone, s.address, s.city, s.balance, s.balance_usd, s.is_active 
+            ORDER BY s.id DESC
+        """
         connection.contogetrows(sql, data)
         rows = []
-        cols = ['id', 'name', 'contact', 'email', 'phone', 'address', 'city', 'balance', 'is_active']
+        cols = ['id', 'name', 'contact', 'email', 'phone', 'address', 'city', 'balance_ll', 'balance_usd', 'is_active']
         for r in data:
-            rows.append({cols[i]: r[i] for i in range(len(cols))})
+            usd_rate_data = []
+            connection.contogetrows("SELECT TOP 1 exchange_rate FROM currencies WHERE symbol = '$'", usd_rate_data)
+            usd_rate = usd_rate_data[0][0] if usd_rate_data else 1.0
+            
+            row_dict = {cols[i]: r[i] for i in range(len(cols))}
+            rows.append(row_dict)
         table.options['rowData'] = rows
         table.update()
 
@@ -62,7 +76,7 @@ def supplier_page(standalone=False):
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
-    with ModernPageLayout("Supplier Management"):
+    with ModernPageLayout("Supplier Management", standalone=standalone):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
             # Redundant Horizontal Action Bar removed
@@ -94,7 +108,9 @@ def supplier_page(standalone=False):
                             {'headerName': 'Company', 'field': 'name', 'flex': 2},
                             {'headerName': 'Contact', 'field': 'contact', 'flex': 1},
                             {'headerName': 'Phone', 'field': 'phone', 'width': 130},
-                            {'headerName': 'Balance', 'field': 'balance', 'width': 120},
+                            {'headerName': 'Balance LL', 'field': 'balance_ll', 'width': 90},
+                            {'headerName': 'Balance USD', 'field': 'balance_usd', 'width': 90},
+                            {'headerName': 'Pending Invoices', 'field': 'pending_invoices', 'width': 110, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
                             {'headerName': 'Active', 'field': 'is_active', 'cellRenderer': 'agCheckboxRenderer'}
                         ]
                         
@@ -132,3 +148,4 @@ def supplier_page(standalone=False):
 @ui.page('/suppliers')
 def supplier_page_route():
     supplier_page()
+

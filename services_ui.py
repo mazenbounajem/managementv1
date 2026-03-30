@@ -7,13 +7,21 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
 from modern_design_system import ModernDesignSystem as MDS
 
+def services_content(standalone=False):
+    """Content method for services that can be used in tabs"""
+    if standalone:
+        with ModernPageLayout("Services Management", standalone=standalone):
+            ServicesUI(standalone=False)
+    else:
+        ServicesUI(standalone=False)
+
 @ui.page('/services')
 def services_page_route():
-    with ModernPageLayout("Services Management"):
-        ServicesUI()
+    services_content(standalone=True)
 
 class ServicesUI:
-    def __init__(self):
+    def __init__(self, standalone=True):
+        self.standalone = standalone
         self.services_data = []
         self.container = None
         self.create_ui()
@@ -26,7 +34,7 @@ class ServicesUI:
         self.services_data = []
         for r in data:
             self.services_data.append({
-                'id': r[0], 'name': r[1], 'desc': r[2], 'duration': r[3], 'price': r[4], 'active': r[5]
+                'id': r[0], 'name': r[1], 'desc': r[2] or '', 'duration': r[3], 'price': float(r[4]) if r[4] else 0.0, 'active': bool(r[5])
             })
 
     def refresh_data(self):
@@ -34,14 +42,23 @@ class ServicesUI:
         self.render_list()
 
     def create_ui(self):
-        # Action Bar
-        with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-            ui.label('Services Overview').classes('text-2xl font-black text-white')
-            with ui.row().classes('gap-3'):
-                ModernButton('Add Service', icon='add', on_click=self.add_service, variant='primary')
-                ModernButton('Refresh', icon='refresh', on_click=self.refresh_data, variant='outline').classes('text-white border-white/20')
+        # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
+        if self.standalone:
+            layout_container = ModernPageLayout("Services Management", standalone=True)
+            layout_container.__enter__()
+        
+        try:
+            # Action Bar
+            with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
+                ui.label('Services Overview').classes('text-2xl font-black text-white')
+                with ui.row().classes('gap-3'):
+                    ModernButton('Add Service', icon='add', on_click=self.add_service, variant='primary')
+                    ModernButton('Refresh', icon='refresh', on_click=self.refresh_data, variant='outline').classes('text-white border-white/20')
 
-        self.container = ui.column().classes('w-full gap-4')
+            self.container = ui.column().classes('w-full gap-4')
+        finally:
+            if self.standalone:
+                layout_container.__exit__(None, None, None)
 
     def render_list(self):
         self.container.clear()
@@ -101,7 +118,7 @@ class ServicesUI:
                 
                 with ui.row().classes('w-full gap-4'):
                     dur_in = ui.select(['15', '30', '45', '60', '90', '120'], label='Duration (min)', value=str(srv['duration'] if srv else '30')).classes('flex-1 glass-input').props('dark rounded outlined')
-                    pri_in = ui.number('Price ($)', value=srv['price'] if srv else 0).classes('flex-1 glass-input').props('dark rounded outlined')
+                    pri_in = ui.number('Price ($)', value=srv['price'] if srv else 0.0, format='%.2f').classes('flex-1 glass-input').props('dark rounded outlined')
                 
                 act_in = ui.switch('Active Status', value=srv['active'] if srv else True).classes('text-white')
 
@@ -132,6 +149,13 @@ class ServicesUI:
     def delete_service(self, srv):
         async def confirm():
             try:
+                # Check if service is used in appointments
+                appointments = []
+                connection.contogetrows("SELECT COUNT(*) FROM appointments WHERE service_id=?", appointments, (srv['id'],))
+                if appointments and appointments[0][0] > 0:
+                    ui.notify('Cannot delete: Service is used in appointments', color='warning')
+                    return
+                    
                 connection.deleterow("DELETE FROM services WHERE id=?", srv['id'])
                 ui.notify('Service removed', color='positive')
                 self.refresh_data()

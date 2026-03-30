@@ -56,13 +56,32 @@ class EmployeeUI:
             ui.notify('Required: Names, Username, Password', color='warning')
             return
 
+        if not vals['hire_date']:
+            ui.notify('Hire date is required', color='warning')
+            return
+
         if not vals['id'] and connection.username_exists(vals['username']):
             ui.notify('Username already exists', color='error')
             return
 
+        # Validate and convert numeric fields
+        try:
+            salary_str = str(vals['salary']).strip().replace(',', '').replace('$', '')
+            salary = float(salary_str) if salary_str else None
+        except ValueError:
+            ui.notify('Invalid salary format. Use numbers only (e.g. 50000.00)', color='warning')
+            return
+
+        try:
+            role_id = int(vals['role_id']) if vals['role_id'] else None
+        except ValueError:
+            ui.notify('Invalid role selection', color='warning')
+            return
+
+        termination_date = vals['termination_date'] if vals['termination_date'] else None
+
         try:
             password_hash = hashlib.md5(vals['password'].encode('utf-8')).hexdigest()
-            role_id = int(vals['role_id']) if vals['role_id'] else None
 
             if vals['id']:
                 sql = """UPDATE employees SET first_name=?, last_name=?, email=?, phone=?, address=?, 
@@ -70,8 +89,8 @@ class EmployeeUI:
                         role_id=?, is_active=?, termination_date=?, updated_at=GETDATE() WHERE id=?"""
                 params = (vals['first_name'], vals['last_name'], vals['email'], vals['phone'], vals['address'],
                           vals['city'], vals['state'], vals['zip_code'], vals['hire_date'], vals['position'],
-                          vals['department'], vals['salary'], role_id, vals['is_active'],
-                          vals['termination_date'] if vals['termination_date'] else None, vals['id'])
+                          vals['department'], salary, role_id, vals['is_active'],
+                          termination_date, vals['id'])
                 connection.insertingtodatabase(sql, params)
                 connection.update_user_account(vals['username'], password_hash, role_id)
             else:
@@ -81,8 +100,8 @@ class EmployeeUI:
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())"""
                 params = (vals['first_name'], vals['last_name'], vals['email'], vals['phone'], vals['address'],
                           vals['city'], vals['state'], vals['zip_code'], vals['hire_date'], vals['position'],
-                          vals['department'], vals['salary'], role_id, vals['is_active'],
-                          vals['termination_date'] if vals['termination_date'] else None)
+                          vals['department'], salary, role_id, vals['is_active'],
+                          termination_date)
                 connection.insertingtodatabase(sql, params)
                 connection.create_user_account(vals['username'], password_hash, role_id)
 
@@ -212,22 +231,20 @@ class EmployeeUI:
             connection.contogetrows(f"SELECT * FROM employees WHERE id={emp_id}", data)
             if data:
                 r = data[0]
-                # Map columns (this is sensitive to DB schema, assuming default order)
-                # Assuming: id, first, last, email, phone, address, city, state, zip, hire, pos, dept, salary, role, active, term, ...
                 self.input_refs['id'].value = str(r[0])
-                self.input_refs['first_name'].value = r[1]
-                self.input_refs['last_name'].value = r[2]
-                self.input_refs['email'].value = r[3]
-                self.input_refs['phone'].value = r[4]
-                self.input_refs['address'].value = r[5]
-                self.input_refs['city'].value = r[6]
-                self.input_refs['state'].value = r[7]
-                self.input_refs['zip_code'].value = r[8]
+                self.input_refs['first_name'].value = r[1] or ''
+                self.input_refs['last_name'].value = r[2] or ''
+                self.input_refs['email'].value = r[3] or ''
+                self.input_refs['phone'].value = r[4] or ''
+                self.input_refs['address'].value = r[5] or ''
+                self.input_refs['city'].value = r[6] or ''
+                self.input_refs['state'].value = r[7] or ''
+                self.input_refs['zip_code'].value = str(r[8]) if r[8] is not None else ''
                 self.input_refs['hire_date'].value = str(r[9]) if r[9] else ''
-                self.input_refs['position'].value = r[10]
-                self.input_refs['department'].value = r[11]
-                self.input_refs['salary'].value = str(r[12])
-                self.input_refs['role_id'].value = r[13]
+                self.input_refs['position'].value = r[10] or ''
+                self.input_refs['department'].value = r[11] or ''
+                self.input_refs['salary'].value = f"{float(r[12]):.2f}" if r[12] is not None else ''
+                self.input_refs['role_id'].value = str(r[13]) if r[13] is not None else ''
                 self.input_refs['is_active'].value = bool(r[14])
                 self.input_refs['termination_date'].value = str(r[15]) if r[15] else ''
                 

@@ -152,7 +152,7 @@ class LoginPage:
                 session_storage['session_id'] = session_id
 
             ui.notify(f'Login successful. Welcome {username}!', color='green', position='top-right')
-            ui.run_javascript('window.location.href = "/modern-sales";')
+            ui.run_javascript('window.location.href = "/tabbed-dashboard";')
         else:
             ui.notify('Invalid username or password, or user not approved', color='red', position='top')
 

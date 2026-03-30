@@ -12,6 +12,8 @@ from config import config
 from logger import app_logger, handle_errors
 from auth_service import AuthService
 from navigation_improvements import EnhancedNavigation
+import tabbed_dashboard  # Import the new tabbed interface to register its routes
+
 
 # Add session storage for logged-in user
 from session_storage import session_storage
@@ -603,8 +605,8 @@ def handle_login(username, password):
                 session_storage['session_id'] = session_id
 
             ui.notify(f'Login successful. Welcome {username}!', color='green')
-            # Redirect to the modern sales page as landing page
-            ui.run_javascript('window.location.href = "/modern-sales";')
+            # Redirect to the tabbed dashboard
+            ui.run_javascript('window.location.href = "/tabbed-dashboard";')
         else:
             ui.notify('Invalid username or password, or user not approved', color='red')
 
@@ -642,15 +644,15 @@ def handle_signup(username, email, password, confirm_password):
 
 @ui.page('/dashboard')
 def dashboard_page():
-    """Dashboard now redirects to modern-sales as the main landing page"""
+    """Dashboard now redirects to tabbed-dashboard as the main landing page"""
     user = session_storage.get('user')
     if not user:
         ui.notify('Please login to access this page', color='red')
         ui.run_javascript('window.location.href = "/login"')
         return
     
-    # Redirect to modern-sales as the new landing page
-    ui.run_javascript('window.location.href = "/modern-sales";')
+    # Redirect to tabbed-dashboard
+    ui.run_javascript('window.location.href = "/tabbed-dashboard";')
     return
 
     # Get user permissions

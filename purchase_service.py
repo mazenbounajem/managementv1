@@ -189,7 +189,6 @@ class PurchaseService:
 
         self._handle_payment_logic(
             purchase_id=last_purchase_id,
-            invoice_number=invoice_number,
             is_update=False,
             **data
         )
@@ -216,7 +215,6 @@ class PurchaseService:
         invoice_number = self.repository.get_invoice_number(purchase_id)
         self._handle_payment_logic(
             purchase_id=purchase_id,
-            invoice_number=invoice_number,
             is_update=True,
             **data
         )

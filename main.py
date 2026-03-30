@@ -57,7 +57,7 @@ except ImportError:
 @ui.page('/')
 def index():
     """Main landing page."""
-    ui.navigate.to('/dashboard')
+    ui.navigate.to('/tabbed-dashboard')
 
 # This command starts the web server.
 ui.run()

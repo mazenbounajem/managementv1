@@ -38,8 +38,9 @@ def customer_page(standalone=False):
         # Query metadata and photo existence flag
         sql = """SELECT id, customer_name, email, phone, address, city, balance, is_active, 
                  CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo,
-                 instagram, facebook, twitter, tiktok 
-                 FROM customers ORDER BY id DESC"""
+                 instagram, facebook, twitter, tiktok,
+                 COALESCE((SELECT SUM(ISNULL(s.total_amount, 0)) FROM sales s WHERE s.customer_id = c.id AND s.payment_status = 'pending'), 0) as pending_sales
+                 FROM customers c ORDER BY id DESC"""
         connection.contogetrows(sql, data)
         rows = []
         
@@ -47,7 +48,7 @@ def customer_page(standalone=False):
             rows.append({
                 'id': r[0], 'customer_name': r[1], 'email': r[2], 'phone': r[3], 'address': r[4], 
                 'city': r[5], 'balance': r[6], 'is_active': r[7], 'has_photo': bool(r[8]),
-                'instagram': r[9], 'facebook': r[10], 'twitter': r[11], 'tiktok': r[12]
+                'instagram': r[9], 'facebook': r[10], 'twitter': r[11], 'tiktok': r[12], 'pending_sales': to_float(r[13])
             })
         table.options['rowData'] = rows
         table.update()
@@ -87,7 +88,7 @@ def customer_page(standalone=False):
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
-    with ModernPageLayout("Customer Management"):
+    with ModernPageLayout("Customer Management", standalone=standalone):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
             with ui.row().classes('w-full gap-6 items-start'):
@@ -132,6 +133,7 @@ def customer_page(standalone=False):
                             {'headerName': 'Name', 'field': 'customer_name', 'flex': 2},
                             {'headerName': 'Email', 'field': 'email', 'flex': 1.5},
                             {'headerName': 'Phone', 'field': 'phone', 'width': 130},
+                            {'headerName': 'Pending Sales', 'field': 'pending_sales', 'width': 110},
                             {'headerName': 'Balance', 'field': 'balance', 'width': 120},
                             {'headerName': 'Status', 'field': 'is_active', 'cellRenderer': 'agCheckboxRenderer'}
                         ]

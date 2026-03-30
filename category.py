@@ -55,6 +55,10 @@ def category_page(standalone=False):
             ref.set_value('')
         photo_preview.set_source('https://via.placeholder.com/150')
         table.run_method('deselectAll')
+        try:
+            update_saved_state()
+            ui.run_javascript("sessionStorage.removeItem('draft_category');")
+        except: pass
 
     def save_category():
         try:
@@ -71,6 +75,10 @@ def category_page(standalone=False):
 
             connection.insertingtodatabase(sql, params)
             ui.notify('Category saved', color='positive')
+            try:
+                update_saved_state()
+                ui.run_javascript("sessionStorage.removeItem('draft_category');")
+            except: pass
             refresh_table()
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
@@ -83,7 +91,7 @@ def category_page(standalone=False):
         clear_inputs()
         refresh_table()
 
-    with ModernPageLayout("Category Management"):
+    with ModernPageLayout("Category Management", standalone=standalone):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
             with ui.row().classes('w-full gap-6 items-start'):
@@ -155,8 +163,10 @@ def category_page(standalone=False):
                                 input_refs['photo'].set_value(full_photo or '')
                                 if full_photo:
                                     photo_preview.set_source(full_photo)
-                                else:
                                     photo_preview.set_source('https://via.placeholder.com/150')
+                                
+                                try: update_saved_state()
+                                except: pass
                             except Exception as ex:
                                 print(f"Category selection error: {ex}")
                                 ui.notify(f'Display error: {ex}', color='warning')
@@ -176,7 +186,91 @@ def category_page(standalone=False):
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
+    # Dirty state tracking for unsaved changes warning
+    saved_state = {}
+
+    def capture_state():
+        state = {}
+        for k, ref in input_refs.items():
+            if hasattr(ref, 'value'):
+                state[k] = ref.value
+        return state
+
+    def update_saved_state():
+        nonlocal saved_state
+        saved_state = capture_state().copy()
+
+    def is_dirty():
+        current_state = capture_state()
+        
+        # If no category selected and form is empty, it's not dirty
+        if not current_state.get('id') and not current_state.get('name'):
+            return False
+            
+        for k, v in current_state.items():
+            if k == 'photo': continue
+            s_val = saved_state.get(k, '')
+            
+            v_str = str(v) if v is not None else ''
+            s_str = str(s_val) if s_val is not None else ''
+            
+            if v_str != s_str:
+                if not v_str and not s_str: continue
+                return True
+        return False
+        
+    try:
+        from tabbed_dashboard import tab_dirty_callbacks
+        tab_dirty_callbacks['category'] = is_dirty
+        tab_dirty_callbacks['category_content'] = is_dirty
+    except ImportError:
+        pass
+
     ui.timer(0.1, refresh_table, once=True)
+    ui.timer(0.2, update_saved_state, once=True)
+
+    # ── Auto-Save Drafts ────────────────────────────────────────────────────────
+    def save_draft():
+        if not is_dirty(): return
+        import json
+        try:
+            state = {k: v for k, v in capture_state().items() if k != 'photo'}
+            encoded = json.dumps(state).replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
+            ui.run_javascript(f"sessionStorage.setItem('draft_category', '{encoded}');")
+        except Exception: pass
+
+    def restore_draft_values(state_json):
+        import json
+        try:
+            state = json.loads(state_json)
+            for k, v in state.items():
+                if k in input_refs and hasattr(input_refs[k], 'set_value'):
+                    input_refs[k].set_value(v)
+            update_saved_state()
+            ui.run_javascript("sessionStorage.removeItem('draft_category');")
+        except Exception as ex:
+            print(f"Category draft restore error: {ex}")
+
+    async def check_for_draft():
+        import json
+        result = await ui.run_javascript("sessionStorage.getItem('draft_category');", timeout=5.0)
+        if result:
+            try:
+                state = json.loads(result)
+                name = state.get('name', '')
+                hint = f'"{name}"' if name else 'an unsaved category'
+                with ui.dialog() as d, ui.card().classes('p-6 rounded-xl'):
+                    ui.label('\U0001f4dd Unsaved Draft Found').classes('text-lg font-bold mb-2')
+                    ui.label(f'You have an unsaved draft for {hint}.').classes('text-gray-600 mb-4 text-sm')
+                    with ui.row().classes('w-full justify-end gap-3'):
+                        ui.button('Discard', on_click=lambda: (ui.run_javascript("sessionStorage.removeItem('draft_category');"), d.close())).props('flat color=gray')
+                        ui.button('Restore Draft', color='purple', on_click=lambda: (restore_draft_values(result), d.close())).props('unelevated')
+                d.open()
+            except Exception: pass
+
+    ui.timer(5.0, save_draft)
+    ui.timer(1.5, check_for_draft, once=True)
+
 
 
 

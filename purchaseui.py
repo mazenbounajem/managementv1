@@ -21,7 +21,7 @@ from modern_ui_components import ModernActionBar
 import asyncio
 
 class PurchaseUI:
-    def __init__(self):
+    def __init__(self, show_navigation=True):
         self.invoicenumber = ''
 
         # Check if user is logged in
@@ -35,10 +35,11 @@ class PurchaseUI:
         permissions = connection.get_user_permissions(user['role_id'])
         allowed_pages = {page for page, can_access in permissions.items() if can_access}
 
-        # Create enhanced navigation instance
-        navigation = EnhancedNavigation(permissions, user)
-        navigation.create_navigation_drawer()  # Create drawer first
-        navigation.create_navigation_header()  # Then create header with toggle button
+        if show_navigation:
+            # Create enhanced navigation instance
+            navigation = EnhancedNavigation(permissions, user)
+            navigation.create_navigation_drawer()  # Create drawer first
+            navigation.create_navigation_header()  # Then create header with toggle button
 
         self.service = PurchaseService()
         self.max_purchase_id = self.get_max_purchase_id()
@@ -55,6 +56,7 @@ class PurchaseUI:
             {'headerName': 'Barcode', 'field': 'barcode', 'width': 100, 'headerClass': 'blue-header'},
             {'headerName': 'Product', 'field': 'product', 'width': 150, 'headerClass': 'blue-header'},
             {'headerName': 'Qty', 'field': 'quantity', 'width': 60,  'headerClass': 'blue-header'},
+            {'headerName': 'Disc %', 'field': 'discount_pct', 'width': 70,  'headerClass': 'blue-header'},
             {'headerName': 'Cost', 'field': 'cost', 'width': 80,  'headerClass': 'blue-header'},
             {'headerName': 'Retail', 'field': 'price', 'width': 80,  'headerClass': 'blue-header'},
             {'headerName': 'Subtotal', 'field': 'subtotal', 'width': 100,  'headerClass': 'blue-header'}
@@ -127,6 +129,7 @@ class PurchaseUI:
             barcode = self.barcode_input.value
             product_name = self.product_input.value
             quantity = int(self.quantity_input.value) if self.quantity_input.value else 0
+            discount_pct = float(self.discount_input.value or 0)
             cost = float(self.cost_input.value) if self.cost_input.value else 0
             price = float(self.price_input.value) if self.price_input.value else 0
             
@@ -134,12 +137,15 @@ class PurchaseUI:
                 ui.notify('Please fill in all required fields with valid values')
                 return
             
-            subtotal = quantity * cost
+            discount_amount = quantity * cost * (discount_pct / 100)
+            subtotal = quantity * cost - discount_amount
             
             self.rows.append({
                 'barcode': barcode,
                 'product': product_name,
                 'quantity': quantity,
+                'discount': discount_amount,
+                'discount_pct': discount_pct,
                 'cost': cost,
                 'price': price,
                 'subtotal': subtotal,
@@ -161,6 +167,7 @@ class PurchaseUI:
         self.barcode_input.value = ''
         self.product_input.value = ''
         self.quantity_input.value = 1
+        self.discount_input.value = 0
         self.cost_input.value = 0.0
         self.price_input.value = 0.0
     
@@ -172,6 +179,7 @@ class PurchaseUI:
         self.barcode_input.value = ''
         self.product_input.value = ''
         self.quantity_input.value = 1
+        self.discount_input.value = 0
         self.cost_input.value = 0.0
         self.price_input.value = 0.0
         
@@ -198,6 +206,7 @@ class PurchaseUI:
                 if product_data:
                     product = product_data[0]
                     self.product_input.value = product[1]
+                    self.discount_input.value = 0
                     self.cost_input.value = float(product[2])
                     self.price_input.value = float(product[3])
 
@@ -210,6 +219,7 @@ class PurchaseUI:
 
                     ui.notify(f"Product loaded: {product[1]}")
                 else:
+                    self.discount_input.value = 0
                     ui.notify("Product not found for this barcode")
         except Exception as e:
             ui.notify(f'Error updating product: {str(e)}')
@@ -273,23 +283,13 @@ class PurchaseUI:
                 search_input = ui.input(placeholder='Search by name or phone...').props('borderless dense').classes('flex-1 text-white text-sm').on('keydown.enter', lambda e: self.filter_supplier_rows(e.sender.value))
             
             data = []
-            connection.contogetrows("SELECT id, name, phone, balance FROM suppliers", data)
+            connection.contogetrows("SELECT id, name, phone, balance, balance_usd FROM suppliers", data)
             
             self.supplier_rows = []
             for row in data:
-                self.supplier_rows.append({
-                    'id': row[0],
-                    'name': row[1],
-                    'phone': row[2],
-                    'balance': row[3]
-                })
+                self.supplier_rows.append({                   'id': row[0],                    'name': row[1],                   'phone': row[2],                   'balance_ll': row[3] or 0,                    'balance_usd': row[4] or 0                })
             
-            columns = [
-                {'headerName': 'ID', 'field': 'id', 'width': 70},
-                {'headerName': 'Name', 'field': 'name', 'flex': 1},
-                {'headerName': 'Phone', 'field': 'phone', 'width': 150},
-                {'headerName': 'Balance', 'field': 'balance', 'width': 120}
-            ]
+                columns = [ {'headerName': 'ID', 'field': 'id', 'width': 70},                {'headerName': 'Name', 'field': 'name', 'flex': 1},               {'headerName': 'Phone', 'field': 'phone', 'width': 150},              {'headerName': 'Balance LL', 'field': 'balance_ll', 'width': 100},                {'headerName': 'Balance USD', 'field': 'balance_usd', 'width': 110}            ]
             
             self.supplier_grid = ui.aggrid({
                 'columnDefs': columns,
@@ -336,6 +336,7 @@ class PurchaseUI:
             row = e.args['data']
             self.product_input.value = row['product_name']
             self.barcode_input.value = row['barcode']
+            self.discount_input.value = 0
             self.cost_input.value = row['cost_price']
             self.price_input.value = row['price']
 
@@ -361,11 +362,12 @@ class PurchaseUI:
 
             with ui.column().classes('w-full gap-5'):
                 quantity = ui.number('Quantity', value=row_data['quantity']).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
+                discount_pct = ui.number('Discount %', value=row_data.get('discount_pct', 0), min=0, max=100).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
                 cost = ui.number('Unit Cost', value=row_data['cost']).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
                 price = ui.number('Retail Price', value=row_data.get('price', 0)).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
                 
                 def save():
-                    self.save_edited_row(row_data, quantity.value, cost.value, price.value, dialog)
+                    self.save_edited_row(row_data, quantity.value, discount_pct.value, cost.value, price.value, dialog)
 
                 def delete():
                     self.delete_row(row_data, dialog)
@@ -376,16 +378,19 @@ class PurchaseUI:
                     ui.button('Update Item', on_click=save).props('unelevated color=purple').classes('px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-purple-500/20')
         dialog.open()
 
-    def save_edited_row(self, original_row, new_quantity, new_cost, new_price, dialog):
+    def save_edited_row(self, original_row, new_quantity, new_discount_pct, new_cost, new_price, dialog):
         try:
             row_index = next(i for i, row in enumerate(self.rows) 
                            if row['barcode'] == original_row['barcode'] and 
                               row['product'] == original_row['product'])
             
             self.rows[row_index]['quantity'] = int(new_quantity)
+            discount_amount = int(new_quantity) * float(new_cost) * (new_discount_pct / 100)
+            self.rows[row_index]['discount'] = discount_amount
+            self.rows[row_index]['discount_pct'] = new_discount_pct
             self.rows[row_index]['cost'] = float(new_cost)
             self.rows[row_index]['price'] = float(new_price)
-            self.rows[row_index]['subtotal'] = int(new_quantity) * float(new_cost)
+            self.rows[row_index]['subtotal'] = int(new_quantity) * float(new_cost) - discount_amount
             self.rows[row_index]['profit'] = float(new_price) - float(new_cost)
             
             self.aggrid.options['rowData'] = self.rows
@@ -539,6 +544,7 @@ class PurchaseUI:
                 status = 'Order' if is_order else 'Purchase'
                 payment_status = 'pending' if is_order or payment_method != 'Cash' else 'completed'
 
+                invoice_number = self.reference_input.value or self.service.generate_invoice_number()
                 data = {
                     'purchase_date': self.date_input.value,
                     'supplier_id': supplier_id,
@@ -550,10 +556,10 @@ class PurchaseUI:
                     'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'user': session_storage.get('user'),
                     'session_id': session_storage.get('session_id', 'Unknown'),
-                    'invoice_number': self.reference_input.value,
                     'currency_id': selected_currency_id,
                     'status': status
                 }
+                data['invoice_number'] = invoice_number
 
                 self.service.save_purchase(data, self.rows, self.current_purchase_id)
                 ui.notify(f'{"Order" if is_order else "Purchase"} saved successfully!', color='positive')
@@ -581,6 +587,11 @@ class PurchaseUI:
             self.reference_input.value = details['invoice_number']
             self.currency_select.value = details['currency_id']
             self.payment_method.value = 'Cash' if details['payment_status'] == 'completed' else 'On Account'
+            
+            for row in details['rows']:
+                # Ensure discount_pct for display if missing
+                if 'discount_pct' not in row:
+                    row['discount_pct'] = (row.get('discount', 0) / (row['quantity'] * row['cost']) * 100) if row['quantity'] * row['cost'] > 0 else 0
             
             self.rows = details['rows']
             self.aggrid.options['rowData'] = self.rows
@@ -799,6 +810,11 @@ class PurchaseUI:
                                         with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
                                             self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
                                     
+                                    with ui.column().classes('w-24 gap-1'):
+                                        ui.label('Disc %').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
+                                        with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                            self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
+
                                     with ui.column().classes('w-28 gap-1'):
                                         ui.label('Cost').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                         with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):

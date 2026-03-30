@@ -15,7 +15,7 @@ from modern_design_system import ModernDesignSystem as MDS
 import asyncio
 class SalesUI:
     
-    def __init__(self):
+    def __init__(self, show_navigation=True):
         self.invoicenumber = ''
 
         # Check if user is logged in
@@ -29,10 +29,11 @@ class SalesUI:
         permissions = connection.get_user_permissions(user['role_id'])
         allowed_pages = {page for page, can_access in permissions.items() if can_access}
 
-        # Create enhanced navigation instance
-        navigation = EnhancedNavigation(permissions, user)
-        navigation.create_navigation_drawer()  # Create drawer first
-        navigation.create_navigation_header()  # Then create header with toggle button
+        if show_navigation:
+            # Create enhanced navigation instance
+            navigation = EnhancedNavigation(permissions, user)
+            navigation.create_navigation_drawer()  # Create drawer first
+            navigation.create_navigation_header()  # Then create header with toggle button
 
         self.max_sale_id = self.get_max_sale_id()
 
@@ -353,55 +354,67 @@ class SalesUI:
         dialog.open()
 
     def show_profit_dialog(self):
-        """Calculate and display profit in a dialog using database query."""
+        """Calculate and display profit in a dialog dynamically based on current cart items."""
         try:
-            sale_id = None
-            
-            # Determine which sale ID to use
-            if hasattr(self, 'current_sale_id') and self.current_sale_id:
-                sale_id = self.current_sale_id
-            elif self.rows:
-                # If we have items but no current sale ID, use max sale ID
-                sale_id = self.get_max_sale_id()
-            
-            if not sale_id:
-                ui.notify('No sale data available to calculate profit')
+            if not self.rows:
+                ui.notify('No items in cart to calculate profit')
                 return
+
+            selected_currency_id = self.currency_select.value
+            exchange_rate = float(self.currency_exchange_rates.get(selected_currency_id, 1.0))
             
-            # Execute the profit calculation query (now consistent as both unit_price and cost_price are in USD)
-            profit_data = connection.getprofit(f"select sum(((unit_price-products.cost_price)*(quantity))-discount_amount) as profit from sale_items right join products on products.id=product_id where sale_items.sales_id='{sale_id}'")
+            selected_currency_symbol = '$'
+            for c_row in self.currency_rows:
+                if c_row[0] == selected_currency_id:
+                    selected_currency_symbol = c_row[2]
+                    break
+
+            total_cost_local = 0.0
+            total_revenue_local = 0.0
+
+            for row in self.rows:
+                barcode = row.get('barcode')
+                if not barcode:
+                    continue
+                cost_data = []
+                connection.contogetrows(f"SELECT cost_price FROM products WHERE barcode = '{barcode}'", cost_data)
+                
+                cost_price_usd = float(cost_data[0][0]) if cost_data and cost_data[0][0] else 0.0
+                cost_price_local = cost_price_usd * exchange_rate
+                
+                total_cost_local += cost_price_local * row['quantity']
+                total_revenue_local += row['subtotal']
+                
+            # Apply global discounts
+            discount_percent = float(self.discount_percent_input.value or 0)
+            discount_amount = float(self.discount_amount_input.value or 0)
             
-            # Get normalized total from DB to calculate correct percentage
-            sale_info = []
-            connection.contogetrows(f"SELECT total_amount FROM sales WHERE id = {sale_id}", sale_info)
-            normalized_total = float(sale_info[0][0]) if sale_info else 0.0
-            
-            # Calculate profit percentage
-            profit_value = float(profit_data[0]) if profit_data and profit_data[0] is not None else 0.0
-            profit_percentage = (profit_value / normalized_total) * 100 if normalized_total > 0 else 0
-            
-            # Display the profit
+            total_after_percent = total_revenue_local * (1 - discount_percent / 100)
+            final_revenue = total_after_percent - discount_amount
+
+            profit_value = final_revenue - total_cost_local
+            profit_percentage = (profit_value / final_revenue) * 100 if final_revenue > 0 else 0
+
             with ui.dialog() as dialog, ui.card().classes('glass p-8 border border-white/10').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px); border-radius: 2rem; width: 380px;'):
-                # Header
                 with ui.row().classes('w-full items-center justify-between mb-4'):
                     ui.label('Analytics').classes('text-2xl font-black text-white').style('font-family: "Outfit", sans-serif;')
                     ui.icon('savings', size='1.5rem').classes('text-green-400 opacity-80')
                 
-                ui.label(f'PROFIT ANALYSIS - SALE ID: {sale_id}').classes('text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 block font-medium')
+                ui.label(f'PROFIT ANALYSIS - CURRENT CART').classes('text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 block font-medium')
 
                 with ui.column().classes('w-full gap-5'):
                     with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10 shadow-inner'):
                         with ui.column().classes('gap-0'):
                             ui.label('Net Profit').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                            ui.label(f'${profit_value:,.2f}').classes('text-2xl font-black text-green-400')
+                            ui.label(f'{selected_currency_symbol}{profit_value:,.2f}').classes('text-2xl font-black text-green-400')
                         
                         with ui.column().classes('gap-0 items-end'):
                             ui.label('Margin').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
                             ui.label(f'{profit_percentage:.2f}%').classes('text-xl font-black text-blue-400')
 
                     with ui.row().classes('w-full justify-between items-center px-4'):
-                        ui.label('Total Value (USD Equiv.)').classes('text-[10px] text-gray-500 font-bold uppercase tracking-widest')
-                        ui.label(f'${normalized_total:,.2f}').classes('text-xs font-black text-white px-2 py-1 bg-white/10 rounded-lg')
+                        ui.label(f'Total Value ({selected_currency_symbol})').classes('text-[10px] text-gray-500 font-bold uppercase tracking-widest')
+                        ui.label(f'{selected_currency_symbol}{final_revenue:,.2f}').classes('text-xs font-black text-white px-2 py-1 bg-white/10 rounded-lg')
 
                 with ui.row().classes('w-full justify-end mt-8'):
                     ui.button('Dismiss', on_click=dialog.close).props('flat text-color=grey-5').classes('px-6 rounded-xl hover:bg-white/5 font-black text-xs uppercase tracking-widest')

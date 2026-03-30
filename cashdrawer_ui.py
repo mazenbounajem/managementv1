@@ -9,52 +9,73 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernStats
 from modern_design_system import ModernDesignSystem as MDS
 
+def cash_drawer_content(standalone=False):
+    """Content method for cash drawer that can be used in tabs"""
+    if standalone:
+        with ModernPageLayout("Cash Drawer", standalone=standalone):
+            CashDrawerUI(standalone=False)
+    else:
+        CashDrawerUI(standalone=False)
+
 @ui.page('/cash-drawer')
 def cash_drawer_page():
-    with ModernPageLayout("Cash Drawer"):
-        CashDrawerUI()
+    cash_drawer_content(standalone=True)
 
 class CashDrawerUI:
-    def __init__(self):
+    def __init__(self, standalone=True):
+        self.standalone = standalone
+        self.balance_stats = None
+        self.amount_input = None
+        self.operation_select = None
+        self.notes_input = None
+        self.history_table = None
         self.create_ui()
         self.load_balance()
         self.load_history()
 
     def create_ui(self):
-        with ui.column().classes('w-full gap-8'):
-            # Stats Section
-            with ui.row().classes('w-full gap-6'):
-                self.balance_stats = ModernStats('Current Balance', '$0.00', icon='account_balance_wallet', trend='Active', trend_positive=True)
-                # Future: could add daily in/out stats here
+        # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
+        if self.standalone:
+            layout_container = ModernPageLayout("Cash Drawer", standalone=True)
+            layout_container.__enter__()
+        
+        try:
+            with ui.column().classes('w-full gap-8 p-4'):
+                # Stats Section
+                with ui.row().classes('w-full gap-6'):
+                    self.balance_stats = ModernStats('Current Balance', '$0.00', icon='account_balance_wallet', trend='Active', trend_positive=True)
 
-            # Operations Form
-            with ModernCard(glass=True).classes('w-full p-6'):
-                ui.label('Add Operation').classes('text-xl font-black mb-6 text-white')
-                with ui.row().classes('w-full gap-6 items-end'):
-                    self.amount_input = ui.number('Amount').classes('w-48 glass-input text-white').props('dark rounded outlined step=0.01')
-                    self.operation_select = ui.select(['In', 'Out'], value='In', label='Type').classes('w-32 glass-input text-white').props('dark rounded outlined')
-                    self.notes_input = ui.input('Notes').classes('flex-1 glass-input text-white').props('dark rounded outlined')
-                    ModernButton('Add Operation', icon='add', on_click=self.add_operation, variant='primary')
+                # Operations Form
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Add Operation').classes('text-xl font-black mb-6 text-white')
+                    with ui.row().classes('w-full gap-6 items-end'):
+                        self.amount_input = ui.number('Amount').classes('w-48 glass-input text-white').props('dark rounded outlined step=0.01')
+                        self.operation_select = ui.select(['In', 'Out'], value='In', label='Type').classes('w-32 glass-input text-white').props('dark rounded outlined')
+                        self.notes_input = ui.input('Notes').classes('flex-1 glass-input text-white').props('dark rounded outlined')
+                        ModernButton('Add Operation', icon='add', on_click=self.add_operation, variant='primary')
 
-            # History Table
-            with ModernCard(glass=True).classes('w-full p-6'):
-                ui.label('Operation History').classes('text-xl font-black mb-6 text-white')
-                
-                column_defs = [
-                    {'headerName': 'ID', 'field': 'id', 'width': 80},
-                    {'headerName': 'Date', 'field': 'operation_date_date', 'width': 120},
-                    {'headerName': 'Time', 'field': 'operation_date_time', 'width': 100},
-                    {'headerName': 'Type', 'field': 'operation_type', 'width': 100, 'cellRenderer': 'params => `<span class="px-2 py-1 rounded-full text-xs ${params.value === "In" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}">${params.value}</span>`'},
-                    {'headerName': 'User', 'field': 'user_name', 'width': 120},
-                    {'headerName': 'Amount', 'field': 'amount', 'width': 120},
-                    {'headerName': 'Notes', 'field': 'notes', 'width': 250, 'flex': 1}
-                ]
+                # History Table
+                with ModernCard(glass=True).classes('w-full p-6'):
+                    ui.label('Operation History').classes('text-xl font-black mb-6 text-white')
+                    
+                    column_defs = [
+                        {'headerName': 'ID', 'field': 'id', 'width': 80},
+                        {'headerName': 'Date', 'field': 'operation_date_date', 'width': 120},
+                        {'headerName': 'Time', 'field': 'operation_date_time', 'width': 100},
+                        {'headerName': 'Type', 'field': 'operation_type', 'width': 100, 'cellRenderer': 'params => `<span class="px-2 py-1 rounded-full text-xs ${params.value === "In" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}">${params.value}</span>`'},
+                        {'headerName': 'User', 'field': 'user_name', 'width': 120},
+                        {'headerName': 'Amount', 'field': 'amount', 'width': 120},
+                        {'headerName': 'Notes', 'field': 'notes', 'width': 250, 'flex': 1}
+                    ]
 
-                self.history_table = ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': [],
-                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                }).classes('w-full h-96 ag-theme-quartz-dark')
+                    self.history_table = ui.aggrid({
+                        'columnDefs': column_defs,
+                        'rowData': [],
+                        'defaultColDef': MDS.get_ag_grid_default_def(),
+                    }).classes('w-full h-96 ag-theme-quartz-dark')
+        finally:
+            if self.standalone:
+                layout_container.__exit__(None, None, None)
 
     def load_balance(self):
         try:
@@ -105,13 +126,9 @@ class CashDrawerUI:
         user = session_storage.get('user')
         user_id = user['user_id'] if user else None
 
-        # Pass notes if the underlying method supports it, otherwise we might need to modify it
-        # Checking connection_cashdrawer.add_cash_drawer_operation signature would be good
         success = connection_cashdrawer.add_cash_drawer_operation(amount, operation_type, user_id)
         
         if success:
-            # If notes were provided, we might need a separate update if the method doesn't support it
-            # But let's assume it does or we'll fix it if it fails.
             ui.notify('Operation added successfully', color='positive')
             self.amount_input.value = None
             self.notes_input.value = ''
