@@ -465,5 +465,32 @@ class ModernDesignSystem:
             .q-tabs__indicator {{
                 display: none !important; /* Hide default indicator as we have background */
             }}
+            /* ============= EXPANSION NAV STYLES ============= */
+            .expansion-nav {{
+                color: #08CB00 !important;
+                background: transparent !important;
+            }}
+            .expansion-nav .q-expansion-item__container {{
+                border-radius: 12px;
+                margin: 2px 4px;
+                transition: all 0.3s ease;
+            }}
+            .expansion-nav .q-item {{
+                border-radius: 12px;
+                color: rgba(255, 255, 255, 0.6) !important;
+            }}
+            .expansion-nav .q-item:hover {{
+                background: rgba(255, 255, 255, 0.05) !important;
+                color: #08CB00 !important;
+            }}
+            .expansion-nav .q-item__label {{
+                font-weight: 800 !important;
+                font-size: 0.75rem !important;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }}
+            .expansion-nav .q-expansion-item--expanded {{
+                background: rgba(255, 255, 255, 0.02) !important;
+            }}
         </style>
         """

@@ -229,7 +229,7 @@ class EmployeeUI:
                     on_save=self.save_employee,
                     on_undo=lambda: ui.notify('Undo not implemented for employees'),
                     on_delete=self.delete_employee,
-                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_refresh=self.refresh_table,
                     button_class='h-16',
                     classes=' '

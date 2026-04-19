@@ -56,10 +56,12 @@ class PurchaseUI:
             {'headerName': 'Barcode', 'field': 'barcode', 'width': 100, 'headerClass': 'blue-header'},
             {'headerName': 'Product', 'field': 'product', 'width': 150, 'headerClass': 'blue-header'},
             {'headerName': 'Qty', 'field': 'quantity', 'width': 60,  'headerClass': 'blue-header'},
+            {'headerName': 'Cost HT', 'field': 'cost', 'width': 80,  'headerClass': 'blue-header'},
+            {'headerName': 'Retail TTC', 'field': 'price', 'width': 90,  'headerClass': 'blue-header'},
             {'headerName': 'Disc %', 'field': 'discount_pct', 'width': 70,  'headerClass': 'blue-header'},
-            {'headerName': 'Cost', 'field': 'cost', 'width': 80,  'headerClass': 'blue-header'},
-            {'headerName': 'Retail', 'field': 'price', 'width': 80,  'headerClass': 'blue-header'},
-            {'headerName': 'Subtotal', 'field': 'subtotal', 'width': 100,  'headerClass': 'blue-header'}
+            {'headerName': 'VAT %', 'field': 'vat_percentage', 'width': 70,  'headerClass': 'blue-header'},
+            {'headerName': 'VAT Amt', 'field': 'vat_amount', 'width': 80,  'headerClass': 'blue-header'},
+            {'headerName': 'Subtotal HT', 'field': 'subtotal', 'width': 100,  'headerClass': 'blue-header'}
         ]
         self.supplier_rows = []
         self.supplier_grid = None
@@ -108,7 +110,12 @@ class PurchaseUI:
                 # Prices are in old currency, convert to base then to new
                 row['cost'] = row['cost'] / old_rate * new_rate
                 row['price'] = row['price'] / old_rate * new_rate
-                row['subtotal'] = row['quantity'] * row['cost']
+                row['discount'] = row['discount'] / old_rate * new_rate
+                row['vat_amount'] = row['vat_amount'] / old_rate * new_rate
+                
+                discount_amount = row['quantity'] * row['cost'] * (row['discount_pct'] / 100)
+                base_sub = row['quantity'] * row['cost'] - discount_amount
+                row['subtotal'] = base_sub + row['vat_amount']
 
             self.aggrid.update()
             self.update_totals()
@@ -137,8 +144,16 @@ class PurchaseUI:
                 ui.notify('Please fill in all required fields with valid values')
                 return
             
+            product_info = self.service.get_product_by_barcode(barcode)
+            vat_percentage = product_info.get('vat_percentage', 0) if product_info else 0
+            is_vat = product_info.get('is_vat_subjected', False) if product_info else False
+            
             discount_amount = quantity * cost * (discount_pct / 100)
-            subtotal = quantity * cost - discount_amount
+            base_subtotal = quantity * cost - discount_amount
+            vat_amount = base_subtotal * (vat_percentage / 100) if is_vat else 0
+            subtotal = base_subtotal # HT
+            # Retail price (TTC) logic for purchase items? 
+            # We'll keep 'price' as passed from input which should be retail TTC.
             
             self.rows.append({
                 'barcode': barcode,
@@ -148,6 +163,8 @@ class PurchaseUI:
                 'discount_pct': discount_pct,
                 'cost': cost,
                 'price': price,
+                'vat_percentage': vat_percentage if is_vat else 0,
+                'vat_amount': vat_amount,
                 'subtotal': subtotal,
                 'profit': price - cost
             })
@@ -209,6 +226,12 @@ class PurchaseUI:
                     self.discount_input.value = 0
                     self.cost_input.value = float(product[2])
                     self.price_input.value = float(product[3])
+                    
+                    # Store VAT info for this product if needed (can also be fetched in add_product)
+                    # For now just notify
+                    if product[6]: # is_vat_subjected
+                        ui.notify(f"Product has VAT: {product[7]}%")
+
 
                     # Get selected currency info
                     selected_currency_id = self.currency_select.value
@@ -390,7 +413,13 @@ class PurchaseUI:
             self.rows[row_index]['discount_pct'] = new_discount_pct
             self.rows[row_index]['cost'] = float(new_cost)
             self.rows[row_index]['price'] = float(new_price)
-            self.rows[row_index]['subtotal'] = int(new_quantity) * float(new_cost) - discount_amount
+            
+            base_sub = int(new_quantity) * float(new_cost) - discount_amount
+            vat_pct = self.rows[row_index].get('vat_percentage', 0)
+            vat_amount = base_sub * (vat_pct / 100)
+            
+            self.rows[row_index]['vat_amount'] = vat_amount
+            self.rows[row_index]['subtotal'] = base_sub # HT
             self.rows[row_index]['profit'] = float(new_price) - float(new_cost)
             
             self.aggrid.options['rowData'] = self.rows
@@ -405,7 +434,7 @@ class PurchaseUI:
         try:
             row_index = next(i for i, row in enumerate(self.rows) 
                            if row['barcode'] == row_data['barcode'] and 
-                              row['product'] == row_data['product'])
+                               row['product'] == row_data['product'])
             
             del self.rows[row_index]
             self.aggrid.options['rowData'] = self.rows
@@ -417,6 +446,7 @@ class PurchaseUI:
             ui.notify(f'Error removing product: {str(e)}')
 
     def update_totals(self):
+        total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
         subtotal = sum(row['subtotal'] for row in self.rows)
         total_quantity = sum(row['quantity'] for row in self.rows)
 
@@ -426,8 +456,11 @@ class PurchaseUI:
         discount_amount = float(self.discount_amount_input.value or 0)
         discount_percent = float(self.discount_percent_input.value or 0)
         
-        total_after_percent = subtotal * (1 - discount_percent / 100)
-        final_total = total_after_percent - discount_amount
+        total_ht_after_discount = subtotal * (1 - discount_percent / 100) - discount_amount
+        # Re-verify VAT after global discount? Standard is HT + VAT.
+        # But if total_vat was sum of items, we should keep it or scale it.
+        # Let's keep it as sum of items for now.
+        final_total = total_ht_after_discount + total_vat
 
         selected_currency_id = self.currency_select.value
         currency_symbol = '$'
@@ -436,8 +469,9 @@ class PurchaseUI:
                 currency_symbol = row[2]
                 break
 
-        self.subtotal_label.text = f"Total: {currency_symbol}{subtotal:.2f}"
-        self.total_label.text = f"Total: {currency_symbol}{final_total:.2f}"
+        self.subtotal_label.text = f"Total HT: {currency_symbol}{total_ht_after_discount:.2f}"
+        self.vat_label.text = f"VAT: {currency_symbol}{total_vat:.2f}"
+        self.total_label.text = f"Total TTC: {currency_symbol}{final_total:.2f}"
         self.total_amount = final_total
 
     def get_max_purchase_id(self):
@@ -548,7 +582,8 @@ class PurchaseUI:
                 data = {
                     'purchase_date': self.date_input.value,
                     'supplier_id': supplier_id,
-                    'subtotal': sum(row['subtotal'] for row in self.rows),
+                    'subtotal': sum(row['subtotal'] for row in self.rows), # Already HT
+                    'total_vat': sum(row.get('vat_amount', 0) for row in self.rows),
                     'discount_amount': float(self.discount_amount_input.value or 0),
                     'final_total': self.total_amount,
                     'payment_status': payment_status,
@@ -564,7 +599,7 @@ class PurchaseUI:
                 self.service.save_purchase(data, self.rows, self.current_purchase_id)
                 ui.notify(f'{"Order" if is_order else "Purchase"} saved successfully!', color='positive')
                 await self.refresh_purchase_table()
-                self.clear_inputs()
+                await self.load_max_purchase()
             except Exception as e:
                 ui.notify(f'Error saving purchase: {str(e)}')
 
@@ -730,164 +765,167 @@ class PurchaseUI:
         ui.add_head_html(MDS.get_global_styles())
         
         with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
-            with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
-                with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
-                    with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
-                        with ui.column().classes('gap-1'):
-                            ui.label('Procurement Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
-                            ui.label('Purchase Invoice').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+                    with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
+                        with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
+                            with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
+                                with ui.column().classes('gap-1'):
+                                    ui.label('Procurement Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
+                                    ui.label('Purchase Invoice').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+                
+                                with ui.row().classes('gap-6 items-center'):
+                                    with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
+                                        ui.icon('event', size='1rem').classes('text-gray-400')
+                                        self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
+                    
+                                    self.currency_select = ui.select(
+                                        {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows}, 
+                                        value=self.default_currency_id
+                                    ).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
+
+                            with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
+                                with ui.column().classes('w-[35%] h-full gap-4'):
+                                    with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
+                                        with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 transition-all'):
+                                            ui.icon('history', size='1.25rem').classes('text-purple-400 ml-1')
+                                            self.history_search = ui.input(placeholder='Search history...').props('borderless dense clearable dark')\
+                                                .classes('flex-1 text-white font-bold')\
+                                                .on_value_change(lambda e: self.filter_history_table(e.value))
+                                            ui.icon('search', size='1.1rem').classes('text-gray-500 mr-2')
                         
-                        with ui.row().classes('gap-6 items-center'):
-                            with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
-                                ui.icon('event', size='1rem').classes('text-gray-400')
-                                self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
+                                        self.purchase_history_aggrid = ui.aggrid({
+                                            'columnDefs': [
+                                                {'headerName': 'ID', 'field': 'id', 'width': 60, 'sortable': True, 'filter': True},
+                                                {'headerName': 'Date', 'field': 'purchase_date', 'width': 100, 'sortable': True, 'filter': True},
+                                                {'headerName': 'Ref', 'field': 'invoice_number', 'width': 110, 'sortable': True, 'filter': True},
+                                                {'headerName': 'Supplier', 'field': 'supplier_name', 'width': 130, 'sortable': True, 'filter': True},
+                                                {'headerName': 'Status', 'field': 'payment_status', 'width': 90, 'sortable': True, 'filter': True},
+                                                {'headerName': 'Total', 'field': 'total_amount', 'width': 90, 'sortable': True, 'filter': True, 'type': 'numericColumn'}
+                                            ],
+                                            'rowData': [],
+                                            'rowSelection': 'single',
+                                            'pagination': True,
+                                            'paginationPageSize': 15,
+                                            'domLayout': 'normal',
+                                        }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 100%;')
+                        
+                                        self.purchase_history_aggrid.on('cellClicked', lambda e: asyncio.create_task(self.load_purchase_details(e.args['data']['id'])))
+                 
+                                with ui.row().classes('flex-1 h-full gap-4 overflow-hidden'):
+                                    with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
+                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-5 items-center'):
+                                            with ui.column().classes('flex-1 gap-1'):
+                                                ui.label('Supplier Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
+                                                    ui.icon('local_shipping', size='1.25rem').classes('text-purple-400')
+                                                    self.supplier_input = ui.input(placeholder='Select Supplier...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_supplier_dialog)
+                                                    ui.icon('search', size='1rem').classes('text-gray-500 opacity-50')
+
+                                            with ui.column().classes('w-48 gap-1'):
+                                                ui.label('Contact').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    ui.icon('phone', size='1.25rem').classes('text-gray-400 opacity-40')
+                                                    self.phone_input = ui.input(placeholder='Phone').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
+
+                                            with ui.column().classes('w-32 gap-1'):
+                                                ui.label('Ref #').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.reference_input = ui.input(placeholder='Ref #').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
+
+                                            with ui.column().classes('gap-1'):
+                                                ui.label('Payment').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 h-[44px]'):
+                                                    self.payment_method = ui.radio(options=['Cash', 'On Account'], value='Cash').props('inline dark color=purple').classes('text-white text-[10px] font-black uppercase tracking-tighter')
+                        
+                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-3 items-end mt-2 shrink-0'):
+                                            with ui.column().classes('flex-[2] gap-1'):
+                                                ui.label('Barcode').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
+                                                    self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
                             
-                            self.currency_select = ui.select(
-                                {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows}, 
-                                value=self.default_currency_id
-                            ).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
-
-                    with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
-                        with ui.column().classes('w-[35%] h-full gap-4'):
-                            with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
-                                with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 transition-all'):
-                                    ui.icon('history', size='1.25rem').classes('text-purple-400 ml-1')
-                                    self.history_search = ui.input(placeholder='Search history...').props('borderless dense clearable dark')\
-                                        .classes('flex-1 text-white font-bold')\
-                                        .on_value_change(lambda e: self.filter_history_table(e.value))
-                                    ui.icon('search', size='1.1rem').classes('text-gray-500 mr-2')
-                                
-                                self.purchase_history_aggrid = ui.aggrid({
-                                    'columnDefs': [
-                                        {'headerName': 'ID', 'field': 'id', 'width': 60, 'sortable': True, 'filter': True},
-                                        {'headerName': 'Date', 'field': 'purchase_date', 'width': 100, 'sortable': True, 'filter': True},
-                                        {'headerName': 'Ref', 'field': 'invoice_number', 'width': 110, 'sortable': True, 'filter': True},
-                                        {'headerName': 'Supplier', 'field': 'supplier_name', 'width': 130, 'sortable': True, 'filter': True},
-                                        {'headerName': 'Status', 'field': 'payment_status', 'width': 90, 'sortable': True, 'filter': True},
-                                        {'headerName': 'Total', 'field': 'total_amount', 'width': 90, 'sortable': True, 'filter': True, 'type': 'numericColumn'}
-                                    ],
-                                    'rowData': [],
-                                    'rowSelection': 'single',
-                                    'pagination': True,
-                                    'paginationPageSize': 15,
-                                    'domLayout': 'normal',
-                                }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 100%;')
-                                
-                                self.purchase_history_aggrid.on('cellClicked', lambda e: asyncio.create_task(self.load_purchase_details(e.args['data']['id'])))
-                         
-                        with ui.row().classes('flex-1 h-full gap-4 overflow-hidden'):
-                            with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
-                                with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-5 items-center'):
-                                    with ui.column().classes('flex-1 gap-1'):
-                                        ui.label('Supplier Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
-                                            ui.icon('local_shipping', size='1.25rem').classes('text-purple-400')
-                                            self.supplier_input = ui.input(placeholder='Select Supplier...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_supplier_dialog)
-                                            ui.icon('search', size='1rem').classes('text-gray-500 opacity-50')
-
-                                    with ui.column().classes('w-48 gap-1'):
-                                        ui.label('Contact').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                            ui.icon('phone', size='1.25rem').classes('text-gray-400 opacity-40')
-                                            self.phone_input = ui.input(placeholder='Phone').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
-
-                                    with ui.column().classes('w-32 gap-1'):
-                                        ui.label('Ref #').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                            self.reference_input = ui.input(placeholder='Ref #').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
-
-                                    with ui.column().classes('gap-1'):
-                                        ui.label('Payment').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 h-[44px]'):
-                                            self.payment_method = ui.radio(options=['Cash', 'On Account'], value='Cash').props('inline dark color=purple').classes('text-white text-[10px] font-black uppercase tracking-tighter')
-                                
-                                with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-3 items-end mt-2 shrink-0'):
-                                    with ui.column().classes('flex-[2] gap-1'):
-                                        ui.label('Barcode').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                            ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
-                                            self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
-                                    
-                                    with ui.column().classes('flex-[3] gap-1'):
-                                        ui.label('Product').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                            ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
-                                            self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
-                                    
-                                    with ui.column().classes('w-20 gap-1'):
-                                        ui.label('Qty').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
-                                        with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                            self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
-                                    
-                                    with ui.column().classes('w-24 gap-1'):
-                                        ui.label('Disc %').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
-                                        with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                            self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
-
-                                    with ui.column().classes('w-28 gap-1'):
-                                        ui.label('Cost').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
-                                        with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                            self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
-
-                                    with ui.column().classes('w-28 gap-1'):
-                                        ui.label('Retail').classes('text-[9px] font-black text-accent uppercase tracking-widest ml-4 text-center')
-                                        with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                            self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
-                                    
-                                    ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
-
-                                self.aggrid = ui.aggrid({
-                                    'columnDefs': self.columns,
-                                    'rowData': self.rows,
-                                    'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
-                                    'rowSelection': 'single',
-                                    'pagination': True,
-                                    'paginationPageSize': 10,
-                                    'domLayout': 'normal',
-                                }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; flex-grow: 1;')
-                                self.aggrid.on('cellClicked', self.on_row_click_edit_cells)
-
-                                with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 items-center justify-between mt-2 shrink-0'):
-                                    with ui.row().classes('gap-8 items-center'):
-                                        ui.label('Procurement Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest opacity-50')
-                                        ui.button('Margin Analytics', on_click=self.show_profit_dialog).props('flat rounded').classes('text-purple-400 font-bold uppercase tracking-wider text-xs')
-                                        
-                                        with ui.row().classes('items-center gap-6 bg-white/5 px-5 py-2 rounded-2xl border border-white/10'):
-                                            with ui.column().classes('gap-0'):
-                                                ui.label('Items').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
-                                            
-                                            with ui.column().classes('gap-0 border-l border-white/10 pl-6'):
-                                                ui.label('Quantity').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
-
-                                    with ui.row().classes('gap-6 items-center'):
-                                        with ui.column().classes('items-end gap-0'):
-                                            self.subtotal_label = ui.label('Total: $0.00').classes('text-xs font-bold text-gray-400')
-                                            self.total_label = ui.label('Total: $0.00').classes('text-2xl font-black text-white px-2 rounded-lg bg-white/5')
-                                        
-                                        with ui.element('div').classes('hidden'):
-                                            self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                            self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                            with ui.column().classes('flex-[3] gap-1'):
+                                                ui.label('Product').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
+                                                    self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
                             
-                            with ui.column().classes('w-80px items-center'):
-                                ModernActionBar(
-                                    on_new=self.clear_inputs,
-                                    on_save=self.save_purchase,
-                                    on_undo=self.show_undo_confirmation,
-                                    on_delete=self.delete_purchase,
-                                    on_print=self.print_purchase_invoice,
-                                    on_order=lambda: self.save_purchase(is_order=True),
-                                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
-                                    on_view_transaction=self.view_purchase_transaction,
-                                    on_refresh=self.refresh_purchase_table,
-                                    button_class='h-16',
-                                    classes=' '
-                                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                                            with ui.column().classes('w-20 gap-1'):
+                                                ui.label('Qty').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                            
+                                            with ui.column().classes('w-24 gap-1'):
+                                                ui.label('Disc %').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
+                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
 
-            
-            ui.timer(0.1, self.load_max_purchase, once=True)
-            ui.timer(0.2, self.refresh_purchase_table, once=True)
+                                            with ui.column().classes('w-28 gap-1'):
+                                                ui.label('Cost').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+
+                                            with ui.column().classes('w-28 gap-1'):
+                                                ui.label('Retail').classes('text-[9px] font-black text-accent uppercase tracking-widest ml-4 text-center')
+                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                            
+                                            ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
+
+                                        self.aggrid = ui.aggrid({
+                                            'columnDefs': self.columns,
+                                            'rowData': self.rows,
+                                            'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
+                                            'rowSelection': 'single',
+                                            'pagination': True,
+                                            'paginationPageSize': 10,
+                                            'domLayout': 'normal',
+                                        }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; flex-grow: 1;')
+                                        self.aggrid.on('cellClicked', self.on_row_click_edit_cells)
+
+                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 items-center justify-between mt-2 shrink-0'):
+                                            with ui.row().classes('gap-8 items-center'):
+                                                ui.label('Procurement Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest opacity-50')
+                                                ui.button('Margin Analytics', on_click=self.show_profit_dialog).props('flat rounded').classes('text-purple-400 font-bold uppercase tracking-wider text-xs')
+                                
+                                                with ui.row().classes('items-center gap-6 bg-white/5 px-5 py-2 rounded-2xl border border-white/10'):
+                                                    with ui.column().classes('gap-0'):
+                                                        ui.label('Items').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                                                        self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
+                                    
+                                                    with ui.column().classes('gap-0 border-l border-white/10 pl-6'):
+                                                        ui.label('Quantity').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                                                        self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
+
+                                            with ui.row().classes('gap-6 items-center'):
+                                                with ui.column().classes('items-end gap-0'):
+                                                    self.subtotal_label = ui.label('Base + VAT: $0.00').classes('text-[10px] font-bold text-gray-400 uppercase tracking-tighter')
+                                                    self.vat_label = ui.label('VAT: $0.00').classes('text-[10px] font-black text-purple-400 uppercase tracking-tighter')
+                                                    self.total_label = ui.label('Total: $0.00').classes('text-2xl font-black text-white px-2 rounded-lg bg-white/5')
+                                
+                                                with ui.element('div').classes('hidden'):
+                                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                    
+                                    with ui.column().classes('w-80px items-center'):
+                                        ModernActionBar(
+                                            on_new=self.clear_inputs,
+                                            on_save=self.save_purchase,
+                                            on_undo=self.show_undo_confirmation,
+                                            on_delete=self.delete_purchase,
+                                            on_print=self.print_purchase_invoice,
+                                            on_print_special=lambda: __import__('purchase_reports').open_print_special_dialog(),
+                                            on_order=lambda: self.save_purchase(is_order=True),
+                                            on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
+                                            on_view_transaction=self.view_purchase_transaction,
+                                            on_refresh=self.refresh_purchase_table,
+                                            button_class='h-16',
+                                            classes=' '
+                                        ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+
+    
+                    ui.timer(0.1, self.load_max_purchase, once=True)
+                    ui.timer(0.2, self.refresh_purchase_table, once=True)
+
 
 @ui.page('/purchase')
 def purchase_page_route():

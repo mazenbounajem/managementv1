@@ -208,7 +208,7 @@ class ExpenseTypeUI:
                         on_save=self.save_expense_type,
                         on_undo=self.undo_changes,
                         on_delete=self.delete_expense_type,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_refresh=self.refresh_table,
                         target_table=self.table,
                         button_class='h-16',

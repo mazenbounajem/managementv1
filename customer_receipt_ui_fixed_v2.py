@@ -49,7 +49,7 @@ def customer_receipt_page(standalone=False):
         connection.contogetrows(sql, result, (customer_id,))
         return to_float(result[0][0]) if result and result[0][0] is not None else 0.0
 
-    def refresh_history():
+    async def refresh_history():
         data = []
         sql = """SELECT cr.id, cr.payment_date, c.customer_name, cr.amount, cr.payment_method, c.id as customer_id 
                  FROM customer_receipt cr
@@ -68,6 +68,7 @@ def customer_receipt_page(standalone=False):
             })
         history_table.options['rowData'] = rows
         history_table.update()
+        await load_last_receipt()
 
     def fetch_customer_balance(customer_id):
         """Get accurate pending balance from unpaid invoices"""
@@ -361,7 +362,7 @@ def customer_receipt_page(standalone=False):
         else:
             ui.notify('Select customer first, then click Amount to see pending invoices', color='warning')
 
-    def process_receipt():
+    async def process_receipt():
         if not state['selected_customer']:
             ui.notify('Select customer first', color='negative')
             return
@@ -441,13 +442,20 @@ def customer_receipt_page(standalone=False):
                     ],
                     description=f"Customer Receipt #{receipt_id} - {customer['name']}"
                 )
+                
+                # --- Cash Drawer Integration ---
+                connection.update_cash_drawer_balance(
+                    amount=pay_amount,
+                    operation_type='In',
+                    user_id=user.get('user_id'),
+                    notes=f"Customer Receipt #{receipt_id} - {customer['name']}"
+                )
             except Exception as acc_err:
-                print(f"Accounting error in customer receipt: {acc_err}")
+                print(f"Accounting/CashDrawer error in customer receipt: {acc_err}")
 
             ui.notify(f'Receipt saved: ${pay_amount:.2f}', color='positive')
-            refresh_history()
-            load_customer_draft_balance()  # Refresh balance display
-            clear_form(reset_customer=False)  # Keep customer selected
+            await refresh_history()
+            await load_last_receipt()
             exit_new_mode()
             if history_table:
                 history_table.classes(remove='dimmed')
@@ -516,28 +524,33 @@ def customer_receipt_page(standalone=False):
                         input_refs['history_overlay'] = history_overlay
                         input_refs['history_table'] = history_table
 
-                    async def load_receipt(e):
+                    async def on_cell_clicked(e):
+                        if e.args.get('data'):
+                            await perform_load_row(e.args['data'])
+
+                    async def load_last_receipt():
+                        await asyncio.sleep(0.1)
+                        if history_table.options.get('rowData'):
+                            first_row = history_table.options['rowData'][0]
+                            await perform_load_row(first_row)
+
+                    async def perform_load_row(row_data):
                         try:
-                            row_data = await history_table.get_selected_row()
-                            if not row_data or not isinstance(row_data, dict):
-                                return
                             exit_new_mode()
                             customer_id = row_data.get('customer_id')
-                            customer_name = row_data['customer']
+                            customer_name = row_data.get('customer')
                             if not customer_id:
-                                ui.notify('No customer ID found', color='warning')
                                 return
                             state['selected_customer'] = {'id': customer_id, 'name': customer_name}
-                            input_refs['customer'].set_value(customer_name)
-                            input_refs['amount'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                            input_refs['method'].set_value(row_data['method'])
-                            input_refs['total'].set_value(f'{to_float(row_data["amount"]):.2f}')
+                            input_refs['customer'].set_value(customer_name or '')
+                            input_refs['amount'].set_value(f'{to_float(row_data.get("amount", 0)):.2f}')
+                            input_refs['method'].set_value(row_data.get('method', 'Cash'))
+                            input_refs['total'].set_value(f'{to_float(row_data.get("amount", 0)):.2f}')
                             load_customer_draft_balance()
-                            ui.notify(f'✅ Loaded: {customer_name} | Amount: ${to_float(row_data["amount"]):.2f} | Current Pending: ${state["selected_customer"]["balance"]:.2f}')
                         except Exception as ex:
-                            ui.notify(f'Load error: {ex}', color='warning')
+                            print(f"Load error: {ex}")
 
-                    history_table.on('cellClicked', load_receipt)
+                    history_table.on('cellClicked', on_cell_clicked)
 
             # Right Column: Action Bar
             with ui.column().classes('w-80px items-center'):
@@ -551,7 +564,7 @@ def customer_receipt_page(standalone=False):
                     on_save=process_receipt,
                     on_undo=lambda: [clear_form(reset_customer=True), exit_new_mode()],
                     on_refresh=refresh_history,
-                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_view_transaction=lambda: (
                         accounting_helpers.show_transactions_dialog(
                             reference_type='Receipt',
@@ -564,21 +577,7 @@ def customer_receipt_page(standalone=False):
                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
         ui.timer(0.1, refresh_history, once=True)
-        # Load last receipt on start
-        async def _auto_load():
-            await asyncio.sleep(0.3) # Wait for grid
-            if history_table.options.get('rowData'):
-                # Simulate click on first row
-                first_row = history_table.options['rowData'][0]
-                customer_id = first_row.get('customer_id')
-                customer_name = first_row['customer']
-                state['selected_customer'] = {'id': customer_id, 'name': customer_name}
-                input_refs['customer'].set_value(customer_name)
-                input_refs['amount'].set_value(f'{to_float(first_row["amount"]):.2f}')
-                input_refs['method'].set_value(first_row['method'])
-                input_refs['total'].set_value(f'{to_float(first_row["amount"]):.2f}')
-                load_customer_draft_balance()
-        ui.timer(0.2, _auto_load, once=True)
+        ui.timer(0.2, load_last_receipt, once=True)
         
     finally:
         if standalone:

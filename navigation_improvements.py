@@ -54,8 +54,10 @@ class EnhancedNavigation:
                 'icon': 'shopping_cart',
                 'items': {
                     'sales':           {'label': 'Sales',            'path': '/sales',            'icon': 'point_of_sale', 'shortcut': 'Alt+S'},
+                    'sales-returns':   {'label': 'Sales Returns',    'path': '/salesreturn',      'icon': 'assignment_return', 'shortcut': 'Alt+R'},
                     'products':        {'label': 'Products',         'path': '/products',         'icon': 'inventory',     'shortcut': 'Alt+P'},
                     'purchase':        {'label': 'Purchase',         'path': '/purchase',         'icon': 'shopping_bag',  'shortcut': 'Alt+U'},
+                    'purchase-returns': {'label': 'Purchase Returns', 'path': '/purchasereturn',   'icon': 'assignment_return', 'shortcut': 'Alt+T'},
                     'modern-purchase': {'label': 'Modern Purchase',  'path': '/modern-purchase',  'icon': 'shopping_cart', 'shortcut': 'Alt+Y'},
                     'stockoperations': {'label': 'Stock Operations', 'path': '/stockoperations',  'icon': 'inventory_2',   'shortcut': 'Alt+K'},
                     'category':        {'label': 'Category',         'path': '/category',         'icon': 'category',      'shortcut': 'Alt+C'},
@@ -93,6 +95,7 @@ class EnhancedNavigation:
                     'roles':        {'label': 'Roles',        'path': '/roles',        'icon': 'group',          'shortcut': 'Alt+G'},
                     'appointments': {'label': 'Appointments', 'path': '/appointments', 'icon': 'event',          'shortcut': 'Alt+N'},
                     'services':     {'label': 'Services',     'path': '/services',     'icon': 'build',          'shortcut': 'Alt+I'},
+                    'business-track': {'label': 'Business Track', 'path': '/business-track', 'icon': 'insights'},
                 }
             },
             'Reports': {
@@ -186,8 +189,7 @@ class EnhancedNavigation:
                     self.toggle_button.on('click', self.toggle_navigation_drawer)
                     
                     with ui.row().classes('items-center gap-2'):
-                        ui.icon('cloud_done', size='2rem', color='#08CB00')
-                        ui.label('ManagementOS').classes('text-xl font-black tracking-tighter text-[#08CB00]').style('font-family: "Outfit", sans-serif;')
+                        pass
                 
                 # Dynamic Tabs in the Header
                 with ui.row().classes('flex-1 justify-center px-4'):
@@ -200,13 +202,6 @@ class EnhancedNavigation:
                     if self.tabbed_mode:
                         self.split_btn = ui.button(icon='vertical_split', on_click=self.toggle_split_view).props('flat round').classes('text-[#08CB00]/60 hover:text-[#08CB00]')
                         self.split_btn.tooltip('Toggle Split View (Side-by-Side)')
-
-                    with ui.row().classes('items-center px-3 py-1 rounded-full bg-white/40 border border-white/40 focus-within:bg-white focus-within:shadow-md transition-all').style('width: 150px;'):
-                        ui.icon('search', size='1rem').classes('text-gray-400')
-                        search_input = ui.input(placeholder='Search...').props('borderless dense').classes('flex-1 ml-2 text-xs')
-                        search_input.on('input', lambda e: self.update_search_results(e.value))
-                    
-                    self.search_dropdown = ui.column().classes('absolute top-full mt-2 glass p-2 rounded-2xl hidden z-50 shadow-2xl overflow-hidden').style('width: 300px; max-height: 400px; right: 20px; border: 1px solid rgba(255,255,255,0.6);')
                     
                     # Theme Switcher
                     def change_theme(e):
@@ -321,8 +316,7 @@ class EnhancedNavigation:
             with ui.column().classes('w-full gap-8'):
                 # Branding / Logo
                 with ui.row().classes('w-full items-center px-4 gap-3 mb-4'):
-                    ui.icon('cloud_done', size='2.5rem').style(f'color: {MDS.ACCENT}')
-                    ui.label('ManagementOS').classes('text-xl font-black text-white tracking-tighter')
+                    pass
 
                 # Search in drawer
                 with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all focus-within:border-[#08CB00]/50'):
@@ -409,29 +403,34 @@ class EnhancedNavigation:
                 ui.label('No matching pages found').classes('text-gray-400 text-xs text-center mt-2')
 
     def render_category_tree(self, allowed_pages):
-        """Render the full category tree for browsing"""
+        """Render the full category tree as a collapsible accordion"""
         for category, data in self.navigation_categories.items():
             category_items = [(k, v) for k, v in data['items'].items() if k in allowed_pages]
 
             if category_items:
-                with ui.column().classes('w-full mb-6'):
-                    ui.label(category).classes('text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3 px-4')
+                # Determine if this category should be expanded by default (if active page is inside)
+                should_expand = any(v['path'] == self.active_path for k, v in category_items)
+                
+                with ui.expansion(category, icon=data.get('icon', 'folder'), value=should_expand).classes('w-full expansion-nav'):
+                    # Customize expansion header styling via CSS or props
+                    # Note: We styling the expansion component in modern_design_system or global CSS
                     
-                    for page_key, page_data in category_items:
-                        is_active = (page_data['path'] == self.active_path)
-                        btn_classes = 'drawer-button w-full ' + ('active ' if is_active else '')
-                        
-                        with ui.row().classes(btn_classes):
-                            with ui.row().classes('flex-1 items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer')\
-                                .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
-                                ui.icon(page_data['icon']).classes('drawer-button-icon')
-                                ui.label(page_data['label']).classes('drawer-button-label flex-1')
-                                if is_active:
-                                    ui.element('div').classes('w-1.5 h-1.5 rounded-full bg-white animate-pulse')
+                    with ui.column().classes('w-full gap-1 pl-4 pb-2'):
+                        for page_key, page_data in category_items:
+                            is_active = (page_data['path'] == self.active_path)
+                            btn_classes = 'drawer-button w-full ' + ('active ' if is_active else '')
+                            
+                            with ui.row().classes(btn_classes):
+                                with ui.row().classes('flex-1 items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer')\
+                                    .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
+                                    ui.icon(page_data['icon']).classes('drawer-button-icon')
+                                    ui.label(page_data['label']).classes('drawer-button-label flex-1')
+                                    if is_active:
+                                        ui.element('div').classes('w-1.5 h-1.5 rounded-full bg-white animate-pulse')
 
-                            if self.tabbed_mode:
-                                ui.button(icon='open_in_new').props('flat round dense size=xs').classes('text-gray-500 hover:text-white mr-2')\
-                                    .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)).tooltip('Open duplicate tab')
+                                if self.tabbed_mode:
+                                    ui.button(icon='open_in_new').props('flat round dense size=xs').classes('text-gray-500 hover:text-white mr-2')\
+                                        .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)).tooltip('Open duplicate tab')
 
 
     def filter_navigation(self, query):

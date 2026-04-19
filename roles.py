@@ -31,7 +31,8 @@ class RolesUI:
             'suppliers', 'supplierpayment', 'category', 'consignment', 'customers',
             'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'timespend',
             'stockoperations', 'cash-drawer', 'currencies', 'services', 'appointments',
-            'ledger', 'auxiliary', 'journal_voucher', 'voucher_subtype', 'company'
+            'ledger', 'auxiliary', 'journal_voucher', 'voucher_subtype', 'company',
+            'sales-returns', 'purchase-returns'
         ]
         self.create_ui()
 
@@ -211,7 +212,7 @@ class RolesUI:
                         on_save=self.save_role,
                         on_undo=lambda: ui.notify('Undo not implemented for roles'),
                         on_delete=self.delete_role,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_refresh=self.refresh_table,
                         button_class='h-16',
                         classes=' '

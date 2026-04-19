@@ -563,9 +563,8 @@ class Reports:
             LEFT JOIN auxiliary a ON l.auxiliary_id = a.number
         """
         params = []
-        if from_date:
-            sql += " INNER JOIN accounting_transactions t ON l.jv_id = t.jv_id"
         if from_date or to_date:
+            sql += " INNER JOIN accounting_transactions t ON l.jv_id = t.jv_id"
             sql += " WHERE 1=1"
             if from_date:
                 sql += " AND CAST(t.transaction_date AS DATE) >= ?"

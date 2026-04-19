@@ -100,7 +100,7 @@ class ModernPurchaseUI:
             on_save=self.save_purchase,
             on_delete=self.delete_purchase,
             on_refresh=self.refresh_data,
-            on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+            on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
             button_class='h-16'
         )
 

@@ -160,6 +160,8 @@ class AuxiliaryUI:
             return number.value
         return None
 
+    def print_statement(self):
+        """Print account statement PDF for the selected auxiliary number."""
         from nicegui import ui
         aux_number = self.get_selected_aux_number()
         if not aux_number:
@@ -307,7 +309,7 @@ class AuxiliaryUI:
                         on_undo=self.undo_changes,
                         on_delete=self.delete_auxiliary,
                         on_refresh=self.refresh_table,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         button_class='h-16',
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')

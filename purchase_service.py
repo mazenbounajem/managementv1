@@ -35,6 +35,8 @@ class PurchaseService:
                 'subtotal': float(item[5]) * exchange_rate if item[5] else 0.0,
                 'price': float(item[6]) * exchange_rate if item[6] else 0.0,
                 'profit': float(item[7]) * exchange_rate if item[7] else 0.0,
+                'vat_amount': float(item[8]) * exchange_rate if len(item) > 8 else 0.0,
+                'vat_percentage': float(item[9]) if len(item) > 9 else 0.0,
                 'old_cost_price': float(item[4]) * exchange_rate if item[4] else None,
                 'old_price': float(item[6]) * exchange_rate if item[6] else None,
                 'highlighted': False,
@@ -69,7 +71,20 @@ class PurchaseService:
         return purchases_data
 
     def get_product_by_barcode(self, barcode):
-        return self.repository.get_product_by_barcode(barcode)
+        data = self.repository.get_product_by_barcode(barcode)
+        if data:
+            r = data[0]
+            return {
+                'barcode': r[0],
+                'product_name': r[1],
+                'cost_price': float(r[2] or 0),
+                'price': float(r[3] or 0),
+                'currency_id': r[4],
+                'local_price': float(r[5] or 0),
+                'is_vat_subjected': bool(r[6]),
+                'vat_percentage': float(r[7] or 0)
+            }
+        return None
 
     def get_all_products(self):
         headers, data = self.repository.get_all_products()
@@ -163,7 +178,8 @@ class PurchaseService:
             data['subtotal'] / exchange_rate, 
             data['discount_amount'] / exchange_rate,
             data['final_total'] / exchange_rate, 
-            invoice_number, data['created_at'], data['payment_status'], currency_id
+            invoice_number, data['created_at'], data['payment_status'], currency_id,
+            data.get('total_vat', 0) / exchange_rate
         )
 
         # Get ledger id for purchases (6011)
@@ -205,7 +221,8 @@ class PurchaseService:
             data['subtotal'] / exchange_rate, 
             data['discount_amount'] / exchange_rate,
             data['final_total'] / exchange_rate, 
-            data['created_at'], data['payment_status'], purchase_id
+            data['created_at'], data['payment_status'], purchase_id, currency_id,
+            data.get('total_vat', 0) / exchange_rate
         )
         
         self.repository.delete_purchase_items(purchase_id)
@@ -232,7 +249,9 @@ class PurchaseService:
                 row['subtotal'] / exchange_rate, 
                 row['price'] / exchange_rate, 
                 row['profit'] / exchange_rate, 
-                row['discount'] / exchange_rate
+                row['discount'] / exchange_rate,
+                row.get('vat_amount', 0) / exchange_rate,
+                row.get('vat_percentage', 0)
             )
 
             old_price = row.get('old_price')
@@ -276,12 +295,8 @@ class PurchaseService:
         previous_total = float(previous_total)
 
         if previous_payment_status == 'completed':
-            try:
-                notes = f"Reversal for purchase update {purchase_id}"
-                if not self.repository.add_cash_drawer_operation(previous_total, 'In', user_id, notes):
-                    raise Exception('Failed to reverse previous cash drawer operation')
-            except Exception as e:
-                raise Exception(f'Error reversing previous cash drawer operation: {str(e)}')
+            # Cash drawer reversal is now handled in repository update_purchase
+            pass
         
         elif previous_payment_status == 'pending' and supplier_id:
             self.repository.revert_supplier_balance(previous_total, supplier_id)
@@ -305,13 +320,8 @@ class PurchaseService:
                 purchase_id, invoice_number, final_total, purchase_date, created_at, supplier_id, 'Payment pending - On Account'
             )
         else:
-            if payment_method == 'Cash':
-                try:
-                    notes = f"Purchase {'update' if is_update else ''} {invoice_number or purchase_id}"
-                    if not self.repository.add_cash_drawer_operation(final_total, 'Out', data['user']['user_id'], notes):
-                        raise Exception('Cash payment saved but cash drawer update failed')
-                except Exception as e:
-                    raise Exception(f'Error updating cash drawer: {str(e)}')
+            # Cash drawer update is now handled in repository create_purchase/update_purchase
+            pass
 
             self.repository.insert_supplier_payment_cash(
                 invoice_number, purchase_date, supplier_id, final_total, 'Payment processed for selected invoices', created_at

@@ -110,7 +110,7 @@ class AppointmentsUI:
                         on_save=self.go_today,
                         on_refresh=self.refresh_data,
                         on_print=self.print_appointments_report,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         button_class='h-16',
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')

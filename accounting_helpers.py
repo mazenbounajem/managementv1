@@ -36,6 +36,47 @@ def register_auxiliary(auxiliary_number, account_name):
         return False
 
 
+def ensure_vat_auxiliary(reference_type, entity_id, entity_name, auxiliary_number):
+    """
+    Ensures a specific VAT auxiliary account exists for a supplier or customer.
+    reference_type: 'Supplier' or 'Customer'
+    entity_id: ID in the respective table
+    entity_name: Name of supplier/customer
+    auxiliary_number: The main auxiliary number (e.g. 4011.000001)
+    """
+    try:
+        if reference_type == 'Supplier':
+            base_ledger = '44210'
+            account_name_prefix = "VAT Supplier"
+        else:
+            base_ledger = '44270'
+            account_name_prefix = "VAT Customer"
+            
+        suffix = str(auxiliary_number).split('.')[-1] if '.' in str(auxiliary_number) else str(auxiliary_number)
+        vat_acct = f"{base_ledger}.{suffix}"
+        
+        # Check if exists
+        exists = []
+        connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", exists, params=[vat_acct])
+        if not exists:
+            # Get Ledger ID
+            ledger_data = []
+            connection.contogetrows("SELECT Id FROM Ledger WHERE AccountNumber = ?", ledger_data, params=[base_ledger])
+            if not ledger_data:
+                print(f"ERROR: Ledger {base_ledger} not found")
+                return vat_acct
+                
+            ledger_id = ledger_data[0][0]
+            connection.insertingtodatabase(
+                "INSERT INTO auxiliary (ledger_id, number, account_name, status) VALUES (?, ?, ?, 1)",
+                (ledger_id, vat_acct, f"{account_name_prefix}: {entity_name}")
+            )
+        return vat_acct
+    except Exception as e:
+        print(f"Error ensuring VAT auxiliary: {e}")
+        return f"{base_ledger}.000001" if 'base_ledger' in locals() else "44210.000001"
+
+
 def _normalize_lines(lines):
     """
     Normalize accounting lines to list-of-dicts format.
@@ -87,11 +128,24 @@ def save_accounting_transaction(reference_type, reference_id, lines, description
 
         desc_text = description or f"{reference_type} {reference_id}"
 
+        # Clean up existing transactions for this reference to prevent duplicates on update
+        if reference_type and reference_id:
+            existing_jvs = []
+            connection.contogetrows(
+                "SELECT jv_id FROM accounting_transactions WHERE reference_type = ? AND reference_id = ?",
+                existing_jvs,
+                (str(reference_type), str(reference_id))
+            )
+            for jv in existing_jvs:
+                jv_to_del = jv[0]
+                connection.deleterow("DELETE FROM accounting_transaction_lines WHERE jv_id = ?", (jv_to_del,))
+                connection.deleterow("DELETE FROM accounting_transactions WHERE jv_id = ?", (jv_to_del,))
+
         header_sql = """
         INSERT INTO accounting_transactions (reference_type, reference_id, description, transaction_date)
         VALUES (?, ?, ?, GETDATE());
         """
-        connection.insertingtodatabase(header_sql, (reference_type, reference_id, desc_text))
+        connection.insertingtodatabase(header_sql, (str(reference_type), str(reference_id), desc_text))
 
         data_id = []
         connection.contogetrows("SELECT MAX(jv_id) FROM accounting_transactions", data_id)

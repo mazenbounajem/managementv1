@@ -441,7 +441,8 @@ class ExpensesUI:
                         on_save=self.save_expense,
                         on_undo=lambda: self.action_bar.reset_state(),
                         on_refresh=self.refresh_expenses_table,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_print_special=lambda: __import__('expense_reports').open_print_special_dialog(),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         target_table=self.history_aggrid,
                         button_class='h-16',
                         classes=' '

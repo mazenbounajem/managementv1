@@ -1,4 +1,4 @@
-import pandas as pd
+
 
 from database_manager import db_manager
 
@@ -166,7 +166,7 @@ class connection:
                         'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'backup',
                         'appointments', 'timespend', 'stockoperations', 'statistical-reports',
                         'currencies', 'cash-drawer', 'company', 'services', 'ledger', 'auxiliary',
-                        'journal_voucher', 'voucher_subtype'
+                        'journal_voucher', 'voucher_subtype', 'sales-returns', 'purchase-returns'
                     ]
 
                     for page in pages:
@@ -783,7 +783,7 @@ class connection:
             roles = db_manager.execute_query("SELECT id FROM roles")
             for role in roles:
                 role_id = role[0]
-                for page in ['accounting-transactions']:
+                for page in ['accounting-transactions', 'business-track']:
                     existing = db_manager.execute_scalar(
                         "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = ?",
                         (role_id, page)
@@ -795,3 +795,27 @@ class connection:
                         )
         except Exception as ex:
             print(f"Error ensuring accounting tables: {str(ex)}")
+
+    @staticmethod
+    def ensure_accounting_transactions_table():
+        """Alias for ensure_accounting_tables to fix startup errors"""
+        connection.ensure_accounting_tables()
+
+    @staticmethod
+    def ensure_business_track_permission():
+        """Ensure all roles have business-track permission"""
+        try:
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+                existing = db_manager.execute_scalar(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'business-track'",
+                    role_id
+                )
+                if not existing:
+                    db_manager.execute_update(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (role_id, 'business-track', 1)
+                    )
+        except Exception as ex:
+            print(f"Error ensuring business-track permission: {str(ex)}")

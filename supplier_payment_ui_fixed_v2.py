@@ -49,7 +49,7 @@ def supplier_payment_page(standalone=False):
         connection.contogetrows(sql, result, (supplier_id,))
         return to_float(result[0][0]) if result and result[0][0] is not None else 0.0
 
-    def refresh_history():
+    async def refresh_history():
         data = []
         sql = """SELECT sp.id, sp.payment_date, s.name, sp.amount, sp.payment_method, s.id as supplier_id \n                 FROM supplier_payment sp\n                 JOIN suppliers s ON sp.supplier_id = s.id\n                 ORDER BY sp.id DESC"""
         connection.contogetrows(sql, data)
@@ -58,11 +58,15 @@ def supplier_payment_page(standalone=False):
             rows.append({
                 'id': r[0],
                 'date': r[1],
+                'customer': r[2], # Note: grid uses 'supplier' but dictionary occasionally used 'customer' in previous logic
                 'supplier': r[2],
                 'amount': to_float(r[3]),
-                'method': r[4],              'supplier_id': r[5],           })
+                'method': r[4],
+                'supplier_id': r[5],
+            })
         history_table.options['rowData'] = rows
         history_table.update()
+        await load_last_payment()
 
     def fetch_supplier_balance(supplier_id):
         """Get accurate pending balance from unpaid invoices"""
@@ -363,7 +367,7 @@ def supplier_payment_page(standalone=False):
         else:
             ui.notify('Select supplier first, then click Balance or Amount to see pending invoices', color='warning')
 
-    def process_payment():
+    async def process_payment():
         if not state['selected_supplier']:
             ui.notify('Select supplier first', color='negative')
             return
@@ -451,13 +455,20 @@ def supplier_payment_page(standalone=False):
                     ],
                     description=f"Supplier Payment #{payment_id} - {supplier['name']}"
                 )
+                
+                # --- Cash Drawer Integration ---
+                connection.update_cash_drawer_balance(
+                    amount=pay_amount,
+                    operation_type='Out',
+                    user_id=user.get('user_id'),
+                    notes=f"Supplier Payment #{payment_id} - {supplier['name']}"
+                )
             except Exception as acc_err:
-                print(f"Accounting error in supplier payment: {acc_err}")
+                print(f"Accounting/CashDrawer error in supplier payment: {acc_err}")
 
             ui.notify(f'Payment saved: ${pay_amount:.2f}', color='positive')
-            refresh_history()
-            load_supplier_draft_balance()  # Refresh balance display
-            clear_form(reset_supplier=False)  # Keep supplier selected
+            await refresh_history()
+            await load_last_payment()
             exit_new_mode()
 
         except Exception as e:
@@ -532,28 +543,33 @@ def supplier_payment_page(standalone=False):
                     input_refs['history_overlay'] = history_overlay
                     input_refs['history_table'] = history_table
 
-                    async def load_payment(e):
+                    async def on_cell_clicked(e):
+                        if e.args.get('data'):
+                            await perform_load_row(e.args['data'])
+
+                    async def load_last_payment():
+                        await asyncio.sleep(0.1)
+                        if history_table.options.get('rowData'):
+                            first_row = history_table.options['rowData'][0]
+                            await perform_load_row(first_row)
+
+                    async def perform_load_row(row_data):
                         try:
-                            row_data = await history_table.get_selected_row()
-                            if not row_data or not isinstance(row_data, dict):
-                                return
                             exit_new_mode()
                             supplier_id = row_data.get('supplier_id')
-                            supplier_name = row_data['supplier']
+                            supplier_name = row_data.get('supplier')
                             if not supplier_id:
-                                ui.notify('No supplier ID found', color='warning')
                                 return
                             state['selected_supplier'] = {'id': supplier_id, 'name': supplier_name}
-                            input_refs['supplier'].set_value(supplier_name)
-                            input_refs['amount'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                            input_refs['method'].set_value(row_data['method'])
-                            input_refs['total'].set_value(f'{to_float(row_data["amount"]):.2f}')
+                            input_refs['supplier'].set_value(supplier_name or '')
+                            input_refs['amount'].set_value(f'{to_float(row_data.get("amount", 0)):.2f}')
+                            input_refs['method'].set_value(row_data.get('method', 'Cash'))
+                            input_refs['total'].set_value(f'{to_float(row_data.get("amount", 0)):.2f}')
                             load_supplier_draft_balance()
-                            ui.notify(f'✅ Loaded: {supplier_name} | Amount: ${to_float(row_data["amount"]):.2f} | Current Pending: ${state["selected_supplier"]["balance"]:.2f}')
                         except Exception as ex:
-                            ui.notify(f'Load error: {ex}', color='warning')
+                            print(f"Load error: {ex}")
 
-                    history_table.on('cellClicked', load_payment)
+                    history_table.on('cellClicked', on_cell_clicked)
 
             # Right Column: Action Bar
             with ui.column().classes('w-80px items-center'):
@@ -567,7 +583,7 @@ def supplier_payment_page(standalone=False):
                     on_save=process_payment,
                     on_undo=lambda: [clear_form(reset_supplier=True), exit_new_mode()],
                     on_refresh=refresh_history,
-                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_view_transaction=lambda: (
                         accounting_helpers.show_transactions_dialog(
                             reference_type='Payment',
@@ -581,20 +597,7 @@ def supplier_payment_page(standalone=False):
 
 
         ui.timer(0.1, refresh_history, once=True)
-        # Load last payment on start
-        async def _auto_load():
-            await asyncio.sleep(0.3)
-            if history_table.options.get('rowData'):
-                first_row = history_table.options['rowData'][0]
-                supplier_id = first_row.get('supplier_id')
-                supplier_name = first_row['supplier']
-                state['selected_supplier'] = {'id': supplier_id, 'name': supplier_name}
-                input_refs['supplier'].set_value(supplier_name)
-                input_refs['amount'].set_value(f'{to_float(first_row["amount"]):.2f}')
-                input_refs['method'].set_value(first_row['method'])
-                input_refs['total'].set_value(f'{to_float(first_row["amount"]):.2f}')
-                load_supplier_draft_balance()
-        ui.timer(0.2, _auto_load, once=True)
+        ui.timer(0.2, load_last_payment, once=True)
         
     finally:
         if standalone:

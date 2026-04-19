@@ -143,7 +143,7 @@ class AccountingTransactionsUI:
                     on_save=self._save_transaction,
                     on_undo=self._clear_form,
                     on_delete=self._delete_transaction,
-                    on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_refresh=self._refresh_table,
                     button_class='h-16',
                     classes=' '

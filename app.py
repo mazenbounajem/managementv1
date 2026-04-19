@@ -24,7 +24,9 @@ from customerui import customer_page_route
 from productui import product_page_route
 from supplierui import supplier_page_route
 from salesui_aggrid_compact import sales_page_route
+from sales_returns_ui import sales_return_route
 from purchaseui import purchase_page_route
+from purchase_returns_ui import purchase_return_route
 
 from employeeui import employee_page_route
 from supplier_payment_ui_fixed_v2 import supplier_payment_page_route
@@ -61,6 +63,9 @@ from modern_purchase_ui import modern_purchase_page
 
 # Import accounting transactions UI to register route
 from accounting_transactions_ui import accounting_transactions_page_route
+
+# Import business track UI to register route
+from business_track import business_track_page
 
 # Stock Reports page
 @ui.page('/stock-reports')
@@ -703,6 +708,7 @@ def dashboard_page():
                     'Cash Drawer': ('/cash-drawer', 'images/expenses.png'),
                     'Services': ('/services', 'images/services.png'),
                     'Ledger': ('/ledger', 'images/accounting.png'),
+                    'Business Track': ('/business-track', 'images/accounting.png'),
                 }
 
                 # Function to handle navigation: open in new tab except for Login and Exit
@@ -841,8 +847,25 @@ if __name__ in {"__main__", "__mp_main__"}:
 
     try:
         connection.ensure_accounting_transactions_table()
+        connection.ensure_business_track_permission()
     except Exception as e:
-        print(f"Error ensuring accounting_transactions table: {str(e)}")
+        print(f"Error ensuring accounting or business track permissions: {str(e)}")
+
+    # Create returns tables if not exists
+    try:
+        from migrate_returns import TABLES as _RT
+        for _name, _ddl in _RT:
+            _chk = []
+            connection.contogetrows(
+                f"SELECT COUNT(*) FROM sysobjects WHERE name='{_name}' AND xtype='U'",
+                _chk
+            )
+            if not (_chk and _chk[0][0] > 0):
+                connection.insertingtodatabase(_ddl, ())
+                print(f"  DB: Created table {_name}")
+    except Exception as e:
+        print(f"Returns migration error: {e}")
+
 
     # The following page routes are already registered via @ui.page decorators
     # and do not need to be called manually.

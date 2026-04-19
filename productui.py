@@ -53,10 +53,10 @@ def product_page_route(standalone=False):
     def clear_input_fields():
         for key, ref in input_refs.items():
             if key == 'id': ref.set_value('')
-            elif key in ['stock_quantity', 'min_stock_level', 'max_stock_level', 'price', 'cost_price', 'local_price']:
+            elif key in ['stock_quantity', 'min_stock_level', 'max_stock_level', 'price', 'cost_price', 'local_price', 'price_ttc', 'vat_percentage']:
                 ref.set_value(0)
-            elif key == 'is_active': ref.set_value(True)
-            elif key == 'uploader': continue # Skip the uploader component
+            elif key in ['is_active', 'is_vat_subjected']: ref.set_value(True if key == 'is_active' else False)
+            elif key == 'uploader': continue 
             else: ref.set_value('')
         photo_preview.set_source('https://via.placeholder.com/150')
         if 'uploader' in input_refs:
@@ -89,6 +89,34 @@ def product_page_route(standalone=False):
         except:
             input_refs['local_price'].set_value('0.00')
 
+    def update_ht_from_ttc():
+        try:
+            ttc = float(input_refs['price_ttc'].value or 0)
+            is_vat = input_refs['is_vat_subjected'].value
+            vat_pct = float(f"{input_refs['vat_percentage'].value or 0}")
+            if is_vat and vat_pct > 0:
+                ht = ttc / (1 + vat_pct / 100)
+                input_refs['price'].set_value(round(ht, 4))
+            else:
+                input_refs['price'].set_value(ttc)
+            update_local_price()
+            update_profit_analysis()
+        except: pass
+
+    def update_ttc_from_ht():
+        try:
+            ht = float(input_refs['price'].value or 0)
+            is_vat = input_refs['is_vat_subjected'].value
+            vat_pct = float(f"{input_refs['vat_percentage'].value or 0}")
+            if is_vat and vat_pct > 0:
+                ttc = ht * (1 + vat_pct / 100)
+                input_refs['price_ttc'].set_value(round(ttc, 4))
+            else:
+                input_refs['price_ttc'].set_value(ht)
+            update_local_price()
+            update_profit_analysis()
+        except: pass
+
     def save_product():
         try:
             p_data = {k: ref.value for k, ref in input_refs.items() if k != 'uploader'}
@@ -115,11 +143,14 @@ def product_page_route(standalone=False):
                     
                 sql = """UPDATE products SET product_name=?, barcode=?, sku=?, description=?, category_id=?,
                          price=?, cost_price=?, stock_quantity=?, min_stock_level=?, max_stock_level=?,
-                         supplier_id=?, currency_id=?, local_price=?, is_active=?, photo=? WHERE id=?"""
+                         supplier_id=?, currency_id=?, local_price=?, is_active=?, photo=?,
+                         is_vat_subjected=?, vat_percentage=?, price_ttc=? WHERE id=?"""
                 params = (p_data['product_name'], p_data['barcode'], p_data['sku'], p_data['description'], cat_id,
                           price, float(p_data['cost_price'] or 0), int(p_data['stock_quantity'] or 0),
                           int(p_data['min_stock_level'] or 0), int(p_data['max_stock_level'] or 0),
-                          sup_id, cur_id, local_price, bool(p_data['is_active']), p_data['photo'], p_data['id'])
+                          sup_id, cur_id, local_price, bool(p_data['is_active']), p_data['photo'],
+                          bool(p_data.get('is_vat_subjected', False)), float(p_data.get('vat_percentage') or 0),
+                          float(p_data.get('price_ttc') or 0), p_data['id'])
             else: # Insert
                 dup_chk = []
                 connection.contogetrows("SELECT COUNT(*) FROM products WHERE product_name=?", dup_chk, params=[p_data['product_name']])
@@ -128,12 +159,15 @@ def product_page_route(standalone=False):
                     
                 sql = """INSERT INTO products (product_name, barcode, sku, description, category_id,
                          price, cost_price, stock_quantity, min_stock_level, max_stock_level,
-                         supplier_id, currency_id, local_price, created_at, is_active, photo)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), ?, ?)"""
+                         supplier_id, currency_id, local_price, created_at, is_active, photo,
+                         is_vat_subjected, vat_percentage, price_ttc)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?)"""
                 params = (p_data['product_name'], p_data['barcode'], p_data['sku'], p_data['description'], cat_id,
                           price, float(p_data['cost_price'] or 0), int(p_data['stock_quantity'] or 0),
                           int(p_data['min_stock_level'] or 0), int(p_data['max_stock_level'] or 0),
-                          sup_id, cur_id, local_price, bool(p_data['is_active']), p_data['photo'])
+                          sup_id, cur_id, local_price, bool(p_data['is_active']), p_data['photo'],
+                          bool(p_data.get('is_vat_subjected', False)), float(p_data.get('vat_percentage') or 0),
+                          float(p_data.get('price_ttc') or 0))
 
             connection.insertingtodatabase(sql, params)
             ui.notify('Product saved successfully', color='positive')
@@ -228,7 +262,8 @@ def product_page_route(standalone=False):
                  c.category_name as category, p.price, p.cost_price, p.stock_quantity,
                  p.min_stock_level, p.max_stock_level, s.name as supplier,
                  cu.currency_code as currency, p.local_price, p.is_active, 
-                 CASE WHEN p.photo IS NOT NULL AND p.photo != '' THEN 1 ELSE 0 END as has_photo
+                 CASE WHEN p.photo IS NOT NULL AND p.photo != '' THEN 1 ELSE 0 END as has_photo,
+                 p.is_vat_subjected, p.vat_percentage, p.price_ttc
                  FROM products p
                  LEFT JOIN categories c ON p.category_id = c.id
                  LEFT JOIN suppliers s ON p.supplier_id = s.id
@@ -243,7 +278,8 @@ def product_page_route(standalone=False):
                 'category': r[5], 'price': r[6], 'cost_price': r[7], 'stock_quantity': r[8], 
                 'min_stock_level': r[9], 'max_stock_level': r[10], 'supplier': r[11], 
                 'currency': r[12], 'local_price': r[13], 'is_active': r[14],
-                'has_photo': bool(r[15])
+                'has_photo': bool(r[15]),
+                'is_vat_subjected': bool(r[16]), 'vat_percentage': r[17], 'price_ttc': r[18]
             })
         table.options['rowData'] = rows
         table.update()
@@ -280,9 +316,67 @@ def product_page_route(standalone=False):
             pass
 
     def generate_barcode():
-        code = str(random.randint(100000000000, 999999999999))
+        code = "528" + str(random.randint(100000000, 999999999))
         input_refs['barcode'].set_value(EAN13(code).get_fullcode())
-        ui.notify('Barcode generated', color='info')
+        ui.notify('Lebanese EAN-13 Barcode generated', color='info')
+
+    def print_barcode():
+        val = input_refs['barcode'].value
+        if not val:
+            ui.notify('No barcode to print.', color='warning')
+            return
+        try:
+            from io import BytesIO
+            import base64
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.units import mm
+            from reportlab.graphics.barcode.eanbc import Ean13BarcodeWidget
+            from reportlab.graphics.shapes import Drawing
+            from reportlab.graphics import renderPDF
+            
+            # Create a 50x30 mm thermal label PDF
+            pdf_buf = BytesIO()
+            c = canvas.Canvas(pdf_buf, pagesize=(50*mm, 30*mm))
+            
+            # Gather details
+            name = input_refs['product_name'].value or "Product"
+            price = input_refs['price_ttc'].value or input_refs['price'].value or 0
+            try: price_str = f"L.L. {float(price):,.0f}" if float(price) > 1000 else f"${float(price):.2f}"
+            except: price_str = str(price)
+            
+            c.setFont("Helvetica-Bold", 8)
+            # Center truncate name if too long
+            n = name[:22]
+            c.drawCentredString(25*mm, 24*mm, n)
+            
+            # Barcode widget
+            # ensure val is 13 digits
+            if len(val) == 13 and val.isdigit():
+                barcode_w = Ean13BarcodeWidget(val)
+                barcode_w.barHeight = 10*mm
+                barcode_w.barWidth = 0.25*mm
+                
+                d = Drawing(40*mm, 15*mm)
+                d.add(barcode_w)
+                # Position barcode horizontally centered (approx 10mm from left)
+                renderPDF.draw(d, c, 5*mm, 8*mm)
+            else:
+                c.setFont("Helvetica", 8)
+                c.drawCentredString(25*mm, 14*mm, "INVALID EAN-13 FORMAT")
+            
+            c.setFont("Helvetica-Bold", 7)
+            c.drawCentredString(25*mm, 2*mm, f"Price: {price_str}")
+            
+            c.save()
+            pdf_buf.seek(0)
+            b64 = base64.b64encode(pdf_buf.read()).decode('utf-8')
+            
+            # We can use our reports_framework show_pdf to view it, and user prints it
+            from reports_framework import show_pdf
+            show_pdf(b64, 'Barcode Label')
+            
+        except Exception as e:
+            ui.notify(f'Barcode error: {e}', color='negative')
 
     def open_suppliers_tab():
         """Trigger opening the suppliers tab in the dashboard."""
@@ -319,6 +413,11 @@ def product_page_route(standalone=False):
         input_refs['category_id'].update()
         input_refs['supplier_id'].update()
         input_refs['currency_id'].update()
+        
+        vats = []
+        connection.contogetrows("SELECT DISTINCT vat_percentage FROM vat_settings ORDER BY vat_percentage DESC", vats)
+        input_refs['vat_percentage'].options = [float(v[0]) for v in vats]
+        input_refs['vat_percentage'].update()
 
     def print_transactions():
         try:
@@ -474,7 +573,8 @@ def product_page_route(standalone=False):
             sql = """SELECT TOP 1 p.id, p.product_name, p.barcode, p.sku, p.description,
                      c.category_name as category, p.price, p.cost_price, p.stock_quantity,
                      p.min_stock_level, p.max_stock_level, s.name as supplier,
-                     cu.currency_code as currency, p.local_price, p.is_active
+                     cu.currency_code as currency, p.local_price, p.is_active,
+                     p.is_vat_subjected, p.vat_percentage, p.price_ttc
                      FROM products p
                      LEFT JOIN categories c ON p.category_id = c.id
                      LEFT JOIN suppliers s ON p.supplier_id = s.id
@@ -487,12 +587,13 @@ def product_page_route(standalone=False):
                     'id': r[0], 'product_name': r[1], 'barcode': r[2], 'sku': r[3],
                     'description': r[4], 'category': r[5], 'price': r[6], 'cost_price': r[7],
                     'stock_quantity': r[8], 'min_stock_level': r[9], 'max_stock_level': r[10],
-                    'supplier': r[11], 'currency': r[12], 'local_price': r[13], 'is_active': r[14]
+                    'supplier': r[11], 'currency': r[12], 'local_price': r[13], 'is_active': r[14],
+                    'is_vat_subjected': bool(r[15]), 'vat_percentage': r[16], 'price_ttc': r[17]
                 }
                 pid = row['id']
                 input_refs['id'].set_value(str(pid))
                 for key in ['product_name', 'barcode', 'sku', 'description', 'price', 'cost_price',
-                            'stock_quantity', 'min_stock_level', 'max_stock_level', 'local_price', 'is_active']:
+                            'stock_quantity', 'min_stock_level', 'max_stock_level', 'local_price', 'is_active', 'is_vat_subjected', 'vat_percentage', 'price_ttc']:
                     if key in row:
                         input_refs[key].set_value(row[key])
                 input_refs['category_id'].set_value(row.get('category', ''))
@@ -536,6 +637,7 @@ def product_page_route(standalone=False):
                         with ui.row().classes('w-full gap-2 mt-2'):
                             input_refs['barcode'] = ModernInput('Barcode', icon='qr_code').classes('flex-1')
                             ui.button(icon='auto_fix_high', on_click=generate_barcode).props('flat round color=accent').tooltip('Generate EAN-13')
+                            ui.button(icon='print', on_click=print_barcode).props('flat round color=primary').tooltip('Print Barcode Label')
                         
                         input_refs['sku'] = ModernInput('SKU', icon='tag')
                         input_refs['description'] = ModernInput('Description', placeholder='Short description...', icon='description')
@@ -547,17 +649,18 @@ def product_page_route(standalone=False):
                                 ui.button(icon='add', on_click=open_suppliers_tab).props('flat round dense color=accent').tooltip('Open Suppliers in new tab')
 
                     with ModernCard().classes('w-full p-6'):
-                        with ui.row().classes('w-full justify-between items-center mb-4'):
-                            ui.label('Pricing & Stock').classes('text-lg font-bold').style(f'color: {MDS.ACCENT_DARK}')
-                            ui.button(icon='history', on_click=lambda: show_price_history()).props('flat round dense').tooltip('Price History')
-                        
-                        with ui.row().classes('w-full gap-2'):
-                            input_refs['currency_id'] = ui.select([], label='Currency', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('w-1/3').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
-                            input_refs['price'] = ui.number('Price', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
-                            input_refs['local_price'] = ui.input('Local Price').props('readonly outlined dense').classes('w-1/3').style(f'color: {MDS.ACCENT_DARK}')
+                        with ui.row().classes('w-full bg-white/5 p-3 rounded-2xl border border-white/10 mb-2 items-center gap-4'):
+                            input_refs['is_vat_subjected'] = ui.checkbox('Subject to VAT', on_change=lambda: update_ttc_from_ht()).classes('text-xs font-black text-white uppercase tracking-widest')
+                            input_refs['vat_percentage'] = ui.select([], label='VAT %', on_change=lambda: update_ttc_from_ht()).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
 
+                        with ui.row().classes('w-full gap-2 items-end'):
+                            input_refs['currency_id'] = ui.select([], label='Currency', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('w-1/3').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                            input_refs['price'] = ui.number('Price (HT)', on_change=lambda: (update_ttc_from_ht())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                            input_refs['price_ttc'] = ui.number('Price (TTC)', on_change=lambda: (update_ht_from_ttc())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                        
                         with ui.row().classes('w-full gap-2 mt-2'):
-                            input_refs['cost_price'] = ui.number('Cost Price', on_change=update_profit_analysis).classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
+                            input_refs['local_price'] = ui.input('Local (HT)').props('readonly outlined dense dark stack-label').classes('flex-1').style(f'color: {MDS.ACCENT_DARK}')
+                            input_refs['cost_price'] = ui.number('Cost Price', on_change=update_profit_analysis).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
                             input_refs['stock_quantity'] = ui.number('Current Stock').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
 
                         with ui.row().classes('w-full gap-2 mt-2'):
@@ -643,6 +746,10 @@ def product_page_route(standalone=False):
                                     table.classes(remove='dimmed')
                                 if hasattr(footer_container, 'action_bar'):
                                     footer_container.action_bar.enter_edit_mode()
+                                
+                                # Handle VAT UI update
+                                update_ttc_from_ht()
+                                
                                 try: update_saved_state()
                                 except: pass
                             except Exception as ex:
@@ -667,15 +774,16 @@ def product_page_route(standalone=False):
                 # Action Bar Panel (Right Side of Editor)
                 with ui.column().classes('w-80px items-center') as footer_container:
                     from modern_ui_components import ModernActionBar
+                    from product_reports import open_print_special_dialog
                     footer_container.action_bar = ModernActionBar(
                         on_new=clear_input_fields,
                         on_save=save_product,
                         on_undo=lambda: (footer_container.action_bar.reset_state(), refresh_table()),
                         on_delete=delete_product,
                         on_refresh=refresh_table,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_print=print_transactions,
-                        on_print_special=show_price_history,
+                        on_print_special=open_print_special_dialog,
                         target_table=table,
                         button_class='h-16',
                         classes=' '

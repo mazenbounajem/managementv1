@@ -25,11 +25,14 @@ from employee_content_method import employee_content
 from database_content_method import database_content
 import supplier_payment_ui_fixed_v2
 from timespendui import TimeSpendUI
+import sales_returns_ui
+import purchase_returns_ui
 import sys
 from ledgerui import ledger_content
 from auxiliaryui import auxiliary_content
 import voucher_subtype_ui
 import accounting_transactions_ui
+from business_track import business_track_content
 
 # Global registries for tab management
 current_open_tab = None
@@ -122,10 +125,13 @@ def tabbed_dashboard_page():
     'voucher_subtype':  {'label': 'Voucher Subtype',   'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
     'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.customer_receipt_page(standalone=False), 'icon': 'receipt'},
     'reports':          {'label': 'Reports',           'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
-'modern-reports': {'label': 'Accounting Reports', 'func': lambda: ui.open('/modern-reports', new_tab=True), 'icon': 'assessment'},
+'modern-reports': {'label': 'Accounting Reports', 'func': lambda: ui.run_javascript('window.open("/modern-reports", "_blank");'), 'icon': 'assessment'},
     'accounting-transactions': {'label': 'Acct. Transactions', 'func': lambda: accounting_transactions_ui.accounting_transactions_content(standalone=False), 'icon': 'receipt_long'},
+    'business-track':   {'label': 'Business Track',    'func': lambda: business_track_content(standalone=False), 'icon': 'insights'},
     'roles':            {'label': 'Roles',             'func': lambda: roles.roles_content(standalone=False), 'icon': 'group'},
     'appointments':     {'label': 'Appointments',      'func': lambda: appointments_ui.appointments_content(standalone=False), 'icon': 'event'},
+    'sales-returns':    {'label': 'Sales Returns',     'func': lambda: sales_returns_ui.SalesReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
+    'purchase-returns': {'label': 'Purchase Returns',  'func': lambda: purchase_returns_ui.PurchaseReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
     'services':         {'label': 'Services',          'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
     'company':          {'label': 'Company',           'func': make_iframe('/company'),     'icon': 'business_center'},
     'profile':          {'label': 'My Account',        'func': make_iframe('/profile'),     'icon': 'manage_accounts'},

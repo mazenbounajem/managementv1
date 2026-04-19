@@ -39,6 +39,19 @@ def supplier_page(standalone=False):
             rows.append(row_dict)
         table.options['rowData'] = rows
         table.update()
+        _load_last_row()
+
+    def _load_last_row():
+        if not table.options.get('rowData'):
+            return
+        row = table.options['rowData'][0]
+        input_refs['id'].set_value(str(row['id']))
+        for k in ['name', 'contact', 'email', 'phone', 'address', 'city', 'balance_ll', 'balance_usd', 'is_active']:
+            if k in row: input_refs[k].set_value(row[k])
+        if table:
+            table.classes(remove='dimmed')
+        if hasattr(footer_container, 'action_bar'):
+            footer_container.action_bar.enter_edit_mode()
 
     def clear_inputs():
         for k, ref in input_refs.items():
@@ -88,7 +101,6 @@ def supplier_page(standalone=False):
 
             connection.insertingtodatabase(sql, params)
             ui.notify('Supplier saved', color='positive')
-            clear_inputs()
             refresh_table()
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
@@ -195,7 +207,8 @@ def supplier_page(standalone=False):
                         on_save=save_supplier,
                         on_undo=lambda: footer_container.action_bar.reset_state(),
                         on_delete=delete_supplier,
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
+                        on_print_special=lambda: __import__('supplier_reports').open_print_special_dialog(),
                         on_view_transaction=view_supplier_transactions,
                         on_refresh=refresh_table,
                         target_table=table,

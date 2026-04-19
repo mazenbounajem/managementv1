@@ -89,7 +89,8 @@ class AccountingFinanceUI:
                     from modern_ui_components import ModernActionBar
                     ModernActionBar(
                         on_refresh=lambda: [self.load_financial_data(), self.load_recent_transactions()],
-                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        on_print_special=lambda: __import__('accounting_reports').open_print_special_dialog(),
+                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         button_class='h-16',
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
