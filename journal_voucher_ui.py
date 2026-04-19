@@ -30,6 +30,8 @@ class JournalVoucherUI:
         self.lines_grid = None
         self.create_ui()
         self.refresh_headers_table()
+        # Load last entry after a short delay so the grid is ready
+        ui.timer(0.3, self._load_last_header, once=True)
 
     def create_ui(self):
         # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
@@ -38,95 +40,98 @@ class JournalVoucherUI:
             layout_container.__enter__()
         
         try:
-            # Action Bar
-            with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-                with ui.row().classes('gap-3'):
-                    ModernButton('New Voucher', icon='add', on_click=self.clear_all, variant='primary')
-                    ModernButton('Save Header', icon='save', on_click=self.save_header, variant='success')
-                    ModernButton('Delete Voucher', icon='delete', on_click=self.delete_header, variant='error')
-                
-                ModernButton('Refresh Headers', icon='refresh', on_click=self.refresh_headers_table, variant='outline').classes('text-white border-white/20')
+            with ui.row().classes('w-full gap-6 items-start p-4 animate-fade-in'):
+                # Main Content Area
+                with ui.column().classes('flex-1 gap-8'):
+                    # Header Section (Master)
+                    with ModernCard(glass=True).classes('w-full p-6'):
+                        ui.label('Voucher Header').classes('text-xl font-black mb-6 text-white')
+                        
+                        with ui.row().classes('w-full gap-6'):
+                            # Header Grid
+                            self.headers_grid = ui.aggrid({
+                                'columnDefs': [
+                                    {'headerName': 'ID', 'field': 'id', 'width': 80},
+                                    {'headerName': 'Date', 'field': 'date', 'width': 120},
+                                    {'headerName': 'Voucher #', 'field': 'voucher_number', 'width': 150},
+                                    {'headerName': 'Subtype', 'field': 'subtype_code', 'width': 100},
+                                    {'headerName': 'Ref', 'field': 'manual_reference', 'width': 150}
+                                ],
+                                'rowData': [],
+                                'defaultColDef': MDS.get_ag_grid_default_def(),
+                                'rowSelection': 'single',
+                            }).classes('flex-1 h-64 ag-theme-quartz-dark')
+                            self.headers_grid.on('cellClicked', lambda e: self.load_header_data(e.args['data']['id']))
 
-            with ui.column().classes('w-full gap-8'):
-                # Header Section (Master)
-                with ModernCard(glass=True).classes('w-full p-6'):
-                    ui.label('Voucher Header').classes('text-xl font-black mb-6 text-white')
-                    
-                    with ui.row().classes('w-full gap-6'):
-                        # Header Grid
-                        self.headers_grid = ui.aggrid({
+                            # Header Form
+                            with ui.column().classes('w-80 gap-4'):
+                                self.header_inputs['date'] = ui.input('Date').classes('w-full glass-input').props('dark rounded outlined type=date')
+                                self.header_inputs['date'].value = str(datetime.now().date())
+                                self.header_inputs['voucher_number'] = ui.input('Voucher #').classes('w-full glass-input').props('dark rounded outlined')
+                                
+                                subtype_data = []
+                                connection.contogetrows("SELECT code, name FROM subtype", subtype_data)
+                                subtype_options = {row[0]: f"{row[0]} - {row[1]}" for row in subtype_data}
+                                self.header_inputs['subtype'] = ui.select(subtype_options, label='Subtype').classes('w-full glass-input').props('dark rounded outlined')
+                                
+                                self.header_inputs['manual_reference'] = ui.input('Reference').classes('w-full glass-input').props('dark rounded outlined')
+
+                    # Lines Section (Detail)
+                    with ModernCard(glass=True).classes('w-full p-6'):
+                        ui.label('Voucher Lines').classes('text-xl font-black mb-6 text-white')
+                        
+                        # Inline Add Line Form
+                        with ui.row().classes('w-full gap-4 items-end mb-6'):
+                            self.lines_inputs['account'] = ui.select({}, label='Account').classes('w-64 glass-input').props('dark rounded outlined searchable').on('focus', lambda: self.load_account_options(self.lines_inputs['account']))
+                            
+                            currency_data = []
+                            connection.contogetrows("SELECT currency_code FROM currencies", currency_data)
+                            currency_options = [row[0] for row in currency_data]
+                            self.lines_inputs['currency'] = ui.select(currency_options, label='Cur').classes('w-24 glass-input').props('dark rounded outlined')
+                            
+                            self.lines_inputs['debit'] = ui.number('Debit', value=0.0).classes('w-32 glass-input').props('dark rounded outlined')
+                            self.lines_inputs['credit'] = ui.number('Credit', value=0.0).classes('w-32 glass-input').props('dark rounded outlined')
+                            ModernButton('Add Line', icon='add', on_click=self.add_line, variant='primary').classes('h-14')
+
+                        # Lines Grid
+                        self.lines_grid = ui.aggrid({
                             'columnDefs': [
-                                {'headerName': 'ID', 'field': 'id', 'width': 80},
-                                {'headerName': 'Date', 'field': 'date', 'width': 120},
-                                {'headerName': 'Voucher #', 'field': 'voucher_number', 'width': 150},
-                                {'headerName': 'Subtype', 'field': 'subtype_code', 'width': 100},
-                                {'headerName': 'Ref', 'field': 'manual_reference', 'width': 150}
+                                {'headerName': 'Account', 'field': 'account', 'width': 150},
+                                {'headerName': 'Cur', 'field': 'currency_code', 'width': 80},
+                                {'headerName': 'Debit', 'field': 'debit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
+                                {'headerName': 'Credit', 'field': 'credit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
+                                {'headerName': 'Remark', 'field': 'remark', 'width': 200, 'flex': 1},
                             ],
                             'rowData': [],
                             'defaultColDef': MDS.get_ag_grid_default_def(),
                             'rowSelection': 'single',
-                        }).classes('flex-1 h-64 ag-theme-quartz-dark')
-                        self.headers_grid.on('cellClicked', lambda e: self.load_header_data(e.args['data']['id']))
-
-                        # Header Form
-                        with ui.column().classes('w-80 gap-4'):
-                            self.header_inputs['date'] = ui.input('Date').classes('w-full glass-input').props('dark rounded outlined type=date')
-                            self.header_inputs['date'].value = str(datetime.now().date())
-                            self.header_inputs['voucher_number'] = ui.input('Voucher #').classes('w-full glass-input').props('dark rounded outlined')
-                            
-                            subtype_data = []
-                            connection.contogetrows("SELECT code, name FROM subtype", subtype_data)
-                            subtype_options = {row[0]: f"{row[0]} - {row[1]}" for row in subtype_data}
-                            self.header_inputs['subtype'] = ui.select(subtype_options, label='Subtype').classes('w-full glass-input').props('dark rounded outlined')
-                            
-                            self.header_inputs['manual_reference'] = ui.input('Reference').classes('w-full glass-input').props('dark rounded outlined')
-
-                # Lines Section (Detail)
-                with ModernCard(glass=True).classes('w-full p-6'):
-                    ui.label('Voucher Lines').classes('text-xl font-black mb-6 text-white')
-                    
-                    # Inline Add Line Form
-                    with ui.row().classes('w-full gap-4 items-end mb-6'):
-                        account_data = []
-                        connection.contogetrows("SELECT number, account_name FROM auxiliary", account_data)
-                        account_options = {row[0]: f"{row[0]} - {row[1]}" for row in account_data}
-                        self.lines_inputs['account'] = ui.select(account_options, label='Account').classes('w-64 glass-input').props('dark rounded outlined')
+                        }).classes('w-full h-80 ag-theme-quartz-dark')
                         
-                        currency_data = []
-                        connection.contogetrows("SELECT currency_code FROM currencies", currency_data)
-                        currency_options = [row[0] for row in currency_data]
-                        self.lines_inputs['currency'] = ui.select(currency_options, label='Cur').classes('w-24 glass-input').props('dark rounded outlined')
+                        async def delete_line():
+                            selected = await self.lines_grid.get_selected_row()
+                            if selected:
+                                try:
+                                    connection.deleterow("DELETE FROM journal_voucher_lines WHERE id=?", selected['id'])
+                                    ui.notify('Line deleted', color='positive')
+                                    self.refresh_lines_table()
+                                except Exception as e:
+                                    ui.notify(f'Error deleting line: {str(e)}', color='negative')
                         
-                        self.lines_inputs['debit'] = ui.number('Debit', value=0.0).classes('w-32 glass-input').props('dark rounded outlined')
-                        self.lines_inputs['credit'] = ui.number('Credit', value=0.0).classes('w-32 glass-input').props('dark rounded outlined')
-                        ModernButton('Add Line', icon='add', on_click=self.add_line, variant='primary').classes('h-14')
+                        with ui.row().classes('w-full justify-end mt-4'):
+                            ModernButton('Delete Selected Line', icon='delete', on_click=delete_line, variant='error').classes('text-white')
 
-                    # Lines Grid
-                    self.lines_grid = ui.aggrid({
-                        'columnDefs': [
-                            {'headerName': 'Account', 'field': 'account', 'width': 150},
-                            {'headerName': 'Cur', 'field': 'currency_code', 'width': 80},
-                            {'headerName': 'Debit', 'field': 'debit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
-                            {'headerName': 'Credit', 'field': 'credit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
-                            {'headerName': 'Remark', 'field': 'remark', 'width': 200, 'flex': 1},
-                        ],
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                        'rowSelection': 'single',
-                    }).classes('w-full h-80 ag-theme-quartz-dark')
-                    
-                    async def delete_line():
-                        selected = await self.lines_grid.get_selected_row()
-                        if selected:
-                            try:
-                                connection.deleterow("DELETE FROM journal_voucher_lines WHERE id=?", selected['id'])
-                                ui.notify('Line deleted', color='positive')
-                                self.refresh_lines_table()
-                            except Exception as e:
-                                ui.notify(f'Error deleting line: {str(e)}', color='negative')
-                    
-                    with ui.row().classes('w-full justify-end mt-4'):
-                        ModernButton('Delete Selected Line', icon='delete', on_click=delete_line, variant='error').classes('text-white')
+                # Action Bar
+                with ui.column().classes('w-80px items-center'):
+                    from modern_ui_components import ModernActionBar
+                    ModernActionBar(
+                        on_new=self.clear_all,
+                        on_save=self.save_header,
+                        on_delete=self.delete_header,
+                        on_refresh=self.refresh_headers_table,
+                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        button_class='h-16',
+                        classes=' '
+                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
         finally:
             if self.standalone:
                 layout_container.__exit__(None, None, None)
@@ -139,7 +144,31 @@ class JournalVoucherUI:
         self.header_inputs['manual_reference'].value = ''
         self.lines_grid.options['rowData'] = []
         self.lines_grid.update()
+        if self.headers_grid:
+            self.headers_grid.run_method('deselectAll')
         ui.notify('New voucher entry', color='info')
+
+    def load_account_options(self, select_ref):
+        try:
+            data = []
+            connection.contogetrows("SELECT Id, AccountNumber, Name_en FROM Ledger ORDER BY AccountNumber", data)
+            options = {str(row[0]): f"{row[1]} - {row[2]}" for row in data}
+            select_ref.options = options
+            select_ref.update()
+        except Exception as ex:
+            print(f"Error loading ledger accounts: {ex}")
+
+    def _load_last_header(self):
+        """Load the most recent header into the form on page open"""
+        try:
+            data = []
+            connection.contogetrows(
+                "SELECT TOP 1 id FROM journal_voucher_header ORDER BY id DESC", data
+            )
+            if data:
+                self.load_header_data(data[0][0])
+        except Exception as ex:
+            print(f"Error loading last header: {ex}")
 
     def save_header(self):
         date = self.header_inputs['date'].value

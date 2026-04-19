@@ -37,8 +37,37 @@ class CurrencyUI:
         self.input_refs['is_active'].value = True
         self.input_refs['id'].value = ''
         if self.table:
-            self.table.classes('dimmed')
+            self.table.run_method('deselectAll')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new currency', color='info')
+
+    def _load_last_row(self):
+        """Load the most recent currency into the form and undim table"""
+        if not self.row_data:
+            return
+            
+        last_row = self.row_data[0]
+        self.input_refs['id'].value = str(last_row['id'])
+        self.input_refs['currency_code'].value = last_row['currency_code']
+        self.input_refs['currency_name'].value = last_row['currency_name']
+        self.input_refs['symbol'].value = last_row['symbol']
+        self.input_refs['exchange_rate'].value = last_row['exchange_rate']
+        self.input_refs['is_active'].value = last_row['is_active']
+        
+        self.initial_values = {
+            'currency_code': last_row['currency_code'],
+            'currency_name': last_row['currency_name'],
+            'symbol': last_row['symbol'],
+            'exchange_rate': last_row['exchange_rate'],
+            'is_active': last_row['is_active'],
+            'id': str(last_row['id'])
+        }
+        
+        if self.table:
+            self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
 
     def save_currency(self):
         currency_code = self.input_refs['currency_code'].value.upper()
@@ -116,33 +145,13 @@ class CurrencyUI:
                 self.table.classes(remove='dimmed')
 
             self.row_data = new_row_data
-            self.clear_input_fields()
+            if self.row_data:
+                self._load_last_row()
+            else:
+                self.clear_input_fields()
         except Exception as e:
             ui.notify(f'Error refreshing data: {str(e)}', color='negative')
 
-    def load_max_currency(self):
-        try:
-            data = []
-            connection.contogetrows("SELECT TOP 1 id, currency_code, currency_name, symbol, exchange_rate, is_active FROM currencies ORDER BY id DESC", data)
-            if data:
-                row = data[0]
-                self.input_refs['id'].value = str(row[0])
-                self.input_refs['currency_code'].value = row[1]
-                self.input_refs['currency_name'].value = row[2]
-                self.input_refs['symbol'].value = row[3] or ''
-                self.input_refs['exchange_rate'].value = float(row[4]) if row[4] is not None else 1.0
-                self.input_refs['is_active'].value = bool(row[5])
-                
-                self.initial_values = {
-                    'currency_code': row[1],
-                    'currency_name': row[2],
-                    'symbol': row[3] or '',
-                    'exchange_rate': float(row[4]) if row[4] is not None else 1.0,
-                    'is_active': bool(row[5]),
-                    'id': str(row[0])
-                }
-        except Exception as e:
-            print(f"Error loading max currency: {e}")
 
     def create_ui(self):
         # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
@@ -194,6 +203,7 @@ class CurrencyUI:
                                         'id': str(selected_row['id'])
                                     }
                                     ui.notify(f'Selected: {selected_row["currency_code"]}', color='info')
+                                    self.table.classes(remove='dimmed')
                             except Exception as e:
                                 ui.notify(f'Error selecting currency: {str(e)}', color='negative')
                         self.table.on('cellClicked', on_row_click)
@@ -219,19 +229,20 @@ class CurrencyUI:
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_currency,
                         on_undo=self.undo_changes,
                         on_delete=self.delete_currency,
                         on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
                         on_refresh=self.refresh_table,
+                        target_table=self.table,
                         button_class='h-16',
                         classes=' '
-                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                    )
+                    self.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
             ui.timer(0.1, self.refresh_table, once=True)
-            ui.timer(0.2, self.load_max_currency, once=True)
         finally:
             if self.standalone:
                 layout_container.__exit__(None, None, None)

@@ -189,7 +189,30 @@ class PurchaseRepository:
             final_total, invoice_number, created_at, payment_status, currency_id
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
-        return connection.getid("SELECT MAX(id) FROM purchases", [])
+        last_id = connection.getid("SELECT MAX(id) FROM purchases", [])
+        
+        try:
+            import accounting_helpers
+            if payment_status == 'pending' and supplier_id:
+                supplier_aux = []
+                connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
+                credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
+            else:
+                credit_account = "5314.000001"
+                
+            accounting_helpers.save_accounting_transaction(
+                reference_type='Purchase',
+                reference_id=last_id,
+                lines=[
+                    {'account': '6011.000001', 'debit': final_total, 'credit': 0},
+                    {'account': credit_account, 'debit': 0, 'credit': final_total}
+                ],
+                description=f"Purchase Invoice {invoice_number}"
+            )
+        except Exception as e:
+            print(f"Accounting Error: {e}")
+            
+        return last_id
 
     def update_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, created_at, payment_status, purchase_id, currency_id=1):
         purchase_sql = """
@@ -203,6 +226,34 @@ class PurchaseRepository:
             final_total, created_at, payment_status, currency_id, purchase_id
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
+
+        try:
+            import accounting_helpers
+            connection.insertingtodatabase("DELETE FROM accounting_transaction_lines WHERE jv_id IN (SELECT jv_id FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?)", [purchase_id])
+            connection.insertingtodatabase("DELETE FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?", [purchase_id])
+            
+            if payment_status == 'pending' and supplier_id:
+                supplier_aux = []
+                connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
+                credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
+            else:
+                credit_account = "5314.000001"
+                
+            inv_data = []
+            connection.contogetrows(f"SELECT invoice_number FROM purchases WHERE id={purchase_id}", inv_data)
+            inv_num = inv_data[0][0] if inv_data else str(purchase_id)
+            
+            accounting_helpers.save_accounting_transaction(
+                reference_type='Purchase',
+                reference_id=purchase_id,
+                lines=[
+                    {'account': '6011.000001', 'debit': final_total, 'credit': 0},
+                    {'account': credit_account, 'debit': 0, 'credit': final_total}
+                ],
+                description=f"Updated Purchase Invoice {inv_num}"
+            )
+        except Exception as e:
+            print(f"Accounting Error: {e}")
 
     def get_supplier_id(self, supplier_name):
         return connection.getid('select id from suppliers where name = ?', [supplier_name])

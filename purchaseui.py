@@ -634,6 +634,15 @@ class PurchaseUI:
         except Exception as e:
             ui.notify(f'Error: {e}')
 
+    def view_purchase_transaction(self):
+        """Open accounting transactions dialog for the current purchase."""
+        ref_id = str(self.current_purchase_id) if self.current_purchase_id else None
+        if not ref_id:
+            ui.notify('Select a purchase to view its transaction', color='warning')
+            return
+        import accounting_helpers
+        accounting_helpers.show_transactions_dialog(reference_type='Purchase', reference_id=ref_id)
+
     def print_purchase_invoice(self):
         try:
             if not self.rows:
@@ -870,10 +879,12 @@ class PurchaseUI:
                                     on_print=self.print_purchase_invoice,
                                     on_order=lambda: self.save_purchase(is_order=True),
                                     on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                                    on_view_transaction=self.view_purchase_transaction,
                                     on_refresh=self.refresh_purchase_table,
                                     button_class='h-16',
                                     classes=' '
                                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+
             
             ui.timer(0.1, self.load_max_purchase, once=True)
             ui.timer(0.2, self.refresh_purchase_table, once=True)

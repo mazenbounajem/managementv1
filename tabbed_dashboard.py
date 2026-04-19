@@ -29,6 +29,7 @@ import sys
 from ledgerui import ledger_content
 from auxiliaryui import auxiliary_content
 import voucher_subtype_ui
+import accounting_transactions_ui
 
 # Global registries for tab management
 current_open_tab = None
@@ -121,6 +122,8 @@ def tabbed_dashboard_page():
     'voucher_subtype':  {'label': 'Voucher Subtype',   'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
     'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.customer_receipt_page(standalone=False), 'icon': 'receipt'},
     'reports':          {'label': 'Reports',           'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
+'modern-reports': {'label': 'Accounting Reports', 'func': lambda: ui.open('/modern-reports', new_tab=True), 'icon': 'assessment'},
+    'accounting-transactions': {'label': 'Acct. Transactions', 'func': lambda: accounting_transactions_ui.accounting_transactions_content(standalone=False), 'icon': 'receipt_long'},
     'roles':            {'label': 'Roles',             'func': lambda: roles.roles_content(standalone=False), 'icon': 'group'},
     'appointments':     {'label': 'Appointments',      'func': lambda: appointments_ui.appointments_content(standalone=False), 'icon': 'event'},
     'services':         {'label': 'Services',          'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
@@ -140,7 +143,7 @@ def tabbed_dashboard_page():
     with ui.column().classes('w-full flex-1 gap-0 mesh-gradient') as main_container:
         # Splitter for Side-by-Side view
         splitter = ui.splitter(value=100, reverse=False).classes('w-full flex-1')
-        splitter.props('separator-class=bg-[#7048E8]/20 separator-style=width:4px')
+        splitter.props('separator-class=bg-[#08CB00]/20 separator-style=width:4px')
         
         with splitter.before:
             # Primary Tab Panels Container
@@ -152,14 +155,15 @@ def tabbed_dashboard_page():
             with ui.column().classes('w-full h-full bg-black/5 border-l border-white/10') as right_area:
                 with ui.row().classes('w-full items-center justify-between p-2 bg-white/5 border-b border-white/10'):
                     with ui.row().classes('items-center gap-2'):
-                        ui.icon('space_dashboard', size='xs').classes('text-[#7048E8] ml-2')
-                        ui.label('Secondary Workspace').classes('text-[10px] font-black uppercase tracking-widest text-[#7048E8]')
+                        ui.icon('space_dashboard', size='xs').classes('text-[#08CB00] ml-2')
+                        ui.label('Secondary Workspace').classes('text-xs font-black uppercase tracking-widest text-[#08CB00]')
                     
                     with ui.row().classes('items-center gap-2'):
                         # Module selector for the right side
                         right_selector = ui.select(
                             {k: v['label'] for k, v in content_map.items()},
                             label='Open Module',
+                            with_input=True,
                             on_change=lambda e: open_tab_callback(e.value, side='right')
                         ).props('dense outlined size=xs').classes('w-32 bg-white/50')
                         
@@ -167,7 +171,7 @@ def tabbed_dashboard_page():
                 
                 # Secondary Tabs and Panels
                 tabs_right = ui.tabs().classes('w-full text-gray-600 border-b border-white/5')
-                tabs_right.props('active-color=#7048E8 indicator-color=#7048E8 dense ripple=False')
+                tabs_right.props('active-color=#08CB00 indicator-color=#08CB00 dense ripple=False')
                 tab_panels_right = ui.tab_panels(tabs_right).classes('w-full flex-1 bg-transparent')
 
     def toggle_split_view():
@@ -180,7 +184,7 @@ def tabbed_dashboard_page():
             # Link header tabs back to left panels
             navigation.tabs_ui.props(f'value={tab_panels_left.value}')
         else:
-            ui.notify('Split View active. Use the secondary area for side-by-side work.', color='#7048E8')
+            ui.notify('Split View active. Use the secondary area for side-by-side work.', color='#08CB00')
         return state['is_split']
 
     # Link toggle to navigation
@@ -230,7 +234,7 @@ def tabbed_dashboard_page():
 
         # Create new tab in the target side
         with target_tabs:
-            with ui.tab(display_label, icon=config['icon']).classes('px-4 active:bg-[#7048E8]/10') as new_tab:
+            with ui.tab(display_label, icon=config['icon']).classes('px-4 active:bg-[#08CB00]/10') as new_tab:
                 if page_key != 'dashboard' or side == 'right':
                     # Close button
                     ui.button(icon='close', on_click=lambda k=tab_key, s=side: close_tab(k, s)).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500 ml-2')
@@ -303,7 +307,7 @@ def tabbed_dashboard_page():
     open_tab_callback('dashboard')
 
     # Footer with system time, company name, and username
-    with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
+    with ui.footer().classes('flex justify-between items-center p-4 glass bg-white/5 border-t border-white/10 text-white').style('font-size: 1rem;'):
         # System time
         def update_time():
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -330,8 +334,8 @@ def create_dashboard_content():
         # Header Section
         with ui.row().classes('w-full justify-between items-center bg-white/5 p-6 rounded-3xl glass border border-white/10'):
             with ui.column().classes('gap-1'):
-                ui.label('Enterprise Overview').classes('text-sm font-black uppercase tracking-[0.2em] text-[#7048E8]')
-                ui.label('Executive Performance Dashboard').classes('text-4xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+                ui.label('Enterprise Overview').classes('text-lg font-black uppercase tracking-[0.2em] text-white')
+                ui.label('Executive Performance Dashboard').classes('text-5xl font-black text-white').style('font-family: "Outfit", sans-serif;')
             
             with ui.row().classes('gap-4'):
                 ModernButton('System Health', icon='sensors', variant='outline', size='sm').classes('text-white border-white/20')
@@ -344,10 +348,10 @@ def create_dashboard_content():
             ModernStats(
                 label='Revenue Real-time', 
                 value=f'${sales_today:,.2f}', 
-                icon='payments', 
+                icon='monetization_on', 
                 trend='+12.5% from yesterday', 
                 trend_positive=True,
-                color='#7048E8'
+                color='#08CB00'
             )
 
             # Total products
@@ -355,10 +359,10 @@ def create_dashboard_content():
             ModernStats(
                 label='Global Inventory', 
                 value=f'{total_products:,}', 
-                icon='inventory_2', 
+                icon='warehouse', 
                 trend='32 items low stock', 
                 trend_positive=False,
-                color='#1971C2'
+                color='#08CB00'
             )
 
             # Total customers
@@ -366,10 +370,10 @@ def create_dashboard_content():
             ModernStats(
                 label='Active Portfolio', 
                 value=f'{total_customers:,}', 
-                icon='groups', 
+                icon='person_add', 
                 trend='+5 new this week', 
                 trend_positive=True,
-                color='#2B8A3E'
+                color='#08CB00'
             )
 
             # Low stock items
@@ -377,27 +381,26 @@ def create_dashboard_content():
             ModernStats(
                 label='Operational Risk', 
                 value=str(low_stock), 
-                icon='warning', 
+                icon='report_problem', 
                 trend='Requires Attention', 
                 trend_positive=False,
-                color='#E03131'
+                color='#08CB00'
             )
 
         # Quick Actions & Secondary Insights
         with ui.row().classes('w-full gap-6'):
             # Actions Panel
             with ModernCard(glass=True).classes('flex-1 p-8').style('border-radius: 2rem;'):
-                ui.label('Strategic Actions').classes('text-2xl font-black mb-6').style('font-family: "Outfit", sans-serif;')
+                ui.label('Strategic Actions').classes('text-3xl font-black mb-6 text-white').style('font-family: "Outfit", sans-serif;')
                 
                 with ui.grid(columns=2).classes('w-full gap-4'):
-                    ModernButton('Execute New Sale', icon='point_of_sale', variant='primary', size='lg').classes('h-24 text-lg shadow-lg shadow-purple-500/20')
+                    ModernButton('Execute New Sale', icon='point_of_sale', variant='primary', size='lg').classes('h-24 text-lg shadow-lg shadow-green-500/20')
                     ModernButton('Catalog Management', icon='edit_note', variant='secondary', size='lg').classes('h-24 text-lg')
                     ModernButton('Fleet Logistics', icon='local_shipping', variant='outline', size='lg').classes('h-24 text-lg')
                     ModernButton('Financial Audits', icon='account_balance', variant='outline', size='lg').classes('h-24 text-lg')
             
             # System Status
-            with ModernCard(glass=True).classes('w-80 p-8').style('border-radius: 2rem;'):
-                ui.label('System Feed').classes('text-xl font-bold mb-4').style('font-family: "Outfit", sans-serif;')
+                ui.label('System Feed').classes('text-2xl font-bold mb-4 text-white').style('font-family: "Outfit", sans-serif;')
                 
                 activities = [
                     ('Sales', 'Invoice #1024 synced', '2m ago'),
@@ -407,11 +410,11 @@ def create_dashboard_content():
                 
                 with ui.column().classes('w-full gap-4'):
                     for cat, desc, time in activities:
-                        with ui.row().classes('w-full justify-between items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all'):
+                        with ui.row().classes('w-full justify-between items-center p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-all'):
                             with ui.column().classes('gap-0'):
-                                ui.label(cat).classes('text-[10px] font-black uppercase text-[#7048E8]')
-                                ui.label(desc).classes('text-xs font-bold text-gray-700')
-                            ui.label(time).classes('text-[10px] text-gray-400')
+                                ui.label(cat).classes('text-xs font-black uppercase text-[#08CB00]')
+                                ui.label(desc).classes('text-sm font-bold text-white')
+                            ui.label(time).classes('text-xs text-white/60')
 
 
 # Export the session storage for use in other modules

@@ -88,9 +88,9 @@ class ModernSalesUI:
         with ui.row().classes('w-full justify-between items-center bg-white/5 p-6 rounded-3xl glass border border-white/10 mb-8'):
             # Get today's sales
             today_sales = connection.get_today_sales()
-            ModernStats(label='Revenue Performance', value=f'${today_sales:,.2f}', icon='analytics', trend='+4.2% today', color='#7048E8')
-            ModernStats(label='Sales Volume', value='24', icon='shopping_cart', trend='+2 new', color='#1971C2')
-            ModernStats(label='Pending Fulfillment', value='8', icon='hourglass_empty', trend='Action required', trend_positive=False, color=MDS.WARNING)
-            ModernStats(label='Client Satisfaction', value='98%', icon='sentiment_very_satisfied', color='#2B8A3E')
+            ModernStats(label='Revenue Performance', value=f'${today_sales:,.2f}', icon='analytics', trend='+4.2% today', color='#08CB00')
+            ModernStats(label='Sales Volume', value='24', icon='shopping_cart', trend='+2 new', color='#052e16')
+            ModernStats(label='Pending Fulfillment', value='8', icon='hourglass_empty', trend='Action required', trend_positive=False, color='#10b981')
+            ModernStats(label='Client Satisfaction', value='98%', icon='sentiment_very_satisfied', color='#059669')
 
    

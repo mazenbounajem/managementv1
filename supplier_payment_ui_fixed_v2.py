@@ -6,6 +6,8 @@ from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTa
 from session_storage import session_storage
 from datetime import datetime
 import datetime as dt
+import asyncio
+import accounting_helpers
 
 def supplier_payment_page(standalone=False):
     # Auth
@@ -420,7 +422,37 @@ def supplier_payment_page(standalone=False):
                     (remaining_amount, new_status, invoice_id),
                 )
 
-            # Balance now dynamic from pending invoices, no manual update needed
+            # Update supplier balance
+            currency = input_refs['currency'].value
+            if currency == 'USD':
+                connection.insertingtodatabase(
+                    "UPDATE suppliers SET balance_usd = balance_usd - ? WHERE id = ?",
+                    (pay_amount, supplier_id)
+                )
+            else:
+                connection.insertingtodatabase(
+                    "UPDATE suppliers SET balance = balance - ? WHERE id = ?",
+                    (pay_amount, supplier_id)
+                )
+
+            # --- Accounting Entry: DR Supplier Auxiliary / CR Cash ---
+            try:
+                supp_aux_res = []
+                connection.contogetrows(
+                    "SELECT auxiliary_number FROM suppliers WHERE id = ?", supp_aux_res, (supplier_id,)
+                )
+                supp_aux = supp_aux_res[0][0] if supp_aux_res and supp_aux_res[0][0] else '4011.000001'
+                accounting_helpers.save_accounting_transaction(
+                    reference_type='Payment',
+                    reference_id=str(payment_id),
+                    lines=[
+                        {'account': supp_aux,       'debit': pay_amount, 'credit': 0},
+                        {'account': '5300.000001',  'debit': 0, 'credit': pay_amount},
+                    ],
+                    description=f"Supplier Payment #{payment_id} - {supplier['name']}"
+                )
+            except Exception as acc_err:
+                print(f"Accounting error in supplier payment: {acc_err}")
 
             ui.notify(f'Payment saved: ${pay_amount:.2f}', color='positive')
             refresh_history()
@@ -536,11 +568,33 @@ def supplier_payment_page(standalone=False):
                     on_undo=lambda: [clear_form(reset_supplier=True), exit_new_mode()],
                     on_refresh=refresh_history,
                     on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_view_transaction=lambda: (
+                        accounting_helpers.show_transactions_dialog(
+                            reference_type='Payment',
+                            reference_id=str(state['draft_payment_id'])
+                        ) if state.get('draft_payment_id')
+                        else ui.notify('Select a payment to view its transaction', color='warning')
+                    ),
                     button_class='h-16',
                     classes=' '
                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
+
         ui.timer(0.1, refresh_history, once=True)
+        # Load last payment on start
+        async def _auto_load():
+            await asyncio.sleep(0.3)
+            if history_table.options.get('rowData'):
+                first_row = history_table.options['rowData'][0]
+                supplier_id = first_row.get('supplier_id')
+                supplier_name = first_row['supplier']
+                state['selected_supplier'] = {'id': supplier_id, 'name': supplier_name}
+                input_refs['supplier'].set_value(supplier_name)
+                input_refs['amount'].set_value(f'{to_float(first_row["amount"]):.2f}')
+                input_refs['method'].set_value(first_row['method'])
+                input_refs['total'].set_value(f'{to_float(first_row["amount"]):.2f}')
+                load_supplier_draft_balance()
+        ui.timer(0.2, _auto_load, once=True)
         
     finally:
         if standalone:

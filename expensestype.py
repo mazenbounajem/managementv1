@@ -28,14 +28,35 @@ class ExpenseTypeUI:
         self.table = None
         self.search_input = None
         self.create_ui()
-
     def clear_input_fields(self):
         self.input_refs['expense_type_name'].value = ''
         self.input_refs['description'].value = ''
         self.input_refs['id'].value = ''
         if self.table:
-            self.table.classes('dimmed')
+            self.table.run_method('deselectAll')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new category', color='info')
+
+    def _load_last_row(self):
+        """Load the most recent expense type into the form and undim table"""
+        if not self.row_data:
+            return
+            
+        last_row = self.row_data[0]
+        self.input_refs['id'].value = str(last_row['id'])
+        self.input_refs['expense_type_name'].value = last_row['expense_type_name']
+        self.input_refs['description'].value = last_row['description'] or ''
+        
+        self.initial_values = {
+            'expense_type_name': last_row['expense_type_name'],
+            'description': last_row['description'] or '',
+            'id': str(last_row['id'])
+        }
+        if self.table:
+            self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
 
     def save_expense_type(self):
         expense_type_name = self.input_refs['expense_type_name'].value
@@ -114,7 +135,10 @@ class ExpenseTypeUI:
                 self.table.classes(remove='dimmed')
             
             self.row_data = new_row_data
-            self.clear_input_fields()
+            if self.row_data:
+                self._load_last_row()
+            else:
+                self.clear_input_fields()
         except Exception as e:
             ui.notify(f'Error refreshing data: {str(e)}', color='negative')
 
@@ -161,6 +185,7 @@ class ExpenseTypeUI:
                                         'id': str(selected_row['id'])
                                     }
                                     ui.notify(f'Selected: {selected_row["expense_type_name"]}', color='info')
+                                    self.table.classes(remove='dimmed')
                             except Exception as e:
                                 ui.notify(f'Error selecting category: {str(e)}', color='negative')
                         self.table.on('cellClicked', on_row_click)
@@ -178,16 +203,18 @@ class ExpenseTypeUI:
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_expense_type,
                         on_undo=self.undo_changes,
                         on_delete=self.delete_expense_type,
                         on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
                         on_refresh=self.refresh_table,
+                        target_table=self.table,
                         button_class='h-16',
                         classes=' '
-                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                    )
+                    self.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
             ui.timer(0.1, self.refresh_table, once=True)
             

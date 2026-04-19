@@ -59,6 +59,9 @@ from voucher_subtype_ui import voucher_subtype_page_route
 from modern_sales_ui import modern_sales_page
 from modern_purchase_ui import modern_purchase_page
 
+# Import accounting transactions UI to register route
+from accounting_transactions_ui import accounting_transactions_page_route
+
 # Stock Reports page
 @ui.page('/stock-reports')
 def stock_reports_page():
@@ -834,6 +837,12 @@ if __name__ in {"__main__", "__mp_main__"}:
         connection.ensure_auxiliary_permission()
     except Exception as e:
         print(f"Error ensuring ledger permission or auxiliary permission: {str(e)}")
+
+
+    try:
+        connection.ensure_accounting_transactions_table()
+    except Exception as e:
+        print(f"Error ensuring accounting_transactions table: {str(e)}")
 
     # The following page routes are already registered via @ui.page decorators
     # and do not need to be called manually.

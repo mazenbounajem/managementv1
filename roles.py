@@ -43,8 +43,26 @@ class RolesUI:
             if f'perm_{page}' in self.input_refs:
                 self.input_refs[f'perm_{page}'].value = False
         if self.table:
-            self.table.classes('dimmed')
+            self.table.classes(add='dimmed')
+            self.table.run_method('deselectAll')
         ui.notify('Ready for new role', color='info')
+
+    def _load_last_row(self):
+        """Load the first row (last id DESC) into form and undim table"""
+        if not self.table:
+            return
+        self.table.classes(remove='dimmed')
+        try:
+            data = []
+            connection.contogetrows("SELECT TOP 1 id, name, description FROM roles ORDER BY id DESC", data)
+            if data:
+                r = data[0]
+                self.input_refs['id'].value = str(r[0])
+                self.input_refs['name'].value = r[1] or ''
+                self.input_refs['description'].value = r[2] or ''
+                self.load_permissions(r[0])
+        except Exception as e:
+            print(f"Error loading last role: {e}")
 
     def save_role(self):
         name = self.input_refs['name'].value
@@ -111,7 +129,8 @@ class RolesUI:
                 rows.append({'id': r[0], 'name': r[1], 'description': r[2]})
             self.table.options['rowData'] = rows
             self.table.update()
-            self.clear_input_fields()
+            # Load last entry into form and undim
+            self._load_last_row()
         except Exception as e:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
 
@@ -152,12 +171,12 @@ class RolesUI:
                             'rowSelection': 'single',
                         }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
                         
-                        async def on_row_click():
-                            selected = await self.table.get_selected_row()
+                        def on_row_click(e):
+                            selected = e.args.get('data', {})
                             if selected:
                                 self.input_refs['id'].value = str(selected['id'])
-                                self.input_refs['name'].value = selected['name']
-                                self.input_refs['description'].value = selected['description'] or ''
+                                self.input_refs['name'].value = selected['name'] or ''
+                                self.input_refs['description'].value = selected.get('description') or ''
                                 self.load_permissions(selected['id'])
                                 if self.table:
                                     self.table.classes(remove='dimmed')

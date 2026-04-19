@@ -9,34 +9,34 @@ class ModernDesignSystem:
     """
     
     # ============= COLOR PALETTE =============
-    # Primary Colors (keeping existing palette but enhanced)
-    PRIMARY_DARK = "#404041"
-    PRIMARY_LIGHT = "#f6ede3"
-    SECONDARY = "#d3cae2"
-    ACCENT = "#e6c17a"
+    # Primary Colors (Transitioned to Green Theme)
+    PRIMARY_DARK = "#052e16" # Dark Forest Green
+    PRIMARY_LIGHT = "#f0fdf4" # Mint White
+    SECONDARY = "#16a34a" # Success Green
+    ACCENT = "#08CB00" # Vibrant Theme Green
     
     # Extended Color Shades
-    PRIMARY_DARK_LIGHT = "#5a5a5b"
-    PRIMARY_DARK_LIGHTER = "#707071"
-    PRIMARY_LIGHT_DARK = "#e8dfd1"
-    PRIMARY_LIGHT_DARKER = "#d9cfbe"
-    SECONDARY_LIGHT = "#e0d7ed"
-    SECONDARY_DARK = "#c0b5d5"
-    ACCENT_LIGHT = "#f0d49a"
-    ACCENT_DARK = "#dcb05a"
+    PRIMARY_DARK_LIGHT = "#064e3b"
+    PRIMARY_DARK_LIGHTER = "#065f46"
+    PRIMARY_LIGHT_DARK = "#dcfce7"
+    PRIMARY_LIGHT_DARKER = "#bbf7d0"
+    SECONDARY_LIGHT = "#86efac"
+    SECONDARY_DARK = "#15803d"
+    ACCENT_LIGHT = "#4ade80"
+    ACCENT_DARK = "#166534"
     
-    # Semantic Colors
-    SUCCESS = "#4CAF50"
-    SUCCESS_LIGHT = "#81C784"
-    SUCCESS_DARK = "#388E3C"
+    # Semantic Colors (All Green Shades)
+    SUCCESS = "#22c55e"
+    SUCCESS_LIGHT = "#86efac"
+    SUCCESS_DARK = "#15803d"
     
-    WARNING = "#FF9800"
-    WARNING_LIGHT = "#FFB74D"
-    WARNING_DARK = "#F57C00"
+    WARNING = "#84cc16" # Lime Green
+    WARNING_LIGHT = "#bef264"
+    WARNING_DARK = "#4d7c0f"
     
-    ERROR = "#F44336"
-    ERROR_LIGHT = "#E57373"
-    ERROR_DARK = "#D32F2F"
+    ERROR = "#10b981" # Emerald (Green alternative to red)
+    ERROR_LIGHT = "#6ee7b7"
+    ERROR_DARK = "#047857"
     
     INFO = "#2196F3"
     INFO_LIGHT = "#64B5F6"
@@ -60,7 +60,7 @@ class ModernDesignSystem:
     GRADIENT_PRIMARY = f"linear-gradient(135deg, {PRIMARY_DARK} 0%, {PRIMARY_DARK_LIGHT} 100%)"
     GRADIENT_ACCENT = f"linear-gradient(135deg, {ACCENT} 0%, {ACCENT_LIGHT} 100%)"
     GRADIENT_SUCCESS = f"linear-gradient(135deg, {SUCCESS} 0%, {SUCCESS_LIGHT} 100%)"
-    GRADIENT_HEADER = f"linear-gradient(135deg, {PRIMARY_DARK} 0%, {SECONDARY_DARK} 100%)"
+    GRADIENT_HEADER = f"linear-gradient(135deg, {SUCCESS_DARK} 0%, {SUCCESS} 100%)"
     
     # ============= TYPOGRAPHY =============
     FONT_FAMILY = "'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif"
@@ -183,24 +183,25 @@ class ModernDesignSystem:
                 --accent-dark: {cls.ACCENT_DARK};
                 
                 --bg-main: #f8fafc;
-                --bg-card: rgba(255, 255, 255, 0.7);
+                --bg-card: rgba(230, 242, 255, 0.85); /* Light Azure/Blue */
                 --text-main: #1e293b;
                 --text-muted: #64748b;
                 --border-color: rgba(226, 232, 240, 0.8);
                 
-                --glass-bg: rgba(255, 255, 255, 0.4);
-                --glass-border: rgba(255, 255, 255, 0.5);
-                --glass-shadow: rgba(0, 0, 0, 0.05);
+                --glass-bg: rgba(255, 255, 255, 0.8);
+                --glass-border: rgba(255, 255, 255, 0.6);
+                --glass-shadow: rgba(0, 0, 0, 0.08);
                 
-                --gradient-premium: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                                   radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                                   radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+                --gradient-premium: radial-gradient(at 0% 100%, #FF7DB0 0, transparent 50%), 
+                                   radial-gradient(at 50% 0%, #FF0087 0, transparent 50%), 
+                                   radial-gradient(at 100% 0%, #B0FFFA 0, transparent 50%),
+                                   radial-gradient(at 100% 100%, #00F7FF 0, transparent 50%);
             }}
 
             @media (prefers-color-scheme: dark) {{
                 :root {{
                     --bg-main: #0f172a;
-                    --bg-card: rgba(30, 41, 59, 0.7);
+                    --bg-card: rgba(15, 23, 42, 0.8); /* Deep Navy Blue */
                     --text-main: #f1f5f9;
                     --text-muted: #94a3b8;
                     --border-color: rgba(51, 65, 85, 0.8);
@@ -242,6 +243,13 @@ class ModernDesignSystem:
                 box-shadow: 0 8px 32px 0 var(--glass-shadow);
             }}
 
+            .dimmed {{
+                opacity: 0.35 !important;
+                pointer-events: none !important;
+                filter: grayscale(0.8) blur(0.5px) !important;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }}
+
             .mesh-gradient {{
                 background-color: hsla(225, 39%, 30%, 1);
                 background-image: var(--gradient-premium);
@@ -262,7 +270,7 @@ class ModernDesignSystem:
                 background: var(--bg-card) !important;
                 color: var(--text-main) !important;
                 border-radius: 16px !important;
-                border: 1px solid var(--border-color);
+                border: 1px solid rgba(0, 122, 255, 0.2); /* Soft blue border */
             }}
 
             /* ============= COMPONENT STYLES ============= */
@@ -331,8 +339,10 @@ class ModernDesignSystem:
                 border-radius: 12px;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                color: #94a3b8;
+                background: #253900 !important;
+                color: #08CB00 !important;
                 gap: 1rem;
+                border: 1px solid rgba(8, 203, 0, 0.2);
             }}
 
             .drawer-button:hover {{
@@ -357,25 +367,23 @@ class ModernDesignSystem:
             }}
 
             /* ============= AG-GRID PREMIUM OVERRIDES ============= */
-            .ag-theme-quartz-dark, .ag-theme-quartz-custom {{
-                --ag-background-color: transparent !important;
-                --ag-header-background-color: rgba(255, 255, 255, 0.05) !important;
-                --ag-row-hover-color: rgba(255, 255, 255, 0.05) !important;
+            .ag-theme-quartz-dark, .ag-theme-quartz-custom, .ag-theme-alpine, .ag-theme-balham, .ag-theme-material, .ag-theme-quartz {{
+                --ag-background-color: #ffffff !important;
+                --ag-header-background-color: #08CB00 !important;
+                --ag-row-hover-color: rgba(112, 72, 232, 0.1) !important;
                 --ag-selected-row-background-color: rgba(112, 72, 232, 0.2) !important;
-                --ag-odd-row-background-color: transparent !important;
-                --ag-border-color: rgba(255, 255, 255, 0.1) !important;
-                --ag-foreground-color: #f1f5f9 !important;
-                --ag-header-foreground-color: #94a3b8 !important;
-                --ag-header-cell-hover-background-color: rgba(255, 255, 255, 0.1) !important;
+                --ag-odd-row-background-color: #fafbfc !important;
+                --ag-border-color: #e2e8f0 !important;
+                --ag-foreground-color: #000000 !important;
+                --ag-header-foreground-color: #000000 !important;
+                --ag-header-cell-hover-background-color: rgba(112, 72, 232, 0.05) !important;
                 --ag-header-cell-moving-background-color: #7048E8 !important;
-                border: none !important;
+                border: 1px solid #e2e8f0 !important;
             }}
-
-            .ag-theme-quartz-custom .ag-header, 
-            .ag-theme-quartz-custom .ag-row,
-            .ag-theme-quartz-custom .ag-cell {{
-                background-color: transparent !important;
-                color: #f1f5f9 !important;
+            .ag-theme-quartz-dark .ag-header, .ag-theme-quartz-custom .ag-header, .ag-theme-alpine .ag-header, .ag-theme-balham .ag-header, .ag-theme-material .ag-header, .ag-theme-quartz .ag-header,
+            .ag-theme-quartz-dark .ag-row, .ag-theme-quartz-custom .ag-row, .ag-theme-alpine .ag-row, .ag-theme-balham .ag-row, .ag-theme-material .ag-row, .ag-theme-quartz .ag-row,
+            .ag-theme-quartz-dark .ag-cell, .ag-theme-quartz-custom .ag-cell, .ag-theme-alpine .ag-cell, .ag-theme-balham .ag-cell, .ag-theme-material .ag-cell, .ag-theme-quartz .ag-cell {{
+                color: #000000 !important;
                 border: none !important;
             }}
 
@@ -388,28 +396,28 @@ class ModernDesignSystem:
             /* High contrast for white-on-white text issues */
             .text-white {{ color: #ffffff !important; }}
             .q-table__card {{ background: var(--bg-card) !important; color: var(--text-main) !important; }}
-            .q-table th {{ color: var(--accent) !important; }}
+            .q-table th {{ background-color: #08CB00 !important; color: #000000 !important; }}
             .q-table td {{ color: var(--text-main) !important; }}
 
             /* Fix for input text visibility in whole software */
             .q-input input, .q-field__native, .q-field__prefix, .q-field__suffix, .q-field__native span {{
-                color: #f1f5f9 !important;
-                -webkit-text-fill-color: #f1f5f9 !important;
+                color: var(--text-main) !important;
+                -webkit-text-fill-color: var(--text-main) !important;
             }}
 
             /* Ensure placeholder is visible */
             .q-placeholder, .q-field__label {{
-                color: #94a3b8 !important;
+                color: var(--text-muted) !important;
             }}
 
             /* Dropdown boxes visibility */
             .q-select .q-field__native {{
-                color: #f1f5f9 !important;
+                color: var(--text-main) !important;
             }}
             .q-menu {{
-                background-color: #1e293b !important;
-                color: #f1f5f9 !important;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background-color: var(--bg-card) !important;
+                color: var(--text-main) !important;
+                border: 1px solid var(--border-color);
             }}
 
             /* ============= SCROLLBAR ============= */
@@ -425,6 +433,37 @@ class ModernDesignSystem:
             }}
             ::-webkit-scrollbar-thumb:hover {{
                 background: var(--text-muted);
+            }}
+
+            /* ============= PREMIUM TAB STYLING ============= */
+            .q-tabs .q-tab--active {{
+                background: #08CB00 !important;
+                color: #ffffff !important;
+                border-radius: 12px !important;
+                margin: 2px 4px !important;
+                box-shadow: 0 4px 15px rgba(8, 203, 0, 0.4) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }}
+            
+            .q-tabs .q-tab {{
+                min-height: 36px !important;
+                border-radius: 10px;
+                transition: background 0.2s ease;
+                margin: 2px 4px !important;
+            }}
+            
+            .q-tabs .q-tab:hover:not(.q-tab--active) {{
+                background: rgba(8, 203, 0, 0.05) !important;
+            }}
+
+            .q-tabs .q-tab__label {{
+                font-weight: 700 !important;
+                font-size: 0.85rem !important;
+                letter-spacing: 0.02em !important;
+            }}
+
+            .q-tabs__indicator {{
+                display: none !important; /* Hide default indicator as we have background */
             }}
         </style>
         """

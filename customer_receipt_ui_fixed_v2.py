@@ -2,13 +2,15 @@ from nicegui import ui
 from connection import connection
 from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
-from modern_ui_components import ModernCard, ModernButton, ModernActionBar
-from uiaggridtheme import uiAggridTheme
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable, ModernActionBar
 from session_storage import session_storage
 from datetime import datetime
-
+import datetime as dt
+import asyncio
+import accounting_helpers
 
 def customer_receipt_page(standalone=False):
+    # Auth
     user = session_storage.get('user')
     if not user:
         if not standalone:
@@ -16,23 +18,18 @@ def customer_receipt_page(standalone=False):
             ui.navigate.to('/login')
         return
 
+    # State
     state = {
         'selected_customer': None,
         'unpaid_invoices': [],
         'selected_invoices': [],
+        'receipt_data': [],
         'new_mode': False,
         'draft_receipt_id': None,
         'draft_amount': 0.0,
         'draft_method': 'Cash',
     }
     input_refs = {}
-    
-    # Dialog references
-    customer_dialog = None
-    invoice_dialog = None
-    invoice_table = None
-    invoice_dialog_label = None
-    total_label = None
 
     def to_float(value):
         try:
@@ -52,31 +49,28 @@ def customer_receipt_page(standalone=False):
         connection.contogetrows(sql, result, (customer_id,))
         return to_float(result[0][0]) if result and result[0][0] is not None else 0.0
 
-    async def refresh_history():
-        try:
-            data = []
-            sql = """
-                SELECT cr.id, cr.payment_date, c.customer_name, cr.amount, cr.payment_method, c.id as customer_id
-                FROM customer_receipt cr
-                JOIN customers c ON cr.customer_id = c.id
-                ORDER BY cr.id DESC
-            """
-            connection.contogetrows(sql, data)
-            rows = []
-            for r in data:
-                rows.append({
-                    'id': r[0],
-                    'date': r[1],
-                    'customer': r[2],
-                    'amount': to_float(r[3]),                   'method': r[4],                  'customer_id': r[5],              })
-            if 'history_table' in input_refs:
-                input_refs['history_table'].options['rowData'] = rows
-                input_refs['history_table'].update()
-        except Exception as e:
-            ui.notify(f'History refresh error: {e}', color='warning')
+    def refresh_history():
+        data = []
+        sql = """SELECT cr.id, cr.payment_date, c.customer_name, cr.amount, cr.payment_method, c.id as customer_id 
+                 FROM customer_receipt cr
+                 JOIN customers c ON cr.customer_id = c.id
+                 ORDER BY cr.id DESC"""
+        connection.contogetrows(sql, data)
+        rows = []
+        for r in data:
+            rows.append({
+                'id': r[0],
+                'date': r[1],
+                'customer': r[2],
+                'amount': to_float(r[3]),
+                'method': r[4],
+                'customer_id': r[5],
+            })
+        history_table.options['rowData'] = rows
+        history_table.update()
 
     def fetch_customer_balance(customer_id):
-        """Get accurate pending balance from unpaid sales invoices"""
+        """Get accurate pending balance from unpaid invoices"""
         return calculate_customer_pending(customer_id)
 
     def clear_draft_state(reset_customer=True):
@@ -115,171 +109,268 @@ def customer_receipt_page(standalone=False):
                 input_refs['balance'].set_value(current_balance)
 
     def update_draft_amount_from_selected_invoices():
-        total = sum(to_float(item.get('total_amount')) for item in state['selected_invoices'])
+        total = sum(to_float(item.get('settlement_amount')) for item in state['selected_invoices'])
         total = round(total, 2)
         state['draft_amount'] = total
         if 'amount' in input_refs:
             input_refs['amount'].set_value(total)
 
-    def open_customer_dialog():
-        nonlocal customer_dialog
-        with ui.dialog() as dialog:
-            customer_dialog = dialog
-            with ModernCard().classes('w-full max-w-2xl p-6'):
-                ui.label('Select Customer').classes('text-xl font-bold mb-4')
+    def allocate_receipt_to_invoices(selected_rows, pay_amount):
+        allocations = []
+        remaining = round(pay_amount, 2)
 
-                # Fetch customers with balance > 0
-                c_data = []
-                connection.contogetrows(
-                    "SELECT id, customer_name, phone, balance FROM customers WHERE balance > 0 ORDER BY customer_name",
-                    c_data,
-                )
-                
-                headers = ['id', 'customer_name', 'phone', 'balance']
-                columns = [{'name': header, 'label': header.title(), 'field': header, 'sortable': True} for header in headers]
-                
-                rows = []
-                for row in c_data:
-                    row_dict = {}
-                    for i, header in enumerate(headers):
-                        if header == 'balance':
-                            row_dict[header] = to_float(row[i])
-                        else:
-                            row_dict[header] = row[i]
-                    rows.append(row_dict)
-                
-                # Create search input
-                search_input = ui.input('Search').classes('w-full mb-4')
-                
-                # Create table
-                table = ui.table(columns=columns, rows=rows, pagination=10).classes('w-full')
-                search_input.bind_value(table, 'filter')
-                
-                def on_row_click(e):
-                    selected_row = e.args[1]
+        ordered_rows = sorted(
+            selected_rows,
+            key=lambda row: (str(row.get('date') or ''), row.get('id') or 0)
+        )
+
+        for row in ordered_rows:
+            invoice_due = to_float(row.get('amount'))
+            if invoice_due <= 0:
+                continue
+            settlement_amount = min(invoice_due, remaining)
+            if settlement_amount > 0:
+                allocations.append({
+                    'id': row['id'],
+                    'invoice_number': row['invoice_number'],
+                    'date': row['date'],
+                    'amount': invoice_due,
+                    'status': row['status'],
+                    'settlement_amount': round(settlement_amount, 2),
+                    'remaining_after_settlement': round(invoice_due - settlement_amount, 2),
+                })
+                remaining = round(remaining - settlement_amount, 2)
+            if remaining <= 0:
+                break
+
+        return allocations
+
+    def select_customer():
+        with ui.dialog() as d, ModernCard().classes('w-full max-w-2xl p-6'):
+            ui.label('Select Customer').classes('text-xl font-bold mb-4')
+
+            c_data = []
+            connection.contogetrows(
+                "SELECT id, customer_name, balance FROM customers ORDER BY customer_name",
+                c_data,
+            )
+            c_rows = [{'id': r[0], 'name': r[1], 'balance': to_float(r[2])} for r in c_data]
+
+            grid = ui.aggrid({
+                'columnDefs': [
+                    {'headerName': 'Name', 'field': 'name', 'flex': 1, 'filter': 'agTextColumnFilter'},
+                    {'headerName': 'Account Balance', 'field': 'balance', 'width': 150, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
+                ],
+                'rowData': c_rows,
+                'rowSelection': 'single',
+                'defaultColDef': {'sortable': True, 'filter': True},
+            }).classes('w-full h-80 ag-theme-quartz-dark')
+
+            async def confirm():
+                row = await grid.get_selected_row()
+                if row:
                     state['selected_customer'] = {
-                        'id': selected_row['id'],
-                        'name': selected_row['customer_name'],
-                        'balance': to_float(selected_row['balance']),
+                        'id': row['id'],
+                        'name': row['name'],
+                        'balance': row['balance'],
                     }
-                    input_refs['customer'].set_value(selected_row['customer_name'])
+                    input_refs['customer'].set_value(row['name'])
                     if 'balance' in input_refs:
-                        input_refs['balance'].set_value(to_float(selected_row['balance']))
+                        # Use dynamic pending balance for the form display
+                        pending = calculate_customer_pending(row['id'])
+                        input_refs['balance'].set_value(pending)
                     input_refs['amount'].set_value('0.00')
                     state['selected_invoices'] = []
                     state['draft_amount'] = 0.0
-                    dialog.close()
-                    ui.notify('Customer selected. Click Amount to open pending invoices.', color='positive')
-                
-                table.on('rowClick', on_row_click)
-                
-                with ui.row().classes('w-full justify-end mt-4'):
-                    ModernButton('Close', on_click=dialog.close, variant='secondary')
-        
-        dialog.open()
+                    if 'total' in input_refs:
+                        input_refs['total'].set_value('0.00')
+                    d.close()
+                    ui.notify('Customer selected. Click Amount to open pending sales invoices.', color='positive')
+                else:
+                    ui.notify('Select a customer', color='warning')
 
-    def open_invoice_dialog(search_term=None):
-        """Open invoice selection dialog - shows PAID invoices if receipt selected, PENDING if new"""
-        if not state.get('selected_customer') or not state['selected_customer'].get('id'):
-                                    ui.notify('Please select a customer first', color='warning')
-                                    return
-        
-        # Toggle: paid invoices if viewing receipt, pending if new mode
-        status_filter = 'completed' if not state.get('new_mode') else 'pending'
-        dialog_title = f'{"Paid" if status_filter == "completed" else "Pending"} Invoices for {state["selected_customer"]["name"]}'
-        
-        nonlocal invoice_dialog, invoice_table, invoice_dialog_label, total_label
-        
-        # Fetch pending invoices for the selected customer
+            with ui.row().classes('w-full justify-end mt-4 gap-2'):
+                ModernButton('Cancel', on_click=d.close, variant='secondary')
+                ModernButton('Select', on_click=confirm)
+
+        d.open()
+
+    def open_settlement_dialog(customer):
+        state['unpaid_invoices'] = []
+        load_customer_draft_balance()
+
         invoices_data = []
         sql = """
-            SELECT s.id, s.invoice_number, s.total_amount, s.sale_date, s.payment_status
-            FROM sales s 
-            WHERE s.customer_id = ? AND s.payment_status = ?
+            SELECT s.id, s.invoice_number, s.total_amount, s.sale_date, s.payment_status, c.customer_name
+            FROM sales s
+            INNER JOIN customers c ON c.id = s.customer_id
+            WHERE s.payment_status = 'pending'
+              AND c.id = ?
+              AND ISNULL(s.total_amount, 0) > 0
             ORDER BY s.sale_date ASC, s.id ASC
         """
-        connection.contogetrows(sql, invoices_data, (state['selected_customer']['id'], status_filter))
-        
-        if not invoices_data:
-            ui.notify('No pending invoices found for this customer', color='warning')
-            return
-        
-        # Convert to list of dictionaries
-        invoices = []
-        for row in invoices_data:
-            invoice_dict = {
-                'id': row[0],
-                'invoice_number': row[1],
-                'total_amount': to_float(row[2]),
-                'sale_date': str(row[3]),
-                'payment_status': row[4] or 'pending'
+        connection.contogetrows(sql, invoices_data, (customer['id'],))
+
+        rows = []
+        total_due = 0.0
+        for r in invoices_data:
+            amount = to_float(r[2])
+            row = {
+                'id': r[0],
+                'invoice_number': r[1],
+                'amount': amount,
+                'date': str(r[3]),
+                'status': r[4] or 'pending',
+                'customer_name': r[5] or customer['name'],
             }
-            invoices.append(invoice_dict)
-        
-        # Create or update the dialog
-        with ui.dialog() as dialog:
-            invoice_dialog = dialog
-            with ModernCard().classes('w-full max-w-6xl p-8'):
-                invoice_dialog_label = ui.label(dialog_title).classes('text-2xl font-bold mb-4 text-white')
-                ui.label('Invoice Selection Table - Check invoices to settle').classes('text-sm mb-4 text-gray-300')
-                        
-                invoice_selection_label = ui.label('(Upper Table: Select invoices) | (Lower Table: Payment Preview)').classes('text-xs text-yellow-300 mb-2 italic')
-                
-                # Create AG Grid with checkboxes for invoice selection
-                column_defs = [
+            rows.append(row)
+            total_due += amount
+
+        total_due = round(total_due, 2)
+        state['unpaid_invoices'] = rows
+
+        if not rows:
+            ui.notify('No pending sales invoices for this customer', color='info')
+            return
+
+        with ui.dialog() as settlement_dialog, ModernCard().classes('w-full max-w-5xl p-8'):
+            ui.label(f'Pending Sales Invoices: {customer["name"]}').classes('text-2xl font-bold mb-2 text-white')
+            ui.label(f'Customer Pending Balance: ${to_float(calculate_customer_pending(customer["id"])):.2f}').classes('text-lg mb-1 text-green-400 font-bold')
+            ui.label('Tick the checkbox rows you want to receipt. Only pending sales invoices for the selected customer are shown here.').classes('text-sm mb-4 text-yellow-300')
+
+            ui.label('📋 Invoice Selection Table - Check invoices to settle').classes('text-base font-bold mb-2 text-blue-300')
+
+            invoice_grid = ui.aggrid({
+                'columnDefs': [
                     {'headerName': 'Select', 'checkboxSelection': True, 'headerCheckboxSelection': True, 'width': 80},
-                    {'headerName': 'Invoice #', 'field': 'invoice_number', 'flex': 2},
-                    {'headerName': 'Amount', 'field': 'total_amount', 'width': 120, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
-                    {'headerName': 'Date', 'field': 'sale_date', 'width': 120},
-                    {'headerName': 'Status', 'field': 'payment_status', 'width': 100},
-                ]
-                
-                invoice_table = ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': invoices,
-                    'rowSelection': 'multiple',
-                    'suppressRowClickSelection': True,
-                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                }).classes('w-full h-96 ag-theme-quartz-dark mb-4')
-                
-                preview_label = ui.label('Payment Allocation Preview Table').classes('text-sm text-gray-300 mb-2 font-bold text-purple-300')
-                total_label = ui.label('Total Selected: $0.00').classes('text-lg font-bold mt-2 text-blue-300')
-                
-                async def update_total():
-                    try:
-                        selected_rows = await invoice_table.get_selected_rows()
-                        state['selected_invoices'] = selected_rows
-                        total = sum(float(inv['total_amount']) for inv in selected_rows)
-                        total_label.text = f'Total Selected: ${total:.2f}'
-                    except Exception as e:
-                        ui.notify(f'Error calculating total: {str(e)}', color='warning')
-                
-                invoice_table.on('selectionChanged', lambda e: update_total())
-                
-                def confirm_selection():
-                    if state['selected_invoices']:
-                        total = sum(float(inv['total_amount']) for inv in state['selected_invoices'])
-                        input_refs['amount'].set_value(f'{total:.2f}')
-                        if 'total' in input_refs:
-                            input_refs['total'].set_value(f'{total:.2f}')
-                        dialog.close()
-                        ui.notify(f'Selected {len(state["selected_invoices"])} invoices, Total: ${total:.2f}. Click Save to finalize.', color='positive')
-                    else:
-                        ui.notify('Please select at least one invoice', color='warning')
-                
-                with ui.row().classes('w-full justify-end gap-4 mt-4'):
-                    ModernButton('Cancel', on_click=dialog.close, variant='secondary')
-                    ModernButton('OK', on_click=confirm_selection, variant='primary')
-        
-        dialog.open()
+                    {'headerName': 'Invoice #', 'field': 'invoice_number', 'flex': 1},
+                    {'headerName': 'Customer', 'field': 'customer_name', 'width': 180},
+                    {'headerName': 'Date', 'field': 'date', 'width': 130},
+                    {'headerName': 'Amount', 'field': 'amount', 'width': 130, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
+                    {'headerName': 'Status', 'field': 'status', 'width': 120},
+                ],
+                'rowData': rows,
+                'rowSelection': 'multiple',
+                'suppressRowClickSelection': True,
+                'defaultColDef': MDS.get_ag_grid_default_def(),
+            }).classes('w-full h-96 ag-theme-quartz-dark mb-6')
+
+            with ui.row().classes('items-center gap-4 mb-2'):
+                ui.label('Receipt Amount:').classes('font-bold')
+                max_allowed = total_due # For sales, we can receive any amount up to total due
+                default_amount = to_float(input_refs['amount'].value or 0)
+                if default_amount <= 0:
+                    default_amount = max_allowed
+
+                payment_amount_ref = ui.number(
+                    value=default_amount,
+                    min=0,
+                    max=max_allowed,
+                    step=0.01,
+                ).classes('w-40')
+                ui.label('Method:').classes('font-bold ml-4')
+                payment_method_ref = ui.select(
+                    ['Cash', 'Card', 'Transfer', 'USD Cash'],
+                    value=input_refs['method'].value or 'Cash',
+                ).classes('w-40')
+
+            selected_total_label = ui.label('Total Selected: $0.00').classes('text-md mb-4 text-blue-300 font-bold')
+
+            ui.label('🔍 Receipt Allocation Preview Table - Shows how receipt distributes').classes('text-base font-bold mb-2 text-green-300')
+
+            preview_label = ui.label('Choose invoices, adjust receipt amount if needed, then click OK.').classes('text-sm text-gray-300 mb-2')
+            preview_grid = ui.aggrid({
+                'columnDefs': [
+                    {'headerName': 'Invoice #', 'field': 'invoice_number', 'flex': 1},
+                    {'headerName': 'Invoice Total', 'field': 'amount', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
+                    {'headerName': 'Settlement', 'field': 'settlement_amount', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
+                    {'headerName': 'Remaining', 'field': 'remaining_after_settlement', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
+                ],
+                'rowData': [],
+                'defaultColDef': MDS.get_ag_grid_default_def(),
+            }).classes('w-full h-48 ag-theme-quartz-dark mb-4')
+
+            async def recalculate_preview():
+                selected_rows = await invoice_grid.get_selected_rows()
+                pay_amount = to_float(payment_amount_ref.value)
+                selected_total = round(sum(to_float(row.get('amount')) for row in selected_rows), 2)
+
+                if pay_amount > selected_total and selected_total > 0:
+                    payment_amount_ref.set_value(selected_total)
+                    pay_amount = selected_total
+
+                allocations = allocate_receipt_to_invoices(selected_rows, pay_amount) if selected_rows and pay_amount > 0 else []
+
+                preview_grid.options['rowData'] = allocations
+                preview_grid.update()
+
+                selected_total_label.text = f'Total Selected: ${selected_total:.2f}'
+                if selected_rows:
+                    preview_label.text = f'Selected invoices total: ${selected_total:.2f} | Planned receipt: ${pay_amount:.2f}'
+                else:
+                    preview_label.text = 'Select one or more pending sales invoices.'
+
+            invoice_grid.on('selectionChanged', lambda e: recalculate_preview())
+            payment_amount_ref.on('update:model-value', lambda e: recalculate_preview())
+
+            async def confirm_settlement():
+                selected_rows = await invoice_grid.get_selected_rows()
+                if not selected_rows:
+                    ui.notify('Select at least one invoice', color='warning')
+                    return
+
+                pay_amount = to_float(payment_amount_ref.value)
+                if pay_amount <= 0:
+                    ui.notify('Receipt amount must be greater than 0', color='warning')
+                    return
+
+                selected_total = round(sum(to_float(row.get('amount')) for row in selected_rows), 2)
+                if pay_amount > selected_total:
+                    ui.notify('Receipt amount cannot exceed selected invoices total', color='warning')
+                    return
+
+                allocations = allocate_receipt_to_invoices(selected_rows, pay_amount)
+                if not allocations:
+                    ui.notify('Nothing to receipt for the selected invoices', color='warning')
+                    return
+
+                state['selected_invoices'] = allocations
+                state['draft_amount'] = pay_amount
+                state['draft_method'] = payment_method_ref.value or 'Cash'
+
+                input_refs['amount'].set_value(f'{pay_amount:.2f}')
+                if 'total' in input_refs:
+                    input_refs['total'].set_value(f'{selected_total:.2f}')
+                input_refs['method'].set_value(state['draft_method'])
+
+                ui.notify(f'Receipt prepared for {len(allocations)} invoice(s). Click Save to finalize.', color='positive')
+                settlement_dialog.close()
+
+            with ui.row().classes('w-full justify-end gap-4'):
+                ModernButton('Cancel', on_click=settlement_dialog.close, variant='secondary')
+                ModernButton('OK', on_click=confirm_settlement, variant='primary')
+
+        settlement_dialog.open()
+
+    def open_invoices_if_customer_selected():
+        if not state.get('new_mode'):
+            ui.notify('Click New first', color='warning')
+            return
+        if state.get('selected_customer'):
+            open_settlement_dialog(state['selected_customer'])
+        else:
+            ui.notify('Select customer first, then click Amount to see pending invoices', color='warning')
 
     def process_receipt():
         if not state['selected_customer']:
             ui.notify('Select customer first', color='negative')
             return
 
+        # Refresh balance before check
+        load_customer_draft_balance()
+
         if not state.get('new_mode'):
-            ui.notify('Click New before saving a new settlement', color='warning')
+            ui.notify('Click New before saving a new receipt', color='warning')
             return
 
         try:
@@ -295,92 +386,118 @@ def customer_receipt_page(standalone=False):
                 ui.notify('Amount must be greater than 0', color='warning')
                 return
 
-            if pay_amount > to_float(customer['balance']):
-                ui.notify('Amount exceeds customer balance', color='warning')
-                return
-
             if not selected_invoices:
-                ui.notify('Click Amount and choose pending invoices before saving', color='warning')
+                ui.notify('Click Amount and choose pending sales invoices before saving', color='warning')
                 return
 
-            # Calculate total from selected invoices
-            invoices_total = sum(to_float(inv.get('total_amount')) for inv in selected_invoices)
-            if round(pay_amount, 2) != round(invoices_total, 2):
-                ui.notify('Amount must match the total of selected invoices', color='warning')
+            allocated_total = round(sum(to_float(item.get('settlement_amount')) for item in selected_invoices), 2)
+            if round(pay_amount, 2) != allocated_total:
+                update_draft_amount_from_selected_invoices()
+                ui.notify('Receipt amount was adjusted to match invoice allocation. Click Save again.', color='warning')
                 return
 
             # Insert receipt record
-            receipt_sql = """
+            sql = """
                 INSERT INTO customer_receipt (customer_id, amount, payment_date, payment_method, created_at)
                 VALUES (?, ?, GETDATE(), ?, GETDATE())
             """
-            connection.insertingtodatabase(receipt_sql, (customer_id, pay_amount, payment_method))
+            connection.insertingtodatabase(sql, (customer_id, pay_amount, payment_method))
             receipt_id = connection.getid("SELECT MAX(id) FROM customer_receipt", [])
             state['draft_receipt_id'] = receipt_id
 
-            # Update each invoice
-            for invoice in selected_invoices:
-                invoice_id = invoice['id']
-                
-                # Update sales status to completed
+            # Update invoices
+            for allocation in selected_invoices:
+                invoice_id = allocation['id']
+                invoice_total = to_float(allocation['amount'])
+                settled_amount = to_float(allocation['settlement_amount'])
+                remaining_amount = round(invoice_total - settled_amount, 2)
+                new_status = 'completed' if remaining_amount <= 0 else 'pending'
+
                 connection.insertingtodatabase(
-                    "UPDATE sales SET payment_status = 'completed', payment_method = ? WHERE id = ?",
-                    (payment_method, invoice_id),
+                    "UPDATE sales SET total_amount = ?, payment_status = ?, payment_method = ? WHERE id = ?",
+                    (remaining_amount, new_status, payment_method, invoice_id),
                 )
 
-            # No manual customer balance update - use dynamic pending calculation
-            # refresh_history() called for table update
-            load_customer_draft_balance()  # Update display with new pending sum
+            # Update customer balance
+            connection.insertingtodatabase(
+                "UPDATE customers SET balance = balance - ? WHERE id = ?",
+                (pay_amount, customer_id)
+            )
 
-            ui.notify(f'Settlement saved: ${pay_amount:.2f}', color='positive')
+            # --- Accounting Entry: DR Cash / CR Customer Auxiliary ---
+            try:
+                import accounting_helpers
+                cust_aux_res = []
+                connection.contogetrows(
+                    "SELECT auxiliary_number FROM customers WHERE id = ?", cust_aux_res, (customer_id,)
+                )
+                cust_aux = cust_aux_res[0][0] if cust_aux_res and cust_aux_res[0][0] else '4111.000001'
+                accounting_helpers.save_accounting_transaction(
+                    reference_type='Receipt',
+                    reference_id=str(receipt_id),
+                    lines=[
+                        {'account': '5300.000001', 'debit': pay_amount, 'credit': 0},
+                        {'account': cust_aux,      'debit': 0, 'credit': pay_amount},
+                    ],
+                    description=f"Customer Receipt #{receipt_id} - {customer['name']}"
+                )
+            except Exception as acc_err:
+                print(f"Accounting error in customer receipt: {acc_err}")
+
+            ui.notify(f'Receipt saved: ${pay_amount:.2f}', color='positive')
             refresh_history()
-            clear_form(reset_customer=True)
+            load_customer_draft_balance()  # Refresh balance display
+            clear_form(reset_customer=False)  # Keep customer selected
             exit_new_mode()
+            if history_table:
+                history_table.classes(remove='dimmed')
 
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
+    # Wrap content in ModernPageLayout
     if standalone:
         layout_container = ModernPageLayout("Revenue Collection", standalone=standalone)
         layout_container.__enter__()
-
+    
     try:
-        with ui.row().classes('w-full gap-6 items-start animate-fade-in'):
+        with ui.row().classes('w-full gap-6 items-start animate-fade-in p-4'):
+            # Left Column: Process Form
             with ui.column().classes('w-[360px] gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Deposit Details').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest mb-4')
                     with ui.column().classes('w-full gap-4'):
-                        input_refs['customer'] = ui.input('Customer').props('readonly rounded outlined dense').classes('w-full glass-input')
-                        input_refs['customer'].on('click', open_customer_dialog)
+                        input_refs['customer'] = ui.input('Customer Account').props('readonly rounded outlined dense').classes('w-full glass-input')
+                        input_refs['customer'].on('click', select_customer)
 
-                        input_refs['balance'] = ui.number('Customer Balance (USD)', value=0).props('readonly rounded outlined dense').classes('w-full glass-input mt-2')
+                        input_refs['balance'] = ui.number('Pending Balance (USD)', value=0).props('readonly rounded outlined dense').classes('w-full glass-input mt-2')
 
                         with ui.row().classes('w-full items-end gap-2 mt-2'):
-                            input_refs['amount'] = ui.input('Amount', value='0.00').props('readonly rounded outlined dense').classes('flex-1 glass-input')
-                            input_refs['amount'].on('click', open_invoice_dialog)
-                            ui.button(icon='search', on_click=open_invoice_dialog).props('round dense color=primary').classes('mb-1')
+                            input_refs['amount'] = ui.input('Receipt Amount', value='0.00').props('readonly rounded outlined dense').classes('flex-1 glass-input')
+                            input_refs['amount'].on('click', open_invoices_if_customer_selected)
+                            ui.button(icon='search', on_click=open_invoices_if_customer_selected).props('round dense color=primary').classes('mb-1')
 
-                        input_refs['total'] = ui.input('Total', value='0.00').props('readonly rounded outlined dense').classes('w-full glass-input mt-2')
+                        input_refs['total'] = ui.input('Selected Total', value='0.00').props('readonly rounded outlined dense').classes('w-full glass-input mt-2')
 
                         input_refs['method'] = ui.select(
                             ['Cash', 'Card', 'Transfer', 'USD Cash'],
                             value='Cash',
-                            label='Payment Channel',
+                            label='Collection Channel'
                         ).classes('w-full glass-input mt-2').props('rounded outlined dense')
 
-
+            # Center Column: History
             with ui.column().classes('flex-1 gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
-                    ui.label('Receipt Ledger').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
-
+                    ui.label('Revenue Register').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
+                    
                     cols = [
                         {'headerName': 'ID', 'field': 'id', 'width': 80},
-                        {'headerName': 'Settlement Date', 'field': 'date', 'flex': 1},
+                        {'headerName': 'Date', 'field': 'date', 'flex': 1},
                         {'headerName': 'Customer', 'field': 'customer', 'flex': 1.5},
-                        {'headerName': 'Amount (USD)', 'field': 'amount', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
-                        {'headerName': 'Method', 'field': 'method', 'width': 120},
+                        {'headerName': 'Amount', 'field': 'amount', 'width': 110, 'valueFormatter': '"$" + x.toLocaleString()'},
+                        {'headerName': 'Channel', 'field': 'method', 'width': 100}
                     ]
-
+                    
                     with ui.column().classes('w-full relative'):
                         history_table = ui.aggrid({
                             'columnDefs': cols,
@@ -393,65 +510,41 @@ def customer_receipt_page(standalone=False):
                             'absolute inset-0 bg-black/60 flex items-center justify-center z-20 text-white text-xl font-bold p-4 shadow-2xl'
                         ).style('backdrop-filter: blur(6px); pointer-events: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;')
                         with history_overlay:
-                            ui.label('🆕 NEW MODE: Click Customer → Click Amount → Choose Pending Invoices → Save')
+                            ui.label('🆕 NEW MODE: Click Customer → Amount → Choose Pending Sales Invoices → Save')
                         history_overlay.set_visibility(False)
 
                         input_refs['history_overlay'] = history_overlay
                         input_refs['history_table'] = history_table
 
-                        async def load_receipt(e):
-                            try:
-                                selected_row = await input_refs['history_table'].get_selected_row()
-                                if not selected_row:
-                                    return
-                                row_data = selected_row
-                                
-                                # Exit new mode for viewing
-                                exit_new_mode()
-                                
-                                if customer_id:
-                                    current_balance = fetch_customer_balance(customer_id)
-                                    cust_data = []
-                                    connection.contogetrows("SELECT customer_name FROM customers WHERE id = ?", cust_data, (customer_id,))
-                                    customer_name = cust_data[0][0] if cust_data else 'Unknown'
-                                    
-                                    input_refs['customer'].set_value(customer_name)
-                                    input_refs['balance'].set_value(current_balance)
-                                
-                                # Load receipt details
-                                input_refs['amount'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                                if 'total' in input_refs:
-                                    input_refs['total'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                                input_refs['method'].set_value(row_data['method'])
-                                
-                                ui.notify(f'Loaded receipt: ${row_data["amount"]:.2f} | Balance: ${input_refs["balance"].value if "balance" in input_refs else 0:.2f}', color='positive')
-                                
-                                if customer_id:
-                                    # Load customer details
-                                    cust_data = []
-                                    connection.contogetrows("SELECT customer_name, balance FROM customers WHERE id = ?", cust_data, (customer_id,))
-                                    if cust_data:
-                                        cust_row = cust_data[0]
-                                        input_refs['customer'].set_value(cust_row[0])
-                                        input_refs['balance'].set_value(to_float(cust_row[1]))
-                                
-                                # Load receipt details
-                                input_refs['amount'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                                if 'total' in input_refs:
-                                    input_refs['total'].set_value(f'{to_float(row_data["amount"]):.2f}')
-                                input_refs['method'].set_value(row_data['method'])
-                                
-                                ui.notify(f'Loaded receipt: ${row_data["amount"]:.2f} | Balance: ${input_refs["balance"].value if "balance" in input_refs else 0:.2f}')
-                            except Exception as ex:
-                                ui.notify(f'Load error: {ex}', color='warning')
+                    async def load_receipt(e):
+                        try:
+                            row_data = await history_table.get_selected_row()
+                            if not row_data or not isinstance(row_data, dict):
+                                return
+                            exit_new_mode()
+                            customer_id = row_data.get('customer_id')
+                            customer_name = row_data['customer']
+                            if not customer_id:
+                                ui.notify('No customer ID found', color='warning')
+                                return
+                            state['selected_customer'] = {'id': customer_id, 'name': customer_name}
+                            input_refs['customer'].set_value(customer_name)
+                            input_refs['amount'].set_value(f'{to_float(row_data["amount"]):.2f}')
+                            input_refs['method'].set_value(row_data['method'])
+                            input_refs['total'].set_value(f'{to_float(row_data["amount"]):.2f}')
+                            load_customer_draft_balance()
+                            ui.notify(f'✅ Loaded: {customer_name} | Amount: ${to_float(row_data["amount"]):.2f} | Current Pending: ${state["selected_customer"]["balance"]:.2f}')
+                        except Exception as ex:
+                            ui.notify(f'Load error: {ex}', color='warning')
 
-                        history_table.on('cellClicked', load_receipt)
+                    history_table.on('cellClicked', load_receipt)
 
+            # Right Column: Action Bar
             with ui.column().classes('w-80px items-center'):
                 def handle_new():
                     clear_form(reset_customer=True)
                     set_new_mode(True)
-                    ui.notify('New mode: Click Customer → Click Amount → choose invoices → click Save', color='positive')
+                    ui.notify('New mode: Click Customer → click Amount → choose invoices → click Save', color='positive')
 
                 ModernActionBar(
                     on_new=handle_new,
@@ -459,14 +552,34 @@ def customer_receipt_page(standalone=False):
                     on_undo=lambda: [clear_form(reset_customer=True), exit_new_mode()],
                     on_refresh=refresh_history,
                     on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                    on_view_transaction=lambda: (
+                        accounting_helpers.show_transactions_dialog(
+                            reference_type='Receipt',
+                            reference_id=str(state['draft_receipt_id'])
+                        ) if state.get('draft_receipt_id')
+                        else ui.notify('Select a receipt to view its transaction', color='warning')
+                    ),
                     button_class='h-16',
-                    classes=' ',
+                    classes=' '
                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
-        # Safe AG-Grid theme + delayed init (FIXES RACE)
-        uiAggridTheme.addingtheme()
-        ui.timer(1.0, refresh_history, once=True)
-
+        ui.timer(0.1, refresh_history, once=True)
+        # Load last receipt on start
+        async def _auto_load():
+            await asyncio.sleep(0.3) # Wait for grid
+            if history_table.options.get('rowData'):
+                # Simulate click on first row
+                first_row = history_table.options['rowData'][0]
+                customer_id = first_row.get('customer_id')
+                customer_name = first_row['customer']
+                state['selected_customer'] = {'id': customer_id, 'name': customer_name}
+                input_refs['customer'].set_value(customer_name)
+                input_refs['amount'].set_value(f'{to_float(first_row["amount"]):.2f}')
+                input_refs['method'].set_value(first_row['method'])
+                input_refs['total'].set_value(f'{to_float(first_row["amount"]):.2f}')
+                load_customer_draft_balance()
+        ui.timer(0.2, _auto_load, once=True)
+        
     finally:
         if standalone:
             layout_container.__exit__(None, None, None)

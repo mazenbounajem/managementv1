@@ -737,4 +737,61 @@ class connection:
 
         except Exception as ex:
             print(f"Error ensuring auxiliary permission: {str(ex)}")
-        
+
+    @staticmethod
+    def ensure_accounting_tables():
+       # \"\"\"Ensure both accounting_transactions and accounting_transaction_lines tables exist\"\"\"
+        try:
+            # Ensure accounting_transactions
+            exists = db_manager.execute_scalar(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'accounting_transactions'"
+            )
+            if not exists:
+                sql = """
+                CREATE TABLE accounting_transactions (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    reference_type VARCHAR(50),
+                    reference_id VARCHAR(100),
+                    description VARCHAR(500),
+                    transaction_date DATETIME DEFAULT GETDATE(),
+                    created_at DATETIME DEFAULT GETDATE()
+                )
+                """
+                db_manager.execute_update(sql)
+                print("accounting_transactions table created successfully")
+
+            # Ensure accounting_transaction_lines
+            lines_exists = db_manager.execute_scalar(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'accounting_transaction_lines'"
+            )
+            if not lines_exists:
+                sql_lines = """
+                CREATE TABLE accounting_transaction_lines (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    jv_id INT NOT NULL,
+                    account_number VARCHAR(20),
+                    auxiliary_id VARCHAR(20) NOT NULL,
+                    debit DECIMAL(18,2) DEFAULT 0,
+                    credit DECIMAL(18,2) DEFAULT 0,
+                    FOREIGN KEY (jv_id) REFERENCES accounting_transactions(id)
+                )
+                """
+                db_manager.execute_update(sql_lines)
+                print("accounting_transaction_lines table created successfully")
+
+            # Ensure permissions
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+                for page in ['accounting-transactions']:
+                    existing = db_manager.execute_scalar(
+                        "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = ?",
+                        (role_id, page)
+                    )
+                    if not existing:
+                        db_manager.execute_update(
+                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, 1)",
+                            (role_id, page)
+                        )
+        except Exception as ex:
+            print(f"Error ensuring accounting tables: {str(ex)}")

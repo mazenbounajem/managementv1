@@ -5,6 +5,7 @@ from connection import connection
 from datetime import datetime
 from decimal import Decimal
 from invoice_pdf_cairo import generate_sales_invoice_pdf
+import accounting_helpers
 from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
@@ -891,7 +892,7 @@ class SalesUI:
             try:
                 raw_sales_data = []
                 connection.contogetrows(
-                     "SELECT s.id, s.sale_date, c.customer_name, s.total_amount, s.invoice_number, cur.currency_name, s.payment_status, s.currency_id, s.status, u.username "
+"SELECT s.id, s.sale_date, c.customer_name, s.total_amount, s.invoice_number, cur.currency_name, s.payment_status, s.currency_id, s.status, u.username "
                      "FROM sales s "
                      "INNER JOIN customers c ON c.id = s.customer_id "
                      "LEFT JOIN currencies cur ON cur.id = s.currency_id "
@@ -1062,6 +1063,26 @@ class SalesUI:
                     )
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
 
+                    import accounting_helpers
+                    cust_aux_res = []
+                    connection.contogetrows("SELECT auxiliary_number FROM customers WHERE id = ?", cust_aux_res, (customer_id,))
+                    customer_account = cust_aux_res[0][0] if cust_aux_res and cust_aux_res[0][0] else '4111.000001'
+
+                    if payment_method == 'Cash':
+                        jv = [
+                            {'account': '5300.000001',   'debit': normalized_total, 'credit': 0},
+                            {'account': '7011.000001',          'debit': 0, 'credit': normalized_total},
+                        ]
+                    else:
+                        jv = [
+                            {'account': customer_account, 'debit': normalized_total, 'credit': 0},
+                            {'account': '7011.000001',           'debit': 0, 'credit': normalized_total},
+                        ]
+
+                    accounting_helpers.save_accounting_transaction(
+                        'Sale', self.current_sale_id, jv, description=f"Sale {self.invoicenumber}"
+                    )
+
                     ui.notify(f'Sale updated successfully! ID: {self.current_sale_id}')
 
                     # Apply new payment effects
@@ -1144,6 +1165,26 @@ class SalesUI:
                         f"Sale payment recorded for sale ID {last_sale_id}"
                     )
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
+
+                    import accounting_helpers
+                    cust_aux_res = []
+                    connection.contogetrows("SELECT auxiliary_number FROM customers WHERE id = ?", cust_aux_res, (customer_id,))
+                    customer_account = cust_aux_res[0][0] if cust_aux_res and cust_aux_res[0][0] else '4111.000001'
+
+                    if payment_method == 'Cash':
+                        jv = [
+                            {'account': '5300.000001',   'debit': normalized_total, 'credit': 0},
+                            {'account': '7011',          'debit': 0, 'credit': normalized_total},
+                        ]
+                    else:
+                        jv = [
+                            {'account': customer_account, 'debit': normalized_total, 'credit': 0},
+                            {'account': '7011',           'debit': 0, 'credit': normalized_total},
+                        ]
+
+                    accounting_helpers.save_accounting_transaction(
+                        'Sale', last_sale_id, jv, description=f"Sale {invoice_number}"
+                    )
 
                     ui.notify(f'{"Order" if is_order else "Sale"} saved successfully! Invoice: {invoice_number}')
 
@@ -1414,6 +1455,7 @@ class SalesUI:
                                     on_print_special=self.print_special_invoice,
                                     on_order=lambda: self.save_sale(is_order=True),
                                     on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                                    on_view_transaction=self.view_sale_transactions,
                                     on_refresh=self.refresh_sales_table,
                                     button_class='h-16',
                                     classes=' '
@@ -1457,10 +1499,14 @@ class SalesUI:
                     
                     self.aggrid.options['rowData'] = self.rows
                     self.aggrid.update()
+                    self.sales_aggrid.update()
+
                     self.total_amount = sum(row['subtotal'] for row in self.rows)
+                    self.update_totals()
                     self.invoicenumber = selected_row["invoice_number"]
                     self.currency_select.value = selected_row.get('currency_id', self.default_currency_id)
-                    self.update_totals()
+                    
+                    ui.notify(f'Loaded {len(self.rows)} items from sale {sale_id}', color='positive')
             except Exception as ex:
                 ui.notify(f'Error: {ex}')
 
@@ -1506,6 +1552,13 @@ class SalesUI:
         ui.notify('Special Print Mode activated', color='accent')
         # For now, call the standard print functionality
         self.print_sale_invoice()
+
+    def view_sale_transactions(self):
+        sale_id = getattr(self, 'current_sale_id', None)
+        if not sale_id:
+            return ui.notify('Select a sale to view its connected transaction', color='warning')
+        import accounting_helpers
+        accounting_helpers.show_transactions_dialog(reference_type="Sale", reference_id=sale_id)
 
 @ui.page('/sales')
 def sales_page_route():

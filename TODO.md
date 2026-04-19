@@ -1,29 +1,34 @@
-# Supplier Payment Fixes TODO
+# Hierarchical Trial Balance Implementation (Like Statement of Account)
 
-## Status: In Progress
+Status: **IN PROGRESS** 0/12
 
-### Step 1: [x] Create calculate_supplier_pending() in supplier_payment_ui_fixed_v2.py
-- Sum unpaid purchase invoices per supplier
-- Replace fetch_supplier_balance() to use this
+## Phase 1: Data Layer (reports.py)
+- [ ] 1. Implement `fetch_hierarchical_trial_balance(ledger_prefix, from_date, to_date)`
+  - Recursive CTE: Ledger tree under prefix (AccountNumber LIKE prefix + '%')
+  - Join auxiliary WHERE number LIKE level_code + '.%'
+  - Window SUM(debit/credit) OVER (PARTITION BY account_tree ORDER BY txn_date)
+  - Nested structure: [{'code': '701', 'name': 'Sales', 'debit': 10000, 'credit': 9000, 'balance': 1000, 'level': 1, 'children': [...], 'transactions': []}]
 
-### Step 2: [x] Add UI labels/tooltips for two tables in dialog
-- Explain invoice_grid vs preview_grid
+## Phase 2: PDF Generation (accounting_helpers.py)
+- [ ] 2. `print_hierarchical_trial_balance_pdf(prefix, from_date, to_date)`
+- [ ] 3. ReportLab: Header w/ period/prefix
+- [ ] 4. Hierarchical table (indented code/name, totals)
+- [ ] 5. Expandable detail sections for leaves (Date/Ref/Debit/Credit/Balance)
+- [ ] 6. Grand totals + balance check
 
-### Step 3: [x] Add refresh logic after process_payment()
-- Reload supplier balance
-- Refresh history table
-- Notify external refresh (supplierui)
+## Phase 3: Modern UI (modern_reports_ui.py)
+- [ ] 7. Add `'hierarchical_trial_balance'` to select options
+- [ ] 8. Ledger prefix input + autocomplete from Ledger.AccountNumber
+- [ ] 9. aggrid treeData display
+- [ ] 10. Print PDF button (iframe dialog like current)
 
-### Step 4: [x] Update supplierui.py
-- Add refresh mechanism linked to payments
+## Phase 4: Quick Access Buttons
+- [ ] 11. ledgerui.py: Button on row select → print_hierarchical_trial_balance_pdf(row.AccountNumber)
+- [ ] 12. auxiliaryui.py: Similar button
 
-### Step 5: [x] Test full flow
-✅ All fixes implemented:
-- Dialog tables now clearly labeled (Selection + Preview)
-- Amount persists and form refreshes after payment
-- Balance matches actual pending invoice sum from purchases
-- Supplier UI shows 'Pending Invoices' column, updates on refresh
+## Phase 5: Validation
+- [ ] 13. Test: prefix="701", dates → full hierarchy + leaf details + PDF
+- [ ] 14. ✅ All steps → attempt_completion
 
-### Step 6: [x] Fix payment register row selection
-✅ Fill Disbursement Details completely with current balance when clicking history row
+**Next Step: Phase 1.1 - Add fetch function to reports.py**
 

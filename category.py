@@ -28,8 +28,16 @@ def category_page(standalone=False):
             input_refs['photo'].set_value(f"data:image/png;base64,{base64_str}")
             photo_preview.set_source(f"data:image/png;base64,{base64_str}")
             ui.notify('Category photo uploaded', color='positive')
+            e.sender.reset() # Clear the upload list
         except Exception as ex:
             ui.notify(f'Upload error: {ex}', color='negative')
+
+    def remove_photo():
+        input_refs['photo'].set_value('')
+        photo_preview.set_source('https://via.placeholder.com/150')
+        if 'uploader' in input_refs:
+            input_refs['uploader'].reset()
+        ui.notify('Banner removed from form')
 
     def refresh_table():
         data = []
@@ -49,20 +57,49 @@ def category_page(standalone=False):
             })
         table.options['rowData'] = rows
         table.update()
+        _load_last_row()
 
     def clear_inputs():
         for k, ref in input_refs.items():
+            if k == 'uploader': continue
             ref.set_value('')
         photo_preview.set_source('https://via.placeholder.com/150')
-        table.run_method('deselectAll')
+        if 'uploader' in input_refs:
+            input_refs['uploader'].reset()
+        if table:
+            table.classes(add='dimmed')
+            table.run_method('deselectAll')
         try:
             update_saved_state()
             ui.run_javascript("sessionStorage.removeItem('draft_category');")
         except: pass
 
+    def _load_last_row():
+        """Load the most recent category into the form and undim table"""
+        if not table.options.get('rowData'):
+            return
+        row = table.options['rowData'][0]
+        cid = row['id']
+        input_refs['id'].set_value(str(cid))
+        input_refs['name'].set_value(row.get('name') or '')
+        input_refs['description'].set_value(row.get('description') or '')
+        
+        # Fetch photo on-demand
+        photo_data = []
+        connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
+        full_photo = photo_data[0][0] if photo_data else None
+        input_refs['photo'].set_value(full_photo or '')
+        if full_photo:
+            photo_preview.set_source(full_photo)
+        else:
+            photo_preview.set_source('https://via.placeholder.com/150')
+        
+        if table:
+            table.classes(remove='dimmed')
+
     def save_category():
         try:
-            c_data = {k: ref.value for k, ref in input_refs.items()}
+            c_data = {k: ref.value for k, ref in input_refs.items() if k != 'uploader'}
             if not c_data['name']:
                 return ui.notify('Category name required', color='negative')
 
@@ -80,6 +117,8 @@ def category_page(standalone=False):
                 ui.run_javascript("sessionStorage.removeItem('draft_category');")
             except: pass
             refresh_table()
+            if table:
+                table.classes(remove='dimmed')
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
@@ -101,8 +140,11 @@ def category_page(standalone=False):
                     with ModernCard().classes('w-full p-6 flex flex-col items-center'):
                         ui.label('Category Banner').classes('text-lg font-bold mb-4 w-full text-center')
                         photo_preview = ui.image('https://via.placeholder.com/150').classes('w-full h-32 rounded-xl object-cover border-2 border-accent/10 mb-4 shadow-sm')
-                        input_refs['photo'] = ui.input().classes('hidden') # State holder
-                        ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dense label="Upload Banner" accept=".jpg,.png,.jpeg"').classes('w-full')
+                        
+                        with ui.row().classes('w-full gap-2 mb-2'):
+                            input_refs['photo'] = ui.input().classes('hidden') # State holder
+                            input_refs['uploader'] = ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dense label="Upload Banner" accept=".jpg,.png,.jpeg"').classes('flex-1')
+                            ui.button(icon='delete', on_click=remove_photo).props('flat round color=red').tooltip('Remove banner')
 
                     with ModernCard().classes('w-full p-6'):
                         ui.label('Category Info').classes('text-lg font-bold mb-4')
@@ -163,8 +205,11 @@ def category_page(standalone=False):
                                 input_refs['photo'].set_value(full_photo or '')
                                 if full_photo:
                                     photo_preview.set_source(full_photo)
+                                else:
                                     photo_preview.set_source('https://via.placeholder.com/150')
                                 
+                                if table:
+                                    table.classes(remove='dimmed')
                                 try: update_saved_state()
                                 except: pass
                             except Exception as ex:
@@ -192,6 +237,7 @@ def category_page(standalone=False):
     def capture_state():
         state = {}
         for k, ref in input_refs.items():
+            if k == 'uploader': continue
             if hasattr(ref, 'value'):
                 state[k] = ref.value
         return state

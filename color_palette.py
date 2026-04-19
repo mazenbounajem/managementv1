@@ -15,8 +15,10 @@ class ColorPalette:
     ACCENT = "#e6c17a"            # Golden yellow - for selections, hover states, highlights
     
     # Semantic color assignments
-    HEADER_BG = PRIMARY_DARK
-    HEADER_TEXT = PRIMARY_LIGHT
+    HEADER_BG = "#08CB00"         # Bright Green
+    HEADER_TEXT = "#000000"       # Black
+    
+    DRAWER_BTN_BG = "#253900"     # Dark Olive Green for drawer buttons
     
     MAIN_BG = PRIMARY_LIGHT
     MAIN_TEXT = PRIMARY_DARK

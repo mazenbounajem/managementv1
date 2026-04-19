@@ -82,6 +82,7 @@ class EnhancedNavigation:
                     'auxiliary':      {'label': 'Auxiliary',            'path': '/auxiliary',       'icon': 'account_balance',        'shortcut': 'Alt+Aux'},
                     'journal_voucher':{'label': 'Journal Voucher',      'path': '/journal_voucher', 'icon': 'receipt_long',           'shortcut': 'Alt+J'},
                     'voucher_subtype':{'label': 'Voucher Subtype',      'path': '/voucher_subtype', 'icon': 'category',               'shortcut': 'Alt+V'},
+                    'accounting-transactions': {'label': 'Acct. Transactions', 'path': '/accounting-transactions', 'icon': 'receipt_long', 'shortcut': 'Alt+Z'},
                 }
             },
             'Administration': {
@@ -177,41 +178,56 @@ class EnhancedNavigation:
     def create_navigation_header(self):
         """Create premium navigation header with glassmorphism and dynamic tabs"""
         with ui.header().classes('ribbon-container').style('background: transparent; border: none;'):
-            with ui.row().classes('w-full items-center justify-between px-6 py-2 glass shadow-lg').style('border-radius: 0 0 1.5rem 1.5rem; border: 1px solid rgba(255,255,255,0.1);'):
+            with ui.row().classes('w-full items-center justify-between px-6 py-2 glass shadow-lg').style('border-radius: 0 0 1.5rem 1.5rem; border: 1px solid rgba(255,255,255,0.5);'):
                 # Left side - Logo & Path
                 with ui.row().classes('items-center gap-4'):
                     # Custom Hamburger Toggle
-                    self.toggle_button = ui.button(icon='menu').props('flat round').classes('text-gray-700 hover:text-[#7048E8] transition-all')
+                    self.toggle_button = ui.button(icon='menu').props('flat round').classes('text-[#08CB00] hover:bg-[#08CB00]/10 transition-all')
                     self.toggle_button.on('click', self.toggle_navigation_drawer)
                     
                     with ui.row().classes('items-center gap-2'):
-                        ui.icon('cloud_done', size='2rem', color='#7048E8')
-                        ui.label('ManagementOS').classes('text-xl font-black tracking-tighter text-gray-900').style('font-family: "Outfit", sans-serif;')
+                        ui.icon('cloud_done', size='2rem', color='#08CB00')
+                        ui.label('ManagementOS').classes('text-xl font-black tracking-tighter text-[#08CB00]').style('font-family: "Outfit", sans-serif;')
                 
                 # Dynamic Tabs in the Header
                 with ui.row().classes('flex-1 justify-center px-4'):
-                    self.tabs_ui = ui.tabs().classes('text-gray-600')
-                    self.tabs_ui.props('active-color=#7048E8 indicator-color=#7048E8 dense')
+                    self.tabs_ui = ui.tabs().classes('text-[#08CB00]/70')
+                    self.tabs_ui.props('active-color=#ffffff indicator-color=transparent dense')
                 
                 # Right side - Actions & User (Search moved here for space)
                 with ui.row().classes('items-center gap-3'):
                     # Split View Toggle
                     if self.tabbed_mode:
-                        self.split_btn = ui.button(icon='vertical_split', on_click=self.toggle_split_view).props('flat round').classes('text-gray-500 hover:text-[#7048E8]')
+                        self.split_btn = ui.button(icon='vertical_split', on_click=self.toggle_split_view).props('flat round').classes('text-[#08CB00]/60 hover:text-[#08CB00]')
                         self.split_btn.tooltip('Toggle Split View (Side-by-Side)')
 
-                    with ui.row().classes('items-center px-3 py-1 rounded-full bg-gray-100/50 border border-gray-200/50 focus-within:bg-white focus-within:shadow-md transition-all').style('width: 150px;'):
+                    with ui.row().classes('items-center px-3 py-1 rounded-full bg-white/40 border border-white/40 focus-within:bg-white focus-within:shadow-md transition-all').style('width: 150px;'):
                         ui.icon('search', size='1rem').classes('text-gray-400')
                         search_input = ui.input(placeholder='Search...').props('borderless dense').classes('flex-1 ml-2 text-xs')
                         search_input.on('input', lambda e: self.update_search_results(e.value))
                     
-                    self.search_dropdown = ui.column().classes('absolute top-full mt-2 glass p-2 rounded-2xl hidden z-50 shadow-2xl').style('width: 300px; max-height: 400px; overflow-y: auto; right: 20px;')
+                    self.search_dropdown = ui.column().classes('absolute top-full mt-2 glass p-2 rounded-2xl hidden z-50 shadow-2xl overflow-hidden').style('width: 300px; max-height: 400px; right: 20px; border: 1px solid rgba(255,255,255,0.6);')
                     
-                    ui.button(icon='notifications').props('flat round').classes('text-gray-500 hover:text-[#7048E8]')
+                    # Theme Switcher
+                    def change_theme(e):
+                        theme = e.value
+                        themes = {
+                            'Midnight': 'mesh-gradient',
+                            'Ocean': 'mesh-gradient',
+                            'Warm': 'mesh-gradient',
+                            'Modern Light': 'bg-gray-50'
+                        }
+                        cls = themes.get(theme, 'mesh-gradient')
+                        ui.run_javascript(f"document.body.className = '{cls}';")
+                        ui.notify(f'Theme changed to {theme}', color='info')
+
+                    ui.select(['Midnight', 'Ocean', 'Warm', 'Modern Light'], value='Midnight', on_change=change_theme).props('flat dense options-dark').classes('w-32 glass p-1 rounded-lg text-xs')
+
+                    ui.button(icon='notifications').props('flat round').classes('text-[#08CB00]/60 hover:text-[#08CB00]')
                     
                     # User Menu (existing)
-                    with ui.button().props('flat round').classes('p-0 overflow-hidden border-2 border-purple-100 hover:border-[#7048E8] transition-all'):
-                        ui.image('https://ui-avatars.com/api/?name=' + self.current_user.get("username", "U") + '&background=7048E8&color=fff').classes('w-8 h-8 rounded-full')
+                    with ui.button().props('flat round').classes('p-0 overflow-hidden border-2 border-green-100 hover:border-[#08CB00] transition-all'):
+                        ui.image('https://ui-avatars.com/api/?name=' + self.current_user.get("username", "U") + '&background=08CB00&color=fff').classes('w-8 h-8 rounded-full')
                         with ui.menu().classes('glass p-2 rounded-xl border border-white/50 shadow-2xl'):
                             ui.menu_item('My Account', lambda: self.navigate_to_page('profile', new_instance=True)).classes('rounded-lg font-bold text-sm')
                             ui.separator()
@@ -226,7 +242,7 @@ class EnhancedNavigation:
             self.cmd_dialog = dialog
             with ui.card().classes('w-[600px] h-[400px] p-0 flex flex-col bg-white overflow-hidden').style('border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);'):
                 with ui.row().classes('w-full items-center p-4 border-b border-gray-100 bg-gray-50/50'):
-                    ui.icon('search', size='1.5rem').classes('text-[#7048E8] mr-3')
+                    ui.icon('search', size='1.5rem').classes('text-[#08CB00] mr-3')
                     self.cmd_input = ui.input(placeholder='Search modules, actions...').props('borderless autofocus').classes('flex-1 text-lg font-medium')
                     self.cmd_input.on('input', lambda e: self.update_cmd_results(e.value))
                     ui.label('ESC').classes('text-[10px] font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded cursor-pointer').on('click', dialog.close).tooltip('Close')
@@ -270,17 +286,17 @@ class EnhancedNavigation:
                     self.render_cmd_result(r['key'], r['label'], r['icon'], r['category'])
 
     def render_cmd_result(self, key, label, icon, category):
-        with ui.row().classes('w-full items-center justify-between p-3 hover:bg-purple-50 rounded-xl cursor-pointer transition-all group').on('click', lambda: self.execute_cmd(key)):
+        with ui.row().classes('w-full items-center justify-between p-3 hover:bg-[#08CB00]/10 rounded-xl cursor-pointer transition-all group').on('click', lambda: self.execute_cmd(key)):
             with ui.row().classes('items-center gap-4'):
-                with ui.element('div').classes('w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-purple-100 group-hover:text-[#7048E8] border border-gray-100 group-hover:border-purple-200 transition-colors'):
-                    ui.icon(icon, size='1.2rem').classes('text-gray-500 group-hover:text-[#7048E8] transition-colors')
+                with ui.element('div').classes('w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#08CB00]/10 group-hover:text-[#08CB00] border border-gray-100 group-hover:border-[#08CB00]/20 transition-colors'):
+                    ui.icon(icon, size='1.2rem').classes('text-gray-500 group-hover:text-[#08CB00] transition-colors')
                 with ui.column().classes('gap-0'):
                     ui.label(label).classes('font-bold text-gray-800 text-sm')
                     ui.label(category).classes('text-[10px] text-gray-400 uppercase tracking-wider mt-0.5')
             
             with ui.row().classes('items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'):
-                ui.label('Open in Tab').classes('text-xs font-bold text-[#7048E8]')
-                ui.icon('keyboard_return', size='1rem').classes('text-[#7048E8]')
+                ui.label('Open in Tab').classes('text-xs font-bold text-[#08CB00]')
+                ui.icon('keyboard_return', size='1rem').classes('text-[#08CB00]')
 
     def execute_cmd(self, page_key):
         self.cmd_dialog.close()
@@ -309,10 +325,29 @@ class EnhancedNavigation:
                     ui.label('ManagementOS').classes('text-xl font-black text-white tracking-tighter')
 
                 # Search in drawer
-                with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all'):
+                with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all focus-within:border-[#08CB00]/50'):
                     ui.icon('search', size='1rem').classes('text-gray-500')
-                    self.drawer_search = ui.input(placeholder='Jump to Page...').props('borderless dense').classes('flex-1 ml-2 text-xs font-bold text-white uppercase tracking-wider')
-                    self.drawer_search.on('input', lambda e: self.filter_navigation(e.value))
+                    
+                    def handle_search(e):
+                        self.filter_navigation(e.value)
+                        
+                    def on_enter(e):
+                        # If user presses enter, try to navigate to the first result
+                        query = self.drawer_search.value
+                        if query:
+                            # Use existing logic to find matches
+                            allowed_pages = self.get_allowed_pages()
+                            results = self.search_pages(query)
+                            if results:
+                                self.navigate_to_page(results[0]['key'], new_instance=True)
+
+                    self.drawer_search = ui.input(placeholder='Jump to Page...')\
+                        .props('borderless dense clearable')\
+                        .classes('flex-1 ml-2 text-xs font-bold text-white uppercase tracking-wider')\
+                        .on('update:model-value', handle_search)\
+                        .on('keydown.enter', on_enter)
+                    
+                    ui.button(icon='close', on_click=lambda: self.drawer_search.set_value('')).props('flat round dense size=xs').classes('text-white/20 hover:text-white')
 
                 # Navigation content
                 self.nav_container = ui.column().classes('w-full gap-2 mt-4 drawer-scroll-container overflow-y-auto')
@@ -323,36 +358,80 @@ class EnhancedNavigation:
     def create_navigation_content(self, search_filter=""):
         """Create navigation content with categories"""
         allowed_pages = self.get_allowed_pages()
+        search_filter = search_filter.lower() if search_filter else ""
 
+        if search_filter:
+            # SEARCH RESULTS VIEW (Dedicated results list for better UX)
+            self.render_search_results(search_filter, allowed_pages)
+        else:
+            # CATEGORY TREE VIEW (Standard browsing)
+            self.render_category_tree(allowed_pages)
+
+    def render_search_results(self, query, allowed_pages):
+        """Render search results across modules and open tabs"""
+        ui.label('Search Results').classes('text-[10px] font-black uppercase text-[#08CB00] mb-4 px-4')
+        
+        # 1. Matching Modules (Tabs that can be opened)
+        matches = []
         for category, data in self.navigation_categories.items():
-            category_items = []
             for page_key, page_data in data['items'].items():
                 if page_key in allowed_pages:
-                    if not search_filter or search_filter.lower() in page_data['label'].lower():
-                        category_items.append((page_key, page_data))
+                    if query in page_data['label'].lower() or query in page_key.lower() or query in category.lower():
+                        matches.append((page_key, page_data, category))
+        
+        if matches:
+            ui.label('Modules').classes('text-[9px] font-bold text-gray-500 mb-2 px-4 uppercase')
+            for page_key, page_data, category in matches:
+                with ui.row().classes('drawer-button w-full items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer animate-fade-in mb-1')\
+                    .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
+                    ui.icon(page_data['icon']).classes('drawer-button-icon')
+                    with ui.column().classes('gap-0 flex-1'):
+                        ui.label(page_data['label']).classes('drawer-button-label text-white leading-none')
+                        ui.label(category).classes('text-[8px] text-gray-500 uppercase tracking-tighter mt-1')
+                    ui.icon('add_circle', size='xs').classes('text-[#08CB00]/30 hover:text-[#08CB00]')
+        
+        # 2. Matching Open Tabs (Currently running instances)
+        if self.tabbed_mode:
+            tab_matches = [k for k in self.open_tabs.keys() if query in k.lower()]
+            if tab_matches:
+                if matches: ui.separator().classes('my-4 opacity-10')
+                ui.label('Open Tab Instances').classes('text-[9px] font-bold text-[#08CB00] mb-2 px-4 uppercase')
+                for tab_key in tab_matches:
+                    with ui.row().classes('drawer-button w-full items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer animate-fade-in mb-1')\
+                        .on('click', lambda k=tab_key: self.navigate_to_page(k, new_instance=False)):
+                        ui.icon('tab').classes('drawer-button-icon text-[#08CB00]')
+                        ui.label(tab_key.replace('_', ' #').title()).classes('drawer-button-label flex-1 text-white')
+                        ui.badge('Active', color='#08CB00').props('text-color=black size=xs')
+
+        if not matches and (not self.tabbed_mode or not tab_matches):
+            with ui.column().classes('w-full items-center justify-center p-8 opacity-40'):
+                ui.icon('search_off', size='3rem').classes('text-gray-300 mb-2 text-center')
+                ui.label('No matching pages found').classes('text-gray-400 text-xs text-center mt-2')
+
+    def render_category_tree(self, allowed_pages):
+        """Render the full category tree for browsing"""
+        for category, data in self.navigation_categories.items():
+            category_items = [(k, v) for k, v in data['items'].items() if k in allowed_pages]
 
             if category_items:
-                # Premium Category Section
                 with ui.column().classes('w-full mb-6'):
                     ui.label(category).classes('text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3 px-4')
                     
-                    # Category items
                     for page_key, page_data in category_items:
                         is_active = (page_data['path'] == self.active_path)
-                        
                         btn_classes = 'drawer-button w-full ' + ('active ' if is_active else '')
                         
                         with ui.row().classes(btn_classes):
-                            # Main button for switching/opening (always new instance as requested by user)
-                            with ui.row().classes('flex-1 items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer').on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
+                            with ui.row().classes('flex-1 items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer')\
+                                .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
                                 ui.icon(page_data['icon']).classes('drawer-button-icon')
                                 ui.label(page_data['label']).classes('drawer-button-label flex-1')
                                 if is_active:
                                     ui.element('div').classes('w-1.5 h-1.5 rounded-full bg-white animate-pulse')
-                            
-                            # Plus button for new instance
+
                             if self.tabbed_mode:
-                                ui.button(icon='open_in_new').props('flat round dense size=xs').classes('text-gray-500 hover:text-white mr-2').on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)).tooltip('Open duplicate tab')
+                                ui.button(icon='open_in_new').props('flat round dense size=xs').classes('text-gray-500 hover:text-white mr-2')\
+                                    .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)).tooltip('Open duplicate tab')
 
 
     def filter_navigation(self, query):
@@ -404,32 +483,49 @@ class EnhancedNavigation:
         """Toggle split view mode via callback"""
         if self.split_view_callback:
             is_split = self.split_view_callback()
-            self.split_btn.props(f'color={"#7048E8" if is_split else "gray-500"}')
-            self.split_btn.classes(add='text-[#7048E8]' if is_split else 'text-gray-500', remove='text-gray-500' if is_split else 'text-[#7048E8]')
+            self.split_btn.props(f'color={"#08CB00" if is_split else "gray-500"}')
+            self.split_btn.classes(add='text-[#08CB00]' if is_split else 'text-gray-500', remove='text-gray-500' if is_split else 'text-[#08CB00]')
 
     def navigate_to_page(self, page_key, new_instance=False):
         """Navigate to a page and update breadcrumbs/recent pages"""
-        # Find page data
+        # Determine base module key (e.g., 'sales' from 'sales_1')
+        base_key = page_key.split('_')[0] if '_' in page_key else page_key
+        
+        # Find page data using the base key
+        page_data = None
+        current_category = None
         for category, data in self.navigation_categories.items():
-            if page_key in data['items']:
-                page_data = data['items'][page_key]
-                self.add_recent_page(page_key, page_data['label'])
-                self.current_path = [category, page_data['label']]
-
-                # Special handling for tabbed mode
-                if self.tabbed_mode and hasattr(self, 'open_tab_callback') and self.open_tab_callback:
-                    self.open_tab_callback(page_key, new_instance=new_instance)
-                else:
-                    ui.navigate.to(page_data['path'])
-
-                # Hide search dropdown after navigation
-                if hasattr(self, 'search_dropdown'):
-                    self.search_dropdown.classes(add='hidden')
+            if base_key in data['items']:
+                page_data = data['items'][base_key]
+                current_category = category
                 break
+        
+        if page_data:
+            self.add_recent_page(base_key, page_data['label'])
+            self.current_path = [current_category, page_data['label']]
+
+            # Special handling for tabbed mode
+            if self.tabbed_mode and hasattr(self, 'open_tab_callback') and self.open_tab_callback:
+                self.open_tab_callback(page_key, new_instance=new_instance)
+            else:
+                ui.navigate.to(page_data['path'])
+
+            # Hide search dropdown after navigation
+            if hasattr(self, 'search_dropdown'):
+                self.search_dropdown.classes(add='hidden')
+        elif self.tabbed_mode and (page_key in self.open_tabs or '_' in page_key):
+            # Fallback for instance keys if not found in categories (shouldn't happen for base modules)
+            if hasattr(self, 'open_tab_callback') and self.open_tab_callback:
+                self.open_tab_callback(page_key, new_instance=new_instance)
 
     def navigate_to_search_result(self, result):
         """Navigate to a search result - always opens a new tab"""
         self.navigate_to_page(result['key'], new_instance=True)
+
+    def open_report(self, page_key):
+        """Open reports module filtered or specific to the module"""
+        ui.notify(f'Opening specialized reports for {page_key}...', color='info')
+        self.navigate_to_page('reports', new_instance=True)
 
     def setup_keyboard_shortcuts(self):
         """Setup keyboard shortcuts for navigation"""

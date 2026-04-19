@@ -35,8 +35,27 @@ class VoucherSubtypeUI:
         self.input_refs['sequence'].value = 0
         self.input_refs['id'].value = ''
         if self.table:
-            self.table.classes('dimmed')
+            self.table.classes(add='dimmed')
+            self.table.run_method('deselectAll')
         ui.notify('Ready for new entry', color='info')
+
+    def _load_last_row(self):
+        """Load the first row (last record) into form fields and undim table"""
+        if not self.row_data:
+            return
+        row = self.row_data[0]
+        self.input_refs['id'].value = str(row['id'])
+        self.input_refs['code'].value = row['code'] or ''
+        self.input_refs['name'].value = row['name'] or ''
+        self.input_refs['sequence'].value = row['sequence'] or 0
+        self.initial_values = {
+            'code': row['code'] or '',
+            'name': row['name'] or '',
+            'sequence': row['sequence'] or 0,
+            'id': str(row['id'])
+        }
+        if self.table:
+            self.table.classes(remove='dimmed')
 
     def save_voucher_subtype(self):
         code = self.input_refs['code'].value.upper()
@@ -115,10 +134,10 @@ class VoucherSubtypeUI:
             if self.table:
                 self.table.options['rowData'] = new_row_data
                 self.table.update()
-                self.table.classes(remove='dimmed')
 
             self.row_data = new_row_data
-            self.clear_input_fields()
+            # Load last entry into form and undim
+            self._load_last_row()
         except Exception as e:
             ui.notify(f'Error refreshing table: {str(e)}', color='negative')
 
@@ -129,70 +148,73 @@ class VoucherSubtypeUI:
             layout_container.__enter__()
         
         try:
-            # Action Bar
-            with ui.row().classes('w-full justify-between items-center mb-6 p-4 rounded-2xl bg-white/5 glass border border-white/10'):
-                with ui.row().classes('gap-3'):
-                    ModernButton('New Subtype', icon='add', on_click=self.clear_input_fields, variant='primary')
-                    ModernButton('Save', icon='save', on_click=self.save_voucher_subtype, variant='success')
-                    ModernButton('Undo', icon='undo', on_click=self.undo_changes, variant='secondary')
-                    ModernButton('Delete', icon='delete', on_click=self.delete_voucher_subtype, variant='error')
-                
-                ModernButton('Refresh', icon='refresh', on_click=self.refresh_table, variant='outline').classes('text-white border-white/20')
+            with ui.row().classes('w-full gap-6 items-start p-4 animate-fade-in'):
+                # Left Column: Form
+                with ui.column().classes('w-1/3 gap-6'):
+                    with ModernCard(glass=True).classes('w-full p-6'):
+                        ui.label('Subtype Details').classes('text-lg font-black mb-6 text-white')
+                        with ui.column().classes('w-full gap-4'):
+                            self.input_refs['code'] = ui.input('Code').classes('w-full glass-input text-white').props('dark rounded outlined')
+                            self.input_refs['name'] = ui.input('Subtype Name').classes('w-full glass-input text-white').props('dark rounded outlined')
+                            self.input_refs['sequence'] = ui.number('Sequence', value=0).classes('w-full glass-input text-white').props('dark rounded outlined')
+                            self.input_refs['id'] = ui.input('ID (Internal)').classes('w-full glass-input text-white').props('dark rounded outlined readonly')
 
-            with ui.column().classes('w-full gap-6'):
-                # Top: List
-                with ModernCard(glass=True).classes('w-full p-6'):
-                    with ui.row().classes('w-full justify-between items-center mb-4'):
-                        ui.label('Voucher Subtypes').classes('text-xl font-black text-white')
-                        self.search_input = ui.input(placeholder='Search subtypes...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
-                        self.search_input.on('input', lambda e: self.filter_rows(e.value))
+                # Middle Column: List
+                with ui.column().classes('flex-1 gap-6'):
+                    with ModernCard(glass=True).classes('w-full p-6'):
+                        with ui.row().classes('w-full justify-between items-center mb-4'):
+                            ui.label('Voucher Subtypes').classes('text-xl font-black text-white ml-2')
+                            self.search_input = ui.input(placeholder='Search subtypes...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
+                            self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
-                    column_defs = [
-                        {'headerName': 'ID', 'field': 'id', 'width': 80},
-                        {'headerName': 'Code', 'field': 'code', 'width': 120},
-                        {'headerName': 'Name', 'field': 'name', 'width': 220},
-                        {'headerName': 'Sequence', 'field': 'sequence', 'width': 100},
-                        {'headerName': 'Created At', 'field': 'created_at', 'width': 180}
-                    ]
+                        column_defs = [
+                            {'headerName': 'ID', 'field': 'id', 'width': 80},
+                            {'headerName': 'Code', 'field': 'code', 'width': 120},
+                            {'headerName': 'Name', 'field': 'name', 'width': 220, 'flex': 1},
+                            {'headerName': 'Sequence', 'field': 'sequence', 'width': 100},
+                        ]
 
-                    self.table = ui.aggrid({
-                        'columnDefs': column_defs,
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                        'rowSelection': 'single',
-                    }).classes('w-full h-80 ag-theme-quartz-dark')
-                    
-                    async def on_row_click():
-                        try:
-                            selected_row = await self.table.get_selected_row()
-                            if selected_row:
-                                self.input_refs['id'].value = str(selected_row['id'])
-                                self.input_refs['code'].value = selected_row['code']
-                                self.input_refs['name'].value = selected_row['name']
-                                self.input_refs['sequence'].value = selected_row['sequence']
-                                
-                                self.initial_values = {
-                                    'code': selected_row['code'],
-                                    'name': selected_row['name'],
-                                    'sequence': selected_row['sequence'],
-                                    'id': str(selected_row['id'])
-                                }
-                                ui.notify(f'Selected: {selected_row["name"]}', color='info')
-                        except Exception as e:
-                            ui.notify(f'Error selecting row: {str(e)}', color='negative')
-                    
-                    self.table.on('cellClicked', on_row_click)
+                        self.table = ui.aggrid({
+                            'columnDefs': column_defs,
+                            'rowData': [],
+                            'defaultColDef': MDS.get_ag_grid_default_def(),
+                            'rowSelection': 'single',
+                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
+                        
+                        def on_row_click(e):
+                            try:
+                                selected_row = e.args.get('data', {})
+                                if selected_row:
+                                    self.input_refs['id'].value = str(selected_row['id'])
+                                    self.input_refs['code'].value = selected_row['code'] or ''
+                                    self.input_refs['name'].value = selected_row['name'] or ''
+                                    self.input_refs['sequence'].value = selected_row['sequence'] or 0
+                                    self.initial_values = {
+                                        'code': selected_row['code'] or '',
+                                        'name': selected_row['name'] or '',
+                                        'sequence': selected_row['sequence'] or 0,
+                                        'id': str(selected_row['id'])
+                                    }
+                                    if self.table:
+                                        self.table.classes(remove='dimmed')
+                            except Exception as e:
+                                ui.notify(f'Error selecting row: {str(e)}', color='negative')
 
-                # Bottom: Details
-                with ModernCard(glass=True).classes('w-full p-6'):
-                    ui.label('Subtype Details').classes('text-lg font-black mb-6 text-white')
-                    with ui.row().classes('w-full gap-6 items-center'):
-                        self.input_refs['code'] = ui.input('Code').classes('w-48 glass-input text-white').props('dark rounded outlined')
-                        self.input_refs['sequence'] = ui.number('Sequence', value=0).classes('w-32 glass-input text-white').props('dark rounded outlined')
-                        self.input_refs['id'] = ui.input('ID (Internal)').classes('w-32 glass-input text-white').props('dark rounded outlined readonly')
+                        self.table.on('cellClicked', on_row_click)
 
-                    with ui.row().classes('w-full gap-6 mt-4'):
-                        self.input_refs['name'] = ui.input('Subtype Name').classes('flex-1 glass-input text-white').props('dark rounded outlined')
+                # Right Column: Action Bar
+                with ui.column().classes('w-80px items-center'):
+                    from modern_ui_components import ModernActionBar
+                    ModernActionBar(
+                        on_new=self.clear_input_fields,
+                        on_save=self.save_voucher_subtype,
+                        on_undo=self.undo_changes,
+                        on_delete=self.delete_voucher_subtype,
+                        on_refresh=self.refresh_table,
+                        on_chatgpt=lambda: ui.open('https://chatgpt.com', new_tab=True),
+                        button_class='h-16',
+                        classes=' '
+                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
             ui.timer(0.1, self.refresh_table, once=True)
         finally:

@@ -43,8 +43,19 @@ class EmployeeUI:
             else:
                 ref.value = ''
         if self.table:
-            self.table.classes('dimmed')
+            self.table.classes(add='dimmed')
+            self.table.run_method('deselectAll')
         ui.notify('Ready for new employee entry', color='info')
+
+    def _load_last_row(self):
+        """Load the most recent employee into form on page open and undim table"""
+        try:
+            data = []
+            connection.contogetrows("SELECT TOP 1 id FROM employees ORDER BY id DESC", data)
+            if data:
+                self.load_employee_details(data[0][0])
+        except Exception as e:
+            print(f"Error loading last employee: {e}")
 
     def save_employee(self):
         fields = ['first_name', 'last_name', 'email', 'phone', 'address', 'city', 'state', 'zip_code', 
@@ -140,7 +151,8 @@ class EmployeeUI:
                 })
             self.table.options['rowData'] = rows
             self.table.update()
-            self.clear_input_fields()
+            # Load last entry into form and undim
+            self._load_last_row()
         except Exception as e:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
 
@@ -163,9 +175,9 @@ class EmployeeUI:
                         'rowSelection': 'single',
                     }).classes('w-full h-[600px] ag-theme-quartz-dark')
                     
-                    async def on_row_click():
-                        selected = await self.table.get_selected_row()
-                        if selected:
+                    def on_row_click(e):
+                        selected = e.args.get('data', {})
+                        if selected and selected.get('id'):
                             self.load_employee_details(selected['id'])
                     self.table.on('cellClicked', on_row_click)
 
