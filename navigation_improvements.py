@@ -108,7 +108,7 @@ class EnhancedNavigation:
             'System': {
                 'icon': 'settings',
                 'items': {
-                    'backup': {'label': 'Database Backup', 'path': '/tabbed-dashboard', 'icon': 'backup', 'shortcut': 'Alt+Z'},
+                    'backup': {'label': 'Database Backup', 'path': '/settings-backup', 'icon': 'backup', 'shortcut': 'Alt+Z'},
                 }
             }
         }

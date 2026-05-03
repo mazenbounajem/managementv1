@@ -144,6 +144,23 @@ def customer_page(standalone=False):
                           c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'], aux_number)
 
             connection.insertingtodatabase(sql, params)
+            
+            # Fetch the new customer ID to use for the VAT auxiliary
+            new_id_data = []
+            connection.contogetrows("SELECT MAX(id) FROM customers", new_id_data)
+            new_id = new_id_data[0][0] if new_id_data and new_id_data[0][0] else None
+            
+            if new_id and c_data['customer_name'] and not c_data['id']:
+                # Ensure the VAT auxiliary is created for the new customer
+                import accounting_helpers
+                aux_number = c_data.get('auxiliary_number') or new_id # Use the created one
+                # Retrieve the full inserted row to get the exact auxiliary number if possible
+                aux_fetch = []
+                connection.contogetrows("SELECT auxiliary_number FROM customers WHERE id = ?", aux_fetch, params=[new_id])
+                if aux_fetch and aux_fetch[0][0]:
+                     aux_number = aux_fetch[0][0]
+                accounting_helpers.ensure_vat_auxiliary('Customer', new_id, c_data['customer_name'], aux_number)
+            
             ui.notify('Customer saved', color='positive')
             refresh_table()
         except Exception as e:

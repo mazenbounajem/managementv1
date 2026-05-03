@@ -1,0 +1,3346 @@
+{
+  "purchases": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "purchase_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "supplier_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "subtotal",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "tax_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "account_code",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "currency_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "discount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_vat",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__purchases__suppl__08B54D69",
+        "parent_column": "supplier_id",
+        "referenced_table": "suppliers",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "currencies": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "currency_code",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "currency_name",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "symbol",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "exchange_rate",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "purchase_return_items": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "purchase_return_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_cost",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_cost",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "profit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__purchase___produ__0ADD8CFD",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__purchase___purch__09E968C4",
+        "parent_column": "purchase_return_id",
+        "referenced_table": "purchase_returns",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "purchase_payment": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "purchase_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "purchase_invoice_number",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "purchase_date",
+        "type": "datetime",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "supplier_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "amount_paid",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "debit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "credit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "purchase_return_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK_purchase_payment_purchase",
+        "parent_column": "purchase_id",
+        "referenced_table": "purchases",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "sales_payment": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "sales_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "sale_date",
+        "type": "datetime",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "debit",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "credit",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "sales_return_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__sales_pay__custo__16EE5E27",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK_sales_payment_sales",
+        "parent_column": "sales_id",
+        "referenced_table": "sales",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK_sales_payment_sales_returns",
+        "parent_column": "sales_return_id",
+        "referenced_table": "sales_returns",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "subtype": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "code",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "sequence",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "purchase_items": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "purchase_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_cost",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_cost",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "profit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__purchase___purch__0D7A0286",
+        "parent_column": "purchase_id",
+        "referenced_table": "purchases",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__purchase___produ__0E6E26BF",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "appointments": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "employee_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "service_type",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "appointment_date",
+        "type": "date",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "appointment_time",
+        "type": "time",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "service_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "duration_minutes",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__appointme__emplo__1D9B5BB6",
+        "parent_column": "employee_id",
+        "referenced_table": "employees",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK_appointments_services",
+        "parent_column": "service_id",
+        "referenced_table": "services",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK_appointments_service_id",
+        "parent_column": "service_id",
+        "referenced_table": "services",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__appointme__custo__1CA7377D",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "employees": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "first_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "last_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "email",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "phone",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "address",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "city",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "state",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "zip_code",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "hire_date",
+        "type": "date",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "position",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "department",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "salary",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "role_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "termination_date",
+        "type": "date",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "stock_operations": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "operation_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "operation_type",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "reference_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "total_items",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "services": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "service_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "duration_minutes",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime2",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime2",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "customers": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "customer_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "email",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "phone",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "address",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "city",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "state",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "balance",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "zip_code",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "balance_usd",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "balance_eur",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "balance_ll",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "photo",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": -1,
+        "is_identity": false
+      },
+      {
+        "name": "instagram",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "facebook",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "twitter",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "tiktok",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "categories": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "category_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "photo",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": -1,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "stock_operation_items": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "operation_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "product_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "previous_quantity",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "adjusted_quantity",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "operation_type",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "reason",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__stock_ope__opera__24E777C3",
+        "parent_column": "operation_id",
+        "referenced_table": "stock_operations",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__stock_ope__produ__25DB9BFC",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "products": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "product_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "sku",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "category_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "price",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "cost_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "stock_quantity",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "min_stock_level",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "max_stock_level",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "supplier_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "photo",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": -1,
+        "is_identity": false
+      },
+      {
+        "name": "currency_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "local_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_vat_subjected",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "price_ttc",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK_products_currencies",
+        "parent_column": "currency_id",
+        "referenced_table": "currencies",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__products__catego__2E1BDC42",
+        "parent_column": "category_id",
+        "referenced_table": "categories",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "suppliers": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "contact_person",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "email",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "phone",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "address",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "city",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "state",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "zip_code",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "country",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "balance",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "is_active",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "account_number",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "balance_usd",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "cash_drawer": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "current_balance",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "last_updated",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "Ledger": {
+    "columns": [
+      {
+        "name": "Id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "AccountNumber",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "SubNumber",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "ParentId",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "Name_en",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "Name_fr",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "Name_ar",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "UpdateDate",
+        "type": "datetime",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "Status",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "TimeStamp",
+        "type": "timestamp",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "supplier_payment": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "manual_reference",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "payment_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "supplier_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__supplier___suppl__30C33EC3",
+        "parent_column": "supplier_id",
+        "referenced_table": "suppliers",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "cash_drawer_operations": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "operation_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "operation_type",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__cash_draw__user___2FEF161B",
+        "parent_column": "user_id",
+        "referenced_table": "users",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "customer_receipt": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "manual_reference",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "payment_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": true,
+        "max_length": 2147483647,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__customer___custo__3493CFA7",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "expenses": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "expense_date",
+        "type": "date",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "expense_type",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": true,
+        "max_length": 2147483647,
+        "is_identity": false
+      },
+      {
+        "name": "created_by",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "expense_types": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "expense_type_name",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "accounting_transactions": {
+    "columns": [
+      {
+        "name": "jv_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "transaction_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "reference_type",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "reference_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "accounting_transaction_lines": {
+    "columns": [
+      {
+        "name": "line_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "jv_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "account_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "debit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "credit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__accountin__jv_id__4AF81212",
+        "parent_column": "jv_id",
+        "referenced_table": "accounting_transactions",
+        "referenced_column": "jv_id"
+      }
+    ]
+  },
+  "roles": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "description",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "vat_settings": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "effective_date",
+        "type": "date",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "role_permissions": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "role_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "page_name",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "can_access",
+        "type": "bit",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__role_perm__role___59C55456",
+        "parent_column": "role_id",
+        "referenced_table": "roles",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "auxiliary": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "account_name",
+        "type": "nvarchar",
+        "nullable": false,
+        "max_length": 200,
+        "is_identity": false
+      },
+      {
+        "name": "number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "update_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "ledger_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "short_cut",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 200,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "sales": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "sale_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "subtotal",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "tax_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 1000,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "auxiliary_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "currency_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "discount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_vat",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK_sales_currencies",
+        "parent_column": "currency_id",
+        "referenced_table": "currencies",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__sales__customer___3B75D760",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK_sales_users",
+        "parent_column": "user_id",
+        "referenced_table": "users",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "customer_payments": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "payment_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "currency",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 10,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": true,
+        "max_length": 2147483647,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__customer___custo__611C5D5B",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "company_info": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "company_name",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "address",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "city",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "state",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "zip_code",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "phone",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "email",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "website",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "logo_path",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": []
+  },
+  "sales_returns": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "sales_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "sale_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "return_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "subtotal",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_vat",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "reason",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "currency_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__sales_ret__custo__65AC084E",
+        "parent_column": "customer_id",
+        "referenced_table": "customers",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__sales_ret__sales__62CF9BA3",
+        "parent_column": "sales_id",
+        "referenced_table": "sales",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "users": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "username",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "password",
+        "type": "varchar",
+        "nullable": false,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "date_created",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "session",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 255,
+        "is_identity": false
+      },
+      {
+        "name": "login_time",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "logout_time",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "role",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "role_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK_users_roles",
+        "parent_column": "role",
+        "referenced_table": "roles",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "user_sessions": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "login_date",
+        "type": "date",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "login_time",
+        "type": "datetime",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "logout_date",
+        "type": "date",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "logout_time",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "session_duration_minutes",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__user_sess__user___6BE40491",
+        "parent_column": "user_id",
+        "referenced_table": "users",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "price_cost_date_history": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "old_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "new_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "old_cost_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "new_cost_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "change_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "changed_by",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__price_cos__produ__6E565CE8",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "sale_items": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "sales_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "varchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_price",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_price",
+        "type": "decimal",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__sale_item__produ__412EB0B6",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__sale_item__sale___403A8C7D",
+        "parent_column": "sales_id",
+        "referenced_table": "sales",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "sales_return_items": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "sales_return_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "product_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "barcode",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 100,
+        "is_identity": false
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "unit_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_price",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_percentage",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "vat_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "profit",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__sales_ret__produ__7211DF33",
+        "parent_column": "product_id",
+        "referenced_table": "products",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__sales_ret__sales__711DBAFA",
+        "parent_column": "sales_return_id",
+        "referenced_table": "sales_returns",
+        "referenced_column": "id"
+      }
+    ]
+  },
+  "purchase_returns": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "max_length": null,
+        "is_identity": true
+      },
+      {
+        "name": "purchase_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "purchase_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "return_date",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "invoice_number",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "supplier_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "subtotal",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "discount_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_amount",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "total_vat",
+        "type": "decimal",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "reason",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 500,
+        "is_identity": false
+      },
+      {
+        "name": "status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "payment_status",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 20,
+        "is_identity": false
+      },
+      {
+        "name": "payment_method",
+        "type": "nvarchar",
+        "nullable": true,
+        "max_length": 50,
+        "is_identity": false
+      },
+      {
+        "name": "currency_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "user_id",
+        "type": "int",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": true,
+        "max_length": null,
+        "is_identity": false
+      }
+    ],
+    "foreign_keys": [
+      {
+        "fk_name": "FK__purchase___purch__7B9B496D",
+        "parent_column": "purchase_id",
+        "referenced_table": "purchases",
+        "referenced_column": "id"
+      },
+      {
+        "fk_name": "FK__purchase___suppl__7E77B618",
+        "parent_column": "supplier_id",
+        "referenced_table": "suppliers",
+        "referenced_column": "id"
+      }
+    ]
+  }
+}

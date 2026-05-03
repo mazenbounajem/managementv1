@@ -175,16 +175,22 @@ class SalesUI:
             # VAT is 11% if subjected, otherwise 0
             vat_percentage = 11.0 if is_vat_subjected else 0.0
             
-            total_ttc = (quantity * price) * (1 - discount / 100)
-            vat_amount = total_ttc * (vat_percentage / 100)
-            subtotal = total_ttc # Price includes VAT
+            # price is TTC. We need to extract HT for VAT amount calculation if needed, 
+            # but subtotal should be TTC.
+            price_ttc = price
+            price_ht = price_ttc / (1 + vat_percentage / 100)
+            
+            total_ttc = (quantity * price_ttc) * (1 - discount / 100)
+            total_ht = total_ttc / (1 + vat_percentage / 100)
+            vat_amount = total_ttc - total_ht
+            subtotal = total_ttc 
             
             self.rows.append({
                 'barcode': barcode,
                 'product': product_name,
                 'quantity': quantity,
                 'discount': discount,
-                'price': price,
+                'price': price_ttc,
                 'vat_percentage': vat_percentage if is_vat_subjected else 0,
                 'vat_amount': vat_amount,
                 'subtotal': subtotal,
@@ -245,7 +251,7 @@ class SalesUI:
             if barcode:
                 product_data = []
                 connection.contogetrows(
-                    f"SELECT barcode, product_name, price FROM products WHERE barcode = '{barcode}'", 
+                    f"SELECT barcode, product_name, price_ttc FROM products WHERE barcode = '{barcode}'", 
                     product_data
                 )
                 
@@ -295,9 +301,9 @@ class SalesUI:
                 ui.icon('search', size='1.25rem').classes('text-purple-400')
                 search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('flex-1 text-white text-sm').on('keydown.enter', lambda e: self.filter_product_rows(e.sender.value))
             
-            headers = ['barcode', 'product_name', 'stock_quantity', 'price', 'cost_price']
+            headers = ['barcode', 'product_name', 'stock_quantity', 'price_ttc', 'cost_price']
             data = []
-            connection.contogetrows("SELECT barcode, product_name, stock_quantity, price, cost_price FROM products", data)
+            connection.contogetrows("SELECT barcode, product_name, stock_quantity, price_ttc, cost_price FROM products", data)
             
             self.product_rows = []
             for row in data:
@@ -423,11 +429,11 @@ class SalesUI:
                 with ui.column().classes('w-full gap-5'):
                     with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10 shadow-inner'):
                         with ui.column().classes('gap-0'):
-                            ui.label('Net Profit').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                            ui.label('Net Profit').classes('text-[8px] text-gray-400 font-bold uppercase tracking-tighter')
                             ui.label(f'{selected_currency_symbol}{profit_value:,.2f}').classes('text-2xl font-black text-green-400')
                         
                         with ui.column().classes('gap-0 items-end'):
-                            ui.label('Margin').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                            ui.label('Margin').classes('text-[8px] text-gray-400 font-bold uppercase tracking-tighter')
                             ui.label(f'{profit_percentage:.2f}%').classes('text-xl font-black text-blue-400')
 
                     with ui.row().classes('w-full justify-between items-center px-4'):
@@ -525,7 +531,7 @@ class SalesUI:
             row = e.args['data']
             self.product_input.value = row['product_name']
             self.barcode_input.value = row['barcode']
-            self.price_input.value = row['price']
+            self.price_input.value = row.get('price_ttc') or row.get('price', 0)
 
             # Get selected currency info
             selected_currency_id = self.currency_select.value
@@ -731,8 +737,14 @@ class SalesUI:
             is_vat_subjected = vat_chk[0][0] if vat_chk else False
             
             vat_pct = 11.0 if is_vat_subjected else 0.0
-            total_ttc = (int(new_quantity) * float(new_price)) * (1 - float(new_discount) / 100)
-            vat_amount = total_ttc * (vat_pct / 100)
+            
+            # new_price is TTC. Extract HT for VAT calculation.
+            price_ttc = float(new_price)
+            price_ht = price_ttc / (1 + vat_pct / 100)
+            
+            total_ttc = (int(new_quantity) * price_ttc) * (1 - float(new_discount) / 100)
+            total_ht = total_ttc / (1 + vat_pct / 100)
+            vat_amount = total_ttc - total_ht
             
             self.rows[row_index]['vat_percentage'] = vat_pct
             self.rows[row_index]['vat_amount'] = vat_amount
@@ -1111,6 +1123,7 @@ class SalesUI:
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
 
                     import accounting_helpers
+                    import business_track_settings
                     cust_res = []
                     connection.contogetrows("SELECT id, customer_name, auxiliary_number FROM customers WHERE id = ?", cust_res, (customer_id,))
                     customer_name = cust_res[0][1] if cust_res else "Cash Client"
@@ -1118,10 +1131,14 @@ class SalesUI:
                     
                     vat_account = accounting_helpers.ensure_vat_auxiliary('Customer', customer_id, customer_name, customer_account)
 
+                    # Determine revenue account based on VAT status
+                    has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
+                    revenue_account = business_track_settings.get_sales_account(has_vat)
+
                     # Always debit customer and credit sales/VAT for the invoice
                     jv = [
                         {'account': customer_account, 'debit': normalized_total, 'credit': 0},
-                        {'account': '7011.000001',    'debit': 0, 'credit': normalized_subtotal},
+                        {'account': revenue_account,  'debit': 0, 'credit': normalized_subtotal},
                         {'account': vat_account,      'debit': 0, 'credit': normalized_total_vat},
                     ]
 
@@ -1231,6 +1248,7 @@ class SalesUI:
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
 
                     import accounting_helpers
+                    import business_track_settings
                     cust_res = []
                     connection.contogetrows("SELECT id, customer_name, auxiliary_number FROM customers WHERE id = ?", cust_res, (customer_id,))
                     customer_name = cust_res[0][1] if cust_res else "Cash Client"
@@ -1238,10 +1256,14 @@ class SalesUI:
                     
                     vat_account = accounting_helpers.ensure_vat_auxiliary('Customer', customer_id, customer_name, customer_account)
 
+                    # Determine revenue account based on VAT status
+                    has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
+                    revenue_account = business_track_settings.get_sales_account(has_vat)
+
                     # Always debit customer and credit sales/VAT for the invoice
                     jv = [
                         {'account': customer_account, 'debit': normalized_total, 'credit': 0},
-                        {'account': '7011.000001',    'debit': 0, 'credit': normalized_subtotal},
+                        {'account': revenue_account,  'debit': 0, 'credit': normalized_subtotal},
                         {'account': vat_account,      'debit': 0, 'credit': normalized_total_vat},
                     ]
 
@@ -1357,6 +1379,11 @@ class SalesUI:
                 ui.notify(f'Error loading max sale: {str(e)}')
 
     def create_ui(self):
+        # Fetch session metadata for footer
+        user = session_storage.get('user', {})
+        company_info = connection.get_company_info()
+        company_name = company_info.get('company_name', 'Company Name') if company_info else 'Company Name'
+
         """Create the main UI layout with premium design tokens."""
         # Add global styles
         ui.add_head_html(MDS.get_global_styles())
@@ -1366,27 +1393,10 @@ class SalesUI:
         with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
                     with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
                         # --- MAIN CONTENT AREA ---
-                        with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
+                        with ui.column().classes('flex-1 h-full p-2 gap-2 relative overflow-hidden'):
                             # --- TOP BAR: HEADER ---
-                            with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
-                                with ui.column().classes('gap-1'):
-                                    ui.label('Commerce Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
-                                    ui.label('Sales Invoice').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                        
-                                with ui.row().classes('gap-6 items-center'):
-                                    # Date picker - compact
-                                    with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
-                                        ui.icon('event', size='1rem').classes('text-gray-400')
-                                        self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
-                            
-                                    # Currency Select
-                                    self.currency_select = ui.select(
-                                        {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows}, 
-                                        value=self.default_currency_id
-                                    ).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
-
                             # --- MIDDLE SECTION: DUAL PANEL ---
-                            with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
+                            with ui.row().classes('w-full flex-1 gap-3 overflow-hidden'):
                         
                                 # LEFT PANEL: Sales History (35%)
                                 with ui.column().classes('w-[35%] h-full gap-4'):
@@ -1428,50 +1438,64 @@ class SalesUI:
                                     # Column for Editor Content
                                     with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
                                         # Customer & Payment Row
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-5 items-center'):
-                                            with ui.column().classes('flex-1 gap-1'):
-                                                ui.label('Customer Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
-                                                    ui.icon('person', size='1.25rem').classes('text-purple-400')
-                                                    self.customer_input = ui.input(placeholder='Select Customer...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_customer_dialog)
-                                                    ui.icon('search', size='1rem').classes('text-gray-500 opacity-50')
+                                        with ui.row().classes('w-full glass p-2 rounded-2xl border border-white/10 gap-3 items-center'):
+                                            # Date
+                                            with ui.column().classes('w-32 gap-1'):
+                                                ui.label('Date').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1 rounded-2xl border border-white/10 h-[36px]'):
+                                                    self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-full')
 
+                                            # Currency
+                                            with ui.column().classes('w-40 gap-1'):
+                                                ui.label('Currency').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                self.currency_select = ui.select(
+                                                    {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows},
+                                                    value=self.default_currency_id
+                                                ).props('borderless dense').classes('bg-white/5 px-4 py-1 rounded-2xl border border-white/10 text-white text-xs font-bold w-full h-[36px]').on('change', self.on_currency_change)
+
+                                            # Customer (Name Input Smaller)
                                             with ui.column().classes('w-48 gap-1'):
-                                                ui.label('Contact').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    ui.icon('phone', size='1.25rem').classes('text-gray-400 opacity-40')
-                                                    self.phone_input = ui.input(placeholder='Phone').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
+                                                ui.label('Customer').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner h-[36px]'):
+                                                    self.customer_input = ui.input(placeholder='Select...').props('borderless dense dark').classes('flex-1 text-white font-black text-xs').on('click', self.open_customer_dialog)
 
-                                            with ui.column().classes('gap-1'):
-                                                ui.label('Payment').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 h-[44px]'):
+                                            # Contact
+                                            with ui.column().classes('w-32 gap-1'):
+                                                ui.label('Contact').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full h-[36px]'):
+                                                    self.phone_input = ui.input(placeholder='Phone').props('borderless dense dark').classes('flex-1 text-white font-bold text-xs')
+
+                                            # Payment
+                                            with ui.column().classes('flex-1 gap-1'):
+                                                ui.label('Payment').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1 rounded-xl border border-white/10 h-[36px]'):
                                                     self.payment_method = ui.radio(options=['Cash', 'On Account'], value='Cash').props('inline dark color=purple').classes('text-white text-[10px] font-black uppercase tracking-tighter')
                                         # Modern Product Entry Area
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-3 items-end mt-2'):
+                                        with ui.row().classes('w-full glass p-2 rounded-2xl border border-white/10 gap-2 items-end mt-1'):
                                             with ui.column().classes('flex-[2] gap-1'):
-                                                ui.label('Barcode').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                ui.label('Barcode').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
                                                     self.barcode_input = ui.input(placeholder='Scan or enter...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
                                     
                                             with ui.column().classes('flex-[3] gap-1'):
-                                                ui.label('Product').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                ui.label('Product').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
                                                     self.product_input = ui.input(placeholder='Select Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
                                     
                                             with ui.column().classes('w-20 gap-1'):
-                                                ui.label('Qty').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                ui.label('Qty').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
                                                     self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
                                     
                                             with ui.column().classes('w-28 gap-1'):
-                                                ui.label('Price').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                ui.label('Price').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
                                                     self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
 
                                             with ui.column().classes('w-20 gap-1'):
-                                                ui.label('Disc %').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                ui.label('Disc %').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
                                                     self.discount_input = ui.number(value=0).props('borderless dense dark').classes('w-full text-white font-black text-center')
                                     
@@ -1491,33 +1515,6 @@ class SalesUI:
                                         self.aggrid.on('cellClicked', self.handle_aggrid_click_wrapper)
 
                                
-                                        # --- BOTTOM BAR: SUMMARY AND TOTALS (Subtotal + Metrics) ---
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 items-center justify-between'):
-                                            with ui.row().classes('gap-8 items-center'):
-                                                ui.label('Inventory Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest opacity-50')
-                                                ui.button('Profit Analytics', on_click=self.show_profit_dialog).props('flat rounded').classes('text-purple-400 font-bold uppercase tracking-wider text-xs')
-                                        
-                                                with ui.row().classes('items-center gap-6 bg-white/5 px-5 py-2 rounded-2xl border border-white/10'):
-                                                    with ui.column().classes('gap-0'):
-                                                        ui.label('Balance').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                        self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
-                                            
-                                                    with ui.column().classes('gap-0 border-l border-white/10 pl-6'):
-                                                        ui.label('Velocity').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                        self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
-
-                                            with ui.row().classes('gap-6 items-center'):
-                                                with ui.column().classes('items-end gap-0'):
-                                                    self.subtotal_label = ui.label('Base + VAT: $0.00').classes('text-[10px] font-bold text-gray-400 uppercase tracking-tighter')
-                                                    self.vat_label = ui.label('VAT: $0.00').classes('text-[10px] font-black text-purple-400 uppercase tracking-tighter')
-                                                    self.total_label = ui.label('Total: $0.00').classes('text-2xl font-black text-white px-2 rounded-lg bg-white/5')
-                                        
-                                                # Hidden inputs for math remains same
-                                                with ui.element('div').classes('hidden'):
-                                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                                    self.tax_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                                    self.tax_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
                             
                                     # Action Bar Panel (Right Side of Editor)
                                     with ui.column().classes('w-80px items-center'):
@@ -1533,10 +1530,78 @@ class SalesUI:
                                             on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                                             on_view_transaction=self.view_sale_transactions,
                                             on_refresh=self.refresh_sales_table,
-                                            button_class='h-16',
+                                            button_class='h-12',
                                             classes=' '
                                         ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
             
+                            # --- FOOTER: Consolidated High-Visibility Row ---
+                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-4 items-center justify-between mt-auto shadow-2xl'):
+                                # 1. Operational Metrics
+                                with ui.row().classes('items-center gap-6'):
+                                    with ui.row().classes('items-center gap-3 bg-purple-500/10 px-4 py-2 rounded-xl border border-purple-500/20'):
+                                        ui.icon('analytics', size='1.2rem').classes('text-purple-400')
+                                        with ui.column().classes('gap-0'):
+                                            ui.label('Inventory Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest')
+                                            ui.button('PROFIT', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
+                                    
+                                    with ui.row().classes('items-center gap-4 bg-white/5 py-1 px-4 rounded-xl border border-white/10'):
+                                        with ui.column().classes('items-center gap-0'):
+                                            ui.label('Balance').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
+                                        ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                        with ui.column().classes('items-center gap-0'):
+                                            ui.label('Velocity').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
+
+                                # 2. Session Info (Operator & Terminal)
+                                with ui.row().classes('items-center gap-6 px-6 py-2 bg-white/5 border border-white/10 rounded-2xl shadow-inner mx-4'):
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Active Operator').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(user.get('username', 'Guest')).classes('text-sm font-black text-[#08CB00] uppercase tracking-wider')
+                                    
+                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Organization').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(company_name).classes('text-sm font-black text-white uppercase tracking-wider')
+                                    
+                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Terminal Time').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        def update_footer_time():
+                                            now_time = datetime.now().strftime('%H:%M:%S')
+                                            footer_time_label.text = now_time
+                                        footer_time_label = ui.label()
+                                        update_footer_time()
+                                        ui.timer(1.0, update_footer_time)
+                                        footer_time_label.classes('text-sm font-black text-[#08CB00] tracking-widest')
+
+                                # 3. Financial Summary
+                                with ui.row().classes('items-center gap-6 bg-purple-500/5 px-6 py-2 rounded-2xl border border-purple-500/20 shadow-inner ml-auto'):
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total HT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.subtotal_label = ui.label('$0.00').classes('text-base font-black text-white')
+                                    
+                                    ui.element('div').classes('w-[1px] h-10 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total VAT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.vat_label = ui.label('$0.00').classes('text-base font-black text-purple-400')
+                                    
+                                    ui.element('div').classes('w-[1px] h-14 bg-purple-500/20 mx-2')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total TTC').classes('text-[11px] text-purple-300 font-black uppercase tracking-[.25em]')
+                                        self.total_label = ui.label('$0.00').classes('text-4xl font-black text-white leading-none tracking-tight')
+
+                                # Functional Hidden Inputs
+                                with ui.element('div').classes('hidden'):
+                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                    self.tax_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                    self.tax_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+
                     # Auto-load max sale and refresh table
                     ui.timer(0.1, self.load_max_sale, once=True)
                     ui.timer(0.2, self.refresh_sales_table, once=True)
@@ -1544,7 +1609,7 @@ class SalesUI:
     async def handle_sales_aggrid_click_wrapper(self, e):
         async with loading_indicator.show_loading('load_sale_items', 'Loading sale items...', overlay=True):
             try:
-                selected_row = await self.sales_aggrid.get_selected_row()
+                selected_row = e.args.get('data')
                 if selected_row and isinstance(selected_row, dict) and 'id' in selected_row:
                     sale_id = selected_row['id']
                     customer_name = selected_row['customer_name']

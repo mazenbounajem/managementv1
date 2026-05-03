@@ -1111,6 +1111,7 @@ class SalesReturnsUI:
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
 
                     import accounting_helpers
+                    import business_track_settings
                     cust_res = []
                     connection.contogetrows("SELECT id, customer_name, auxiliary_number FROM customers WHERE id = ?", cust_res, (customer_id,))
                     customer_name = cust_res[0][1] if cust_res else "Cash Client"
@@ -1118,10 +1119,14 @@ class SalesReturnsUI:
                     
                     vat_account = accounting_helpers.ensure_vat_auxiliary('Customer', customer_id, customer_name, customer_account)
 
+                    # Determine revenue account based on VAT status
+                    has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
+                    revenue_account = business_track_settings.get_sales_return_account(has_vat)
+
                     # REVERSED for Return: Debit Sales/VAT, Credit Customer
                     jv = [
                         {'account': customer_account, 'debit': 0, 'credit': normalized_total},
-                        {'account': '7011.000001',    'debit': normalized_subtotal, 'credit': 0},
+                        {'account': revenue_account,  'debit': normalized_subtotal, 'credit': 0},
                         {'account': vat_account,      'debit': normalized_total_vat, 'credit': 0},
                     ]
 
@@ -1232,6 +1237,7 @@ class SalesReturnsUI:
                     connection.insertingtodatabase(sales_payment_sql, sales_payment_values)
 
                     import accounting_helpers
+                    import business_track_settings
                     cust_res = []
                     connection.contogetrows("SELECT id, customer_name, auxiliary_number FROM customers WHERE id = ?", cust_res, (customer_id,))
                     customer_name = cust_res[0][1] if cust_res else "Cash Client"
@@ -1239,10 +1245,14 @@ class SalesReturnsUI:
                     
                     vat_account = accounting_helpers.ensure_vat_auxiliary('Customer', customer_id, customer_name, customer_account)
 
+                    # Determine revenue account based on VAT status
+                    has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
+                    revenue_account = business_track_settings.get_sales_return_account(has_vat)
+
                     # REVERSED for Return: Debit Sales/VAT, Credit Customer
                     jv = [
                         {'account': customer_account, 'debit': 0, 'credit': normalized_total},
-                        {'account': '7011.000001',    'debit': normalized_subtotal, 'credit': 0},
+                        {'account': revenue_account,  'debit': normalized_subtotal, 'credit': 0},
                         {'account': vat_account,      'debit': normalized_total_vat, 'credit': 0},
                     ]
 

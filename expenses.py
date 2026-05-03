@@ -344,7 +344,7 @@ class ExpensesUI:
             with ui.row().classes('w-full gap-6 items-start p-4'):
                 # Center Column: History (Top) and Entry (Bottom)
                 with ui.column().classes('flex-1 gap-4'):
-                    with ui.splitter(horizontal=True, value=30).classes('w-full h-[700px]') as splitter:
+                    with ui.splitter(horizontal=True, value=35).classes('w-full h-[850px]') as splitter:
                         with splitter.before:
                             with ModernCard(glass=True).classes('w-full h-full p-6'):
                                 with ui.row().classes('w-full justify-between items-center mb-4'):

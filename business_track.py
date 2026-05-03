@@ -37,16 +37,16 @@ class BusinessTrackUI:
         self.refresh_data()
 
     def load_accounts(self):
-        """Fetch potential ledger accounts directly from Ledger table based on user criteria"""
-        # Fetch Sales accounts starting with 7 or containing 'sales'
+        """Fetch potential ledger accounts directly from Ledger table based on account prefix"""
+        # Fetch Sales accounts: all accounts starting with 7 (Revenue)
         sales_data = []
-        sql_sales = "SELECT AccountNumber, Name_en FROM Ledger WHERE Name_en LIKE '%sales%' ORDER BY AccountNumber"
+        sql_sales = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '7%' ORDER BY AccountNumber"
         connection.contogetrows(sql_sales, sales_data)
         self.sales_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in sales_data}
         
-        # Fetch Purchase accounts starting with 6 or containing 'purchase'
+        # Fetch Purchase accounts: all accounts starting with 6 (Expenses)
         purchase_data = []
-        sql_purchase = "SELECT AccountNumber, Name_en FROM Ledger WHERE Name_en LIKE '%purchase%' ORDER BY AccountNumber"
+        sql_purchase = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '6%' ORDER BY AccountNumber"
         connection.contogetrows(sql_purchase, purchase_data)
         self.purchase_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in purchase_data}
 

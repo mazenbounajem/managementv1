@@ -200,16 +200,20 @@ class PurchaseReturnRepository:
         
         try:
             import accounting_helpers
+            import business_track_settings
             if supplier_id:
                 supplier_aux = []
                 connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
                 credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
             else:
                 credit_account = "4011.000001"
+
+            has_vat = total_vat > 0
+            purchase_return_account = business_track_settings.get_purchase_return_account(has_vat)
                 
             # REVERSED for Return: Credit Purchase/VAT, Debit Supplier
             jv_lines = [
-                {'account': '6011.000001', 'debit': 0, 'credit': subtotal}
+                {'account': purchase_return_account, 'debit': 0, 'credit': subtotal}
             ]
             if total_vat > 0:
                 supplier_name = ""
@@ -267,6 +271,7 @@ class PurchaseReturnRepository:
 
         try:
             import accounting_helpers
+            import business_track_settings
             connection.insertingtodatabase("DELETE FROM accounting_transaction_lines WHERE jv_id IN (SELECT jv_id FROM accounting_transactions WHERE reference_type='Purchase Return' AND reference_id=?)", [purchase_id])
             connection.insertingtodatabase("DELETE FROM accounting_transactions WHERE reference_type='Purchase Return' AND reference_id=?", [purchase_id])
             
@@ -280,10 +285,13 @@ class PurchaseReturnRepository:
             inv_data = []
             connection.contogetrows(f"SELECT invoice_number FROM purchase_returns WHERE id={purchase_id}", inv_data)
             inv_num = inv_data[0][0] if inv_data else str(purchase_id)
+
+            has_vat = total_vat > 0
+            purchase_return_account = business_track_settings.get_purchase_return_account(has_vat)
             
             # REVERSED for Return: Credit Purchase/VAT, Debit Supplier
             jv_lines = [
-                {'account': '6011.000001', 'debit': 0, 'credit': subtotal}
+                {'account': purchase_return_account, 'debit': 0, 'credit': subtotal}
             ]
             if total_vat > 0:
                 supplier_name = ""

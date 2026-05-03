@@ -432,12 +432,12 @@ def product_page_route(standalone=False):
             # Fetch Sales
             sales_data = []
             try:
-                connection.contogetrows(f"""
-                    SELECT s.sale_date, 'Sale' as type, s.invoice_number, si.quantity, si.unit_price, si.total_price 
+                connection.contogetrows("""
+                    SELECT s.sale_date, 'Sale' as type, s.invoice_number, si.quantity, si.unit_price, si.total_price, s.id
                     FROM sale_items si 
                     JOIN sales s ON si.sales_id = s.id 
-                    WHERE si.product_id = {pid}
-                """, sales_data)
+                    WHERE si.product_id = ?
+                """, sales_data, params=[pid])
                 for r in sales_data:
                     date_val = str(r[0])[:19] if r[0] else ''
                     transactions.append({
@@ -446,7 +446,8 @@ def product_page_route(standalone=False):
                         'reference': str(r[2]), 
                         'quantity': -float(r[3] or 0), 
                         'price': float(r[4] or 0), 
-                        'total': -float(r[5] or 0)
+                        'total': -float(r[5] or 0),
+                        'id': r[6]
                     })
             except Exception as e:
                 print(f"Error fetching sales: {e}")
@@ -454,12 +455,12 @@ def product_page_route(standalone=False):
             # Fetch Purchases
             purchases_data = []
             try:
-                connection.contogetrows(f"""
-                    SELECT p.purchase_date, 'Purchase' as type, p.invoice_number, pi.quantity, pi.unit_cost, pi.total_cost 
+                connection.contogetrows("""
+                    SELECT p.purchase_date, 'Purchase' as type, p.invoice_number, pi.quantity, pi.unit_cost, pi.total_cost, p.id
                     FROM purchase_items pi 
                     JOIN purchases p ON pi.purchase_id = p.id 
-                    WHERE pi.product_id = {pid}
-                """, purchases_data)
+                    WHERE pi.product_id = ?
+                """, purchases_data, params=[pid])
                 for r in purchases_data:
                     date_val = str(r[0])[:19] if r[0] else ''
                     transactions.append({
@@ -468,7 +469,8 @@ def product_page_route(standalone=False):
                         'reference': str(r[2]), 
                         'quantity': float(r[3] or 0), 
                         'price': float(r[4] or 0), 
-                        'total': float(r[5] or 0)
+                        'total': float(r[5] or 0),
+                        'id': r[6]
                     })
             except Exception as e:
                 print(f"Error fetching purchases: {e}")
@@ -480,25 +482,42 @@ def product_page_route(standalone=False):
             # Sort transactions by date descending
             transactions.sort(key=lambda x: x['date'], reverse=True)
 
-            with ui.dialog() as dialog, ui.card().classes('w-[900px] max-w-full p-6'):
-                with ui.row().classes('w-full justify-between items-center mb-4'):
-                    ui.label(f'Transactions: {product_name}').classes('text-xl font-bold').style(f'color: {MDS.ACCENT_DARK}')
-                    ui.button(icon='close', on_click=dialog.close).props('flat round dense')
+            with ui.dialog() as dialog, ui.card().classes('w-[1000px] max-w-full p-6 glass border border-white/10').style('background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(20px); border-radius: 2rem;'):
+                with ui.row().classes('w-full justify-between items-center mb-6'):
+                    with ui.column().classes('gap-0'):
+                        ui.label('Product Activity').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest')
+                        ui.label(f'{product_name}').classes('text-2xl font-black text-white')
+                    ui.button(icon='close', on_click=dialog.close).props('flat round dense color=white')
                 
                 columns = [
-                    {'headerName': 'Date', 'field': 'date', 'sortable': True},
-                    {'headerName': 'Type', 'field': 'type', 'sortable': True, 'filter': True},
-                    {'headerName': 'Reference', 'field': 'reference', 'sortable': True, 'filter': True},
-                    {'headerName': 'Quantity', 'field': 'quantity', 'sortable': True, 'cellClassRules': {'text-red-500': 'x < 0', 'text-green-500': 'x > 0'}},
-                    {'headerName': 'Unit Cost/Price', 'field': 'price', 'sortable': True},
-                    {'headerName': 'Total', 'field': 'total', 'sortable': True, 'cellClassRules': {'text-red-500': 'x < 0', 'text-green-500': 'x > 0'}},
+                    {'headerName': 'Date', 'field': 'date', 'sortable': True, 'width': 160},
+                    {'headerName': 'Type', 'field': 'type', 'sortable': True, 'filter': True, 'width': 100},
+                    {'headerName': 'Reference', 'field': 'reference', 'sortable': True, 'filter': True, 'width': 130},
+                    {'headerName': 'Qty', 'field': 'quantity', 'sortable': True, 'width': 100, 'cellClassRules': {'text-red-400': 'x < 0', 'text-green-400': 'x > 0'}},
+                    {'headerName': 'Unit Cost/Price', 'field': 'price', 'sortable': True, 'width': 130},
+                    {'headerName': 'Total', 'field': 'total', 'sortable': True, 'width': 130, 'cellClassRules': {'text-red-400': 'x < 0', 'text-green-400': 'x > 0'}},
                 ]
                 
-                ui.aggrid({
+                grid = ui.aggrid({
                     'columnDefs': columns,
                     'rowData': transactions,
-                    'defaultColDef': {'flex': 1, 'sortable': True},
-                }).classes('w-full h-[500px] ag-theme-quartz-dark')
+                    'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True},
+                    'rowSelection': 'single',
+                }).classes('w-full h-[450px] ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
+
+                async def view_acc_tx():
+                    selected = await grid.get_selected_row()
+                    if not selected:
+                        ui.notify('Select a transaction first', color='warning')
+                        return
+                    import accounting_helpers
+                    ref_type = selected['type']
+                    ref_id = selected['id']
+                    accounting_helpers.show_transactions_dialog(reference_type=ref_type, reference_id=ref_id)
+
+                with ui.row().classes('w-full justify-end gap-3 mt-6'):
+                    ui.button('Accounting Details', icon='receipt_long', on_click=view_acc_tx).props('unelevated color=purple').classes('rounded-xl font-black text-xs uppercase tracking-widest px-6 h-12 shadow-lg shadow-purple-500/20')
+                    ui.button('Close', on_click=dialog.close).props('flat color=white').classes('rounded-xl font-bold px-6')
                 
             dialog.open()
         except Exception as ex:
@@ -651,7 +670,7 @@ def product_page_route(standalone=False):
                     with ModernCard().classes('w-full p-6'):
                         with ui.row().classes('w-full bg-white/5 p-3 rounded-2xl border border-white/10 mb-2 items-center gap-4'):
                             input_refs['is_vat_subjected'] = ui.checkbox('Subject to VAT', on_change=lambda: update_ttc_from_ht()).classes('text-xs font-black text-white uppercase tracking-widest')
-                            input_refs['vat_percentage'] = ui.select([], label='VAT %', on_change=lambda: update_ttc_from_ht()).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                            input_refs['vat_percentage'] = ui.select([], label='VAT %', on_change=lambda: update_ttc_from_ht()).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
 
                         with ui.row().classes('w-full gap-2 items-end'):
                             input_refs['currency_id'] = ui.select([], label='Currency', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('w-1/3').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
@@ -784,6 +803,7 @@ def product_page_route(standalone=False):
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_print=print_transactions,
                         on_print_special=open_print_special_dialog,
+                        on_view_transaction=print_transactions,
                         target_table=table,
                         button_class='h-16',
                         classes=' '

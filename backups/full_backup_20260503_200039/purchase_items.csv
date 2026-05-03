@@ -1,0 +1,1 @@
+id,purchase_id,barcode,product_id,quantity,unit_cost,total_cost,unit_price,profit,discount_amount,created_at,discount,vat_amount,vat_percentage

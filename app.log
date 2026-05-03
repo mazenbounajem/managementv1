@@ -1335,3 +1335,54 @@
 2026-04-19 21:46:36,823 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
 2026-04-19 21:56:17,838 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
 2026-04-19 22:09:50,102 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 21:47:15,284 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:12:20,990 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:19:43,501 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:50:39,965 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 23:19:14,775 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 23:19:50,822 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-21 20:57:28,586 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:04:35,519 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:09,495 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:19,570 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:34,197 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:07:54,455 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:21:10,438 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:50:38,062 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maze', 'reason': 'invalid_credentials'}
+2026-04-22 22:51:15,448 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-23 22:13:19,562 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-24 21:56:59,464 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 16:03:08,965 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 16:16:49,649 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 17:09:29,967 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:23:00,666 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:44:09,066 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:52:34,255 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 23:05:32,243 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 23:17:39,280 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 22:14:15,503 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 22:33:27,489 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:08:51,849 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:19:45,142 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:20:24,370 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:49:15,910 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-01 00:00:23,153 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-01 23:46:05,839 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 00:03:01,110 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 14:13:15,402 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 15:00:56,556 - pos_system - ERROR - log_error:106 - Application Error: {'error_type': 'AttributeError', 'error_message': "'pyodbc.Connection' object has no attribute '_created_at' and no __dict__ for setting new attributes", 'traceback': 'Traceback (most recent call last):\n  File "C:\\dbbackup\\managementv1\\auth_service.py", line 77, in authenticate_user\n    results = db_manager.execute_query(\n        "SELECT id, username, password, role FROM users WHERE username = ? AND role IS NOT NULL",\n        (username,)\n    )\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 131, in execute_query\n    with self.get_connection() as conn:\n         ~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\Users\\USER\\Lib\\contextlib.py", line 141, in __enter__\n    return next(self.gen)\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 113, in get_connection\n    conn = self._get_from_pool()\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 92, in _get_from_pool\n    return self._create_connection()\n           ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 54, in _create_connection\n    conn._created_at = time.time()\n    ^^^^^^^^^^^^^^^^\nAttributeError: \'pyodbc.Connection\' object has no attribute \'_created_at\' and no __dict__ for setting new attributes\n', 'context': 'authenticate_user'}
+2026-05-02 15:02:34,837 - pos_system - ERROR - log_error:106 - Application Error: {'error_type': 'AttributeError', 'error_message': "'pyodbc.Connection' object has no attribute '_created_at' and no __dict__ for setting new attributes", 'traceback': 'Traceback (most recent call last):\n  File "C:\\dbbackup\\managementv1\\auth_service.py", line 77, in authenticate_user\n    results = db_manager.execute_query(\n        "SELECT id, username, password, role FROM users WHERE username = ? AND role IS NOT NULL",\n        (username,)\n    )\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 131, in execute_query\n    with self.get_connection() as conn:\n         ~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\Users\\USER\\Lib\\contextlib.py", line 141, in __enter__\n    return next(self.gen)\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 113, in get_connection\n    conn = self._get_from_pool()\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 92, in _get_from_pool\n    return self._create_connection()\n           ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\dbbackup\\managementv1\\database_manager.py", line 54, in _create_connection\n    conn._created_at = time.time()\n    ^^^^^^^^^^^^^^^^\nAttributeError: \'pyodbc.Connection\' object has no attribute \'_created_at\' and no __dict__ for setting new attributes\n', 'context': 'authenticate_user'}
+2026-05-02 15:07:09,466 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 22:44:30,332 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 14:11:42,227 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 18:17:25,170 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 18:55:38,504 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 19:25:28,949 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 20:06:42,804 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 21:14:08,028 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
+2026-05-03 21:14:55,292 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 21:21:30,443 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:21:40,498 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:21:49,851 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:22:45,147 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
+2026-05-03 21:57:33,091 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}

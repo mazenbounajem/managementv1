@@ -1,0 +1,3 @@
+id,setting_key,setting_value,description,updated_at
+1,backup_directory,E:\posdbbuckup\,Directory where database backups are saved.,2026-05-03 19:17:23.800000
+2,auto_backup_enabled,E:\posdbbuckupauto\,Enable or disable automatic daily backups.,2026-05-03 19:17:23.817000

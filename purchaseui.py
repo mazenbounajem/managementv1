@@ -383,7 +383,7 @@ class PurchaseUI:
             
             ui.label(f"Modifying: {row_data.get('product', 'Unknown')}").classes('text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 block')
 
-            with ui.column().classes('w-full gap-5'):
+            with ui.column().classes('w-full gap-3'):
                 quantity = ui.number('Quantity', value=row_data['quantity']).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
                 discount_pct = ui.number('Discount %', value=row_data.get('discount_pct', 0), min=0, max=100).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
                 cost = ui.number('Unit Cost', value=row_data['cost']).props('outlined dense dark color=purple stack-label').classes('w-full text-white')
@@ -649,14 +649,14 @@ class PurchaseUI:
                     ui.label('Margin Analysis').classes('text-2xl font-black text-white').style('font-family: "Outfit", sans-serif;')
                     ui.icon('trending_up', size='1.5rem').classes('text-green-400 opacity-80')
                 
-                with ui.column().classes('w-full gap-5'):
+                with ui.column().classes('w-full gap-3'):
                     with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10 shadow-inner'):
                         with ui.column().classes('gap-0'):
-                            ui.label('Potential Profit').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                            ui.label('Potential Profit').classes('text-[8px] text-gray-400 font-bold uppercase tracking-tighter')
                             ui.label(f'${profit:,.2f}').classes('text-2xl font-black text-green-400')
                         
                         with ui.column().classes('gap-0 items-end'):
-                            ui.label('Margin').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
+                            ui.label('Margin').classes('text-[8px] text-gray-400 font-bold uppercase tracking-tighter')
                             ui.label(f'{margin:.2f}%').classes('text-xl font-black text-blue-400')
 
                     with ui.row().classes('w-full justify-between items-center px-4'):
@@ -762,28 +762,18 @@ class PurchaseUI:
             ui.notify(f'Error generating PDF: {str(e)}')
 
     def create_ui(self):
+        # Fetch session metadata for footer
+        user = session_storage.get('user', {})
+        company_info = connection.get_company_info()
+        company_name = company_info.get('company_name', 'Company Name') if company_info else 'Company Name'
+
         ui.add_head_html(MDS.get_global_styles())
         
         with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
                     with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
-                        with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
-                            with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
-                                with ui.column().classes('gap-1'):
-                                    ui.label('Procurement Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
-                                    ui.label('Purchase Invoice').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                
-                                with ui.row().classes('gap-6 items-center'):
-                                    with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
-                                        ui.icon('event', size='1rem').classes('text-gray-400')
-                                        self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
-                    
-                                    self.currency_select = ui.select(
-                                        {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows}, 
-                                        value=self.default_currency_id
-                                    ).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
-
-                            with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
-                                with ui.column().classes('w-[35%] h-full gap-4'):
+                        with ui.column().classes('flex-1 h-full p-4 gap-2 relative overflow-hidden'):
+                            with ui.row().classes('w-full flex-1 gap-3 overflow-hidden'):
+                                with ui.column().classes('w-[35%] h-full gap-2'):
                                     with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
                                         with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 transition-all'):
                                             ui.icon('history', size='1.25rem').classes('text-purple-400 ml-1')
@@ -808,68 +798,81 @@ class PurchaseUI:
                                             'domLayout': 'normal',
                                         }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 100%;')
                         
-                                        self.purchase_history_aggrid.on('cellClicked', lambda e: asyncio.create_task(self.load_purchase_details(e.args['data']['id'])))
+                                        self.purchase_history_aggrid.on('cellClicked', self.handle_history_aggrid_click_wrapper)
                  
-                                with ui.row().classes('flex-1 h-full gap-4 overflow-hidden'):
+                                with ui.row().classes('flex-1 h-full gap-2 overflow-hidden'):
                                     with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
                                         with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-5 items-center'):
-                                            with ui.column().classes('flex-1 gap-1'):
-                                                ui.label('Supplier Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
-                                                    ui.icon('local_shipping', size='1.25rem').classes('text-purple-400')
-                                                    self.supplier_input = ui.input(placeholder='Select Supplier...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_supplier_dialog)
-                                                    ui.icon('search', size='1rem').classes('text-gray-500 opacity-50')
+                                            # Date
+                                            with ui.column().classes('w-32 gap-1'):
+                                                ui.label('Date').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1 rounded-xl border border-white/10 h-[36px]'):
+                                                    self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-full')
 
+                                            # Currency
+                                            with ui.column().classes('w-40 gap-1'):
+                                                ui.label('Currency').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                self.currency_select = ui.select(
+                                                    {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows},
+                                                    value=self.default_currency_id
+                                                ).props('borderless dense').classes('bg-white/5 px-4 py-1 rounded-xl border border-white/10 text-white text-xs font-bold w-full h-[36px]').on('change', self.on_currency_change)
+
+                                            # Supplier
                                             with ui.column().classes('w-48 gap-1'):
-                                                ui.label('Contact').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                ui.label('Supplier').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner h-[36px]'):
+                                                    self.supplier_input = ui.input(placeholder='Select...').props('borderless dense dark').classes('flex-1 text-white font-black text-xs').on('click', self.open_supplier_dialog)
+                                            with ui.column().classes('w-48 gap-1'):
+                                                ui.label('Contact').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     ui.icon('phone', size='1.25rem').classes('text-gray-400 opacity-40')
                                                     self.phone_input = ui.input(placeholder='Phone').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
 
                                             with ui.column().classes('w-32 gap-1'):
-                                                ui.label('Ref #').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
+                                                ui.label('Ref #').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     self.reference_input = ui.input(placeholder='Ref #').props('borderless dense dark').classes('flex-1 text-white font-bold text-sm')
 
                                             with ui.column().classes('gap-1'):
-                                                ui.label('Payment').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 h-[44px]'):
+                                                ui.label('Payment').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1 rounded-xl border border-white/10 h-[36px]'):
                                                     self.payment_method = ui.radio(options=['Cash', 'On Account'], value='Cash').props('inline dark color=purple').classes('text-white text-[10px] font-black uppercase tracking-tighter')
-                        
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-3 items-end mt-2 shrink-0'):
-                                            with ui.column().classes('flex-[2] gap-1'):
-                                                ui.label('Barcode').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
-                                                    self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
-                            
-                                            with ui.column().classes('flex-[3] gap-1'):
-                                                ui.label('Product').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
-                                                    self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
-                            
-                                            with ui.column().classes('w-20 gap-1'):
-                                                ui.label('Qty').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
-                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
-                            
-                                            with ui.column().classes('w-24 gap-1'):
-                                                ui.label('Disc %').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
-                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
 
-                                            with ui.column().classes('w-28 gap-1'):
-                                                ui.label('Cost').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
-                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
-
-                                            with ui.column().classes('w-28 gap-1'):
-                                                ui.label('Retail').classes('text-[9px] font-black text-accent uppercase tracking-widest ml-4 text-center')
-                                                with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                            # --- Inline Product Entry (Merged Level) ---
+                                            with ui.row().classes('items-end gap-2 px-2 py-1 bg-white/5 rounded-xl border border-white/10 ml-auto'):
+                                                with ui.column().classes('flex-[2] gap-1'):
+                                                    ui.label('Barcode').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                    with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
+                                                            ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
+                                                            self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
                             
-                                            ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
+                                                with ui.column().classes('flex-[3] gap-1'):
+                                                    ui.label('Product').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                    with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
+                                                            ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
+                                                            self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
+                            
+                                                with ui.column().classes('w-20 gap-1'):
+                                                    ui.label('Qty').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                    with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                        self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                            
+                                                with ui.column().classes('w-24 gap-1'):
+                                                    ui.label('Disc %').classes('text-[8px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
+                                                    with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                        self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
+
+                                                with ui.column().classes('w-28 gap-1'):
+                                                    ui.label('Cost').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
+                                                    with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                        self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+
+                                                with ui.column().classes('w-28 gap-1'):
+                                                    ui.label('Retail').classes('text-[8px] font-black text-accent uppercase tracking-widest ml-4 text-center')
+                                                    with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
+                                                        self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                            
+                                                ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
 
                                         self.aggrid = ui.aggrid({
                                             'columnDefs': self.columns,
@@ -882,29 +885,6 @@ class PurchaseUI:
                                         }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; flex-grow: 1;')
                                         self.aggrid.on('cellClicked', self.on_row_click_edit_cells)
 
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 items-center justify-between mt-2 shrink-0'):
-                                            with ui.row().classes('gap-8 items-center'):
-                                                ui.label('Procurement Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest opacity-50')
-                                                ui.button('Margin Analytics', on_click=self.show_profit_dialog).props('flat rounded').classes('text-purple-400 font-bold uppercase tracking-wider text-xs')
-                                
-                                                with ui.row().classes('items-center gap-6 bg-white/5 px-5 py-2 rounded-2xl border border-white/10'):
-                                                    with ui.column().classes('gap-0'):
-                                                        ui.label('Items').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                        self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
-                                    
-                                                    with ui.column().classes('gap-0 border-l border-white/10 pl-6'):
-                                                        ui.label('Quantity').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                                                        self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
-
-                                            with ui.row().classes('gap-6 items-center'):
-                                                with ui.column().classes('items-end gap-0'):
-                                                    self.subtotal_label = ui.label('Base + VAT: $0.00').classes('text-[10px] font-bold text-gray-400 uppercase tracking-tighter')
-                                                    self.vat_label = ui.label('VAT: $0.00').classes('text-[10px] font-black text-purple-400 uppercase tracking-tighter')
-                                                    self.total_label = ui.label('Total: $0.00').classes('text-2xl font-black text-white px-2 rounded-lg bg-white/5')
-                                
-                                                with ui.element('div').classes('hidden'):
-                                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
                     
                                     with ui.column().classes('w-80px items-center'):
                                         ModernActionBar(
@@ -918,14 +898,88 @@ class PurchaseUI:
                                             on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                                             on_view_transaction=self.view_purchase_transaction,
                                             on_refresh=self.refresh_purchase_table,
-                                            button_class='h-16',
+                                            button_class='h-12',
                                             classes=' '
                                         ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                             
+                            # --- FOOTER: Consolidated High-Visibility Row ---
+                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-4 items-center justify-between mt-auto shadow-2xl'):
+                                # 1. Operational Metrics
+                                with ui.row().classes('items-center gap-6'):
+                                    with ui.row().classes('items-center gap-3 bg-purple-500/10 px-4 py-2 rounded-xl border border-purple-500/20 shadow-sm'):
+                                        ui.icon('analytics', size='1.2rem').classes('text-purple-400')
+                                        with ui.column().classes('gap-0'):
+                                            ui.label('Procurement Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest')
+                                            ui.button('MARGIN', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
+                                    
+                                    with ui.row().classes('items-center gap-4 bg-white/5 py-1 px-4 rounded-xl border border-white/10'):
+                                        with ui.column().classes('items-center gap-0'):
+                                            ui.label('Items').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
+                                        ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                        with ui.column().classes('items-center gap-0'):
+                                            ui.label('Quantity').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
+
+                                # 2. Session Info (Operator & Terminal)
+                                with ui.row().classes('items-center gap-6 px-6 py-2 bg-white/5 border border-white/10 rounded-2xl shadow-inner mx-4'):
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Active Operator').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(user.get('username', 'Guest')).classes('text-sm font-black text-[#08CB00] uppercase tracking-wider')
+                                    
+                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Organization').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(company_name).classes('text-sm font-black text-white uppercase tracking-wider')
+                                    
+                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Terminal Time').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        def update_footer_time():
+                                            now_time = datetime.now().strftime('%H:%M:%S')
+                                            footer_time_label.text = now_time
+                                        footer_time_label = ui.label()
+                                        update_footer_time()
+                                        ui.timer(1.0, update_footer_time)
+                                        footer_time_label.classes('text-sm font-black text-[#08CB00] tracking-widest')
+
+                                # 3. Financial Summary
+                                with ui.row().classes('items-center gap-6 bg-purple-500/5 px-6 py-2 rounded-2xl border border-purple-500/20 shadow-inner ml-auto'):
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total HT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.subtotal_label = ui.label('$0.00').classes('text-base font-black text-white')
+                                    
+                                    ui.element('div').classes('w-[1px] h-10 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total VAT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.vat_label = ui.label('$0.00').classes('text-base font-black text-purple-400')
+                                    
+                                    ui.element('div').classes('w-[1px] h-14 bg-purple-500/20 mx-2')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total TTC').classes('text-[11px] text-purple-300 font-black uppercase tracking-[.25em]')
+                                        self.total_label = ui.label('$0.00').classes('text-4xl font-black text-white leading-none tracking-tight')
+
+                                # Functional Hidden Inputs
+                                with ui.element('div').classes('hidden'):
+                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
+                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
 
     
                     ui.timer(0.1, self.load_max_purchase, once=True)
                     ui.timer(0.2, self.refresh_purchase_table, once=True)
 
+    async def handle_history_aggrid_click_wrapper(self, e):
+        async with loading_indicator.show_loading('load_purchase_items', 'Loading purchase items...', overlay=True):
+            try:
+                selected_row = e.args.get('data')
+                if selected_row and isinstance(selected_row, dict) and 'id' in selected_row:
+                    await self.load_purchase_details(selected_row['id'])
+            except Exception as ex:
+                ui.notify(f'Error: {ex}')
 
 @ui.page('/purchase')
 def purchase_page_route():

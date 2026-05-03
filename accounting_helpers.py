@@ -510,96 +510,115 @@ def print_trial_balance(from_date=None, to_date=None):
     except Exception as e:
         ui.notify(f"PDF Error: {e}", color='negative')
 
+
 def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=None):
-    """Generate hierarchical trial balance PDF like statement format."""
+    """Generate and display hierarchical trial balance PDF."""
     from nicegui import ui
     from reports import Reports
+    import base64
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from io import BytesIO
+
     try:
         tree_data = Reports.fetch_hierarchical_trial_balance(ledger_prefix, from_date, to_date)
-        import base64
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
-        from io import BytesIO
-
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=30, rightMargin=30)
-        elements = []
-        styles = getSampleStyleSheet()
         
-        title = f"Hierarchical Trial Balance - Ledger {ledger_prefix}"
-        elements.append(Paragraph(title, styles['Heading1']))
-        if from_date or to_date:
-            period = f"Period: {from_date or 'All'} to {to_date or 'Today'}"
-            elements.append(Paragraph(period, styles['Normal']))
-        elements.append(Spacer(1, 12))
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
 
+        # Header
+        title = Paragraph(f"Hierarchical Trial Balance<br/><font size=12>Ledger Prefix: {ledger_prefix}</font>", styles['Heading1'])
+        story.append(title)
+        if from_date or to_date:
+            period = Paragraph(f"Period: {from_date or 'Beginning'} to {to_date or 'Today'}", styles['Normal'])
+            story.append(period)
+        story.append(Spacer(1, 20))
+
+        # Flatten tree for table with indentation
+        table_data = [['Level', 'Code', 'Name', 'Debit', 'Credit', 'Balance']]
         grand_debit = grand_credit = 0
 
-        # Hierarchical tree summary table
-        tree_table_data = [['Level', 'Code', 'Name', 'Debit', 'Credit', 'Balance']]
-        for row in tree_data:
-            indent = '  ' * (row['level'] - 1)
-            tree_table_data.append([
-                str(row['level']),
-                f"{indent}{row['code']}",
-                row['name'],
-                f"{row['total_debit']:,.2f}",
-                f"{row['total_credit']:,.2f}",
-                f"{row['balance']:+,.2f}"
+        def flatten_tree(node, indent=''):
+            nonlocal grand_debit, grand_credit
+            table_data.append([
+                node['level'],
+                indent + node['code'],
+                node['name'][:40] + '...' if len(node['name']) > 40 else node['name'],
+                f"{node['debit']:,.2f}",
+                f"{node['credit']:,.2f}",
+                f"{node['balance']:+,.2f}"
             ])
-            grand_debit += row['total_debit']
-            grand_credit += row['total_credit']
+            grand_debit += node['debit']
+            grand_credit += node['credit']
+            for child in node['children']:
+                flatten_tree(child, indent + '  ')
+            # Add transaction summary for leaves
+            if node['transactions']:
+                story.append(Spacer(1, 6))
+                details_title = Paragraph(f"Transactions - {node['code']} {node['name']}", styles['Heading2'])
+                story.append(details_title)
+                
+                txn_table = [['Date', 'Reference', 'Debit', 'Credit', 'Balance']]
+                for txn in node['transactions'][:20]:  # Limit
+                    txn_table.append([
+                        txn['Date'],
+                        txn['Reference'][:30],
+                        f"{txn['Debit']:,.2f}",
+                        f"{txn['Credit']:,.2f}",
+                        f"{txn['Balance']:,.2f}"
+                    ])
+                txn_tbl = Table(txn_table, colWidths=[60, 140, 70, 70, 70])
+                txn_tbl.setStyle(TableStyle([
+                    ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+                    ('FONTSIZE', (0,0), (-1,-1), 8)
+                ]))
+                story.append(txn_tbl)
 
-        tree_table_data.append(['', 'GRAND TOTALS', '', f"{grand_debit:,.2f}", f"{grand_credit:,.2f}", f"{grand_debit-grand_credit:,.2f}"])
+        for root in tree_data:
+            flatten_tree(root)
 
-        tbl = Table(tree_table_data, colWidths=[30, 80, 200, 80, 80, 80])
-        tbl.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.grey),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+        # Grand totals
+        story.append(Spacer(1, 12))
+        totals_data = [['', 'GRAND TOTALS', '', f"{grand_debit:,.2f}", f"{grand_credit:,.2f}", f"{grand_debit-grand_credit:+,.2f}"]]
+        totals_tbl = Table(totals_data, colWidths=[30, 80, 200, 80, 80, 80])
+        totals_tbl.setStyle(TableStyle([
+            ('SPAN', (0,0), (1,0)),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
-            ('GRID', (0,0), (-1,-1), 1, colors.black)
+            ('FONTSIZE', (0,0), (-1,0), 12),
+            ('ALIGN', (3,0), (-1,0), 'RIGHT'),
+            ('BACKGROUND', (0,0), (-1,0), colors.darkblue),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white)
         ]))
-        elements.append(tbl)
+        story.append(totals_tbl)
 
-        # Detailed transactions for leaf nodes
-        for row in tree_data:
-            if row['has_details'] and row['children_count'] == 0:  # Leaf with txns
-                elements.append(Spacer(1, 12))
-                elements.append(Paragraph(f"Detailed Transactions - {row['code']} {row['name']}", styles['Heading2']))
-                details = Reports.fetch_account_details(row['code'], from_date, to_date)
-                if details:
-                    detail_data = [['Date', 'Reference', 'Debit', 'Credit', 'Balance']] + [
-                        [d['Date'], d['Reference'], f"{d['Debit']:,.2f}", f"{d['Credit']:,.2f}", f"{d['Balance']:,.2f}"] 
-                        for d in details
-                    ]
-                    detail_tbl = Table(detail_data)
-                    detail_tbl.setStyle(TableStyle([
-                        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
-                        ('GRID', (0,0), (-1,-1), 0.5, colors.black)
-                    ]))
-                    elements.append(detail_tbl)
-
+        # Balance check
         if abs(grand_debit - grand_credit) < 0.01:
-            elements.append(Paragraph("✅ BALANCED", styles['Heading2']))
+            story.append(Paragraph("✅ Trial Balance is Balanced", styles['Heading2']))
         else:
-            elements.append(Paragraph("⚠️ OUT OF BALANCE", styles['Heading2']))
+            story.append(Paragraph("⚠️ Trial Balance Out of Balance!", styles['Heading2']))
 
-        doc.build(elements)
+        doc.build(story)
         pdf_bytes = buffer.getvalue()
         buffer.close()
+        
         pdf_b64 = base64.b64encode(pdf_bytes).decode()
         pdf_url = f"data:application/pdf;base64,{pdf_b64}"
 
-        with ui.dialog() as pdf_dialog:
-            with ui.card().classes('w-screen h-screen p-0 m-0'):
-                with ui.row().classes('p-4 bg-primary'):
-                    ui.label(f"Hierarchical Trial Balance - {ledger_prefix}").classes('text-white text-xl font-bold')
-                    ui.button('Close', on_click=pdf_dialog.close, icon='close').classes('ml-auto text-white')
-                ui.html(f'<iframe src="{pdf_url}" style="width:100%;height:calc(100vh-80px);border:none;"></iframe>')
-        pdf_dialog.open()
+        with ui.dialog() as dialog:
+            with ui.card().classes('w-screen h-screen max-w-none max-h-none rounded-none p-0'):
+                with ui.row().classes('p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white justify-between items-center'):
+                    ui.label(f"Hierarchical Trial Balance - {ledger_prefix}").classes('text-xl font-bold flex-1')
+                    ui.button(icon='close', on_click=dialog.close, color='white')
+                ui.html(f'<iframe src="{pdf_url}" style="border:none; width:100%; height:calc(100vh - 64px);"></iframe>')
+        dialog.open()
+
     except Exception as e:
-        ui.notify(f"PDF Error: {e}", color='negative')
+        ui.notify(f"Error generating PDF: {str(e)}", color='negative')
+        print(f"PDF generation error: {e}")
+

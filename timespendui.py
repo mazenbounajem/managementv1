@@ -35,6 +35,7 @@ class TimeSpendUI:
                         ui.label('Analysis Period').classes('text-xl font-bold text-primary-dark')
                     
                     with ui.row().classes('items-center gap-4'):
+                        self.user_select = ui.select(['All Users'], value='All Users', label='Select User').props('outlined dense').classes('w-44').props('with-input')
                         self.from_date_input = ui.input('From', value=self.from_date).props('type=date outlined dense').classes('w-44')
                         self.to_date_input = ui.input('To', value=self.to_date).props('type=date outlined dense').classes('w-44')
                         
@@ -94,6 +95,14 @@ class TimeSpendUI:
                         
                         ui.label('Set your hourly rate to estimate total labor costs for this period.').classes('text-sm text-muted mb-4')
                         
+                        with ui.column().classes('gap-1 mb-4 p-3 bg-accent/5 rounded-lg border border-accent/10'):
+                            with ui.row().classes('w-full justify-between'):
+                                ui.label('Total Minutes:').classes('text-xs font-bold text-muted')
+                                self.total_minutes_label = ui.label('0').classes('text-sm font-black text-accent')
+                            with ui.row().classes('w-full justify-between'):
+                                ui.label('Total Hours:').classes('text-xs font-bold text-muted')
+                                self.total_hours_label = ui.label('0.00').classes('text-sm font-black text-accent')
+
                         self.hourly_rate_input = ui.number(
                             'Hourly Rate ($)', 
                             value=0.0, 
@@ -136,6 +145,15 @@ class TimeSpendUI:
             self.aggrid.options['rowData'] = self.session_data
             self.aggrid.update()
             self.calculate_totals(self.session_data)
+            
+            # Load users for dropdown
+            users_sql = "SELECT DISTINCT username FROM users"
+            users_data = []
+            connection.contogetrows(users_sql, users_data)
+            user_options = ['All Users'] + [row[0] for row in users_data if row[0]]
+            self.user_select.options = user_options
+            self.user_select.update()
+            
             ui.notify(f'Loaded {len(self.session_data)} records', color='positive')
 
         except Exception as e:
@@ -154,9 +172,12 @@ class TimeSpendUI:
             f_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
             t_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
 
+            selected_user = self.user_select.value
+
             filtered = [
                 row for row in self.session_data 
                 if row['login_date'] and f_date <= datetime.strptime(row['login_date'], '%Y-%m-%d').date() <= t_date
+                and (selected_user == 'All Users' or row['username'] == selected_user)
             ]
 
             self.aggrid.options['rowData'] = filtered
@@ -172,6 +193,9 @@ class TimeSpendUI:
         total_sessions = len(data)
         total_minutes = sum(row['session_duration_minutes'] for row in data)
         self.total_hours = total_minutes / 60.0
+
+        self.total_minutes_label.set_text(str(total_minutes))
+        self.total_hours_label.set_text(f"{self.total_hours:.2f}")
 
         self.sessions_card.update_value(str(total_sessions))
         self.hours_card.update_value(f"{self.total_hours:.2f}")

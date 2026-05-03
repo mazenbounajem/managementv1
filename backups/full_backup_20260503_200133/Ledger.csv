@@ -1,0 +1,330 @@
+Id,AccountNumber,SubNumber,ParentId,Name_en,Name_fr,Name_ar,UpdateDate,Status,TimeStamp
+807,1,1,,EQUITY & LONG TERM DEBTS,COMPTES DE CAPITAUX PERMANENTS,EQUITY & LONG TERM DEBTS,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x11'
+808,2,2,,ACCOUNTS OF FIXED ASSETS,COMPTES D'IMMOBILISATIONS,ACCOUNTS OF FIXED ASSETS,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x12'
+809,3,3,,INVENTORY AND GOODS IN PROCESS,COMPTES DE STOCK ET EN COURS,INVENTORY AND GOODS IN PROCESS,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x13'
+810,4,4,,THIRD PARTY,COMPTES DE TIERS,THIRD PARTY,2011-03-03 08:42:53.670000,1,b'\x00\x00\x00\x00\x00\x01!\x14'
+811,5,5,,FINANCIAL ACCOUNTS,COMPTES FINANCIERS,FINANCIAL ACCOUNTS,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x15'
+812,6,6,,Expenditure,COMPTES DE CHARGES,Expenditure,2011-03-03 11:09:31.263000,1,b'\x00\x00\x00\x00\x00\x01!\x16'
+813,7,7,,INCOME,COMPTES DE PRODUITS,INCOME,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x17'
+814,10,0,1,CAPITAL,Capital,CAPITAL,2010-07-13 12:30:45.937000,1,b'\x00\x00\x00\x00\x00\x01!\x18'
+815,11,1,1,RESERVES,Réserves,RESERVES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x19'
+816,12,2,1,BROUGHT FORWARD RESULTS,Report à nouveau,BROUGHT FORWARD RESULTS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1a'
+817,13,3,1,NET RESULT OF THE FINANCIAL PERIOD  (PRO,Résultat de l'exercise,NET RESULT OF THE FINANCIAL PERIOD  (PRO,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1b'
+818,14,4,1,INVESTMENT SUBSIDIES,Subventions d'investissement,INVESTMENT SUBSIDIES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1c'
+819,15,5,1,PROVISIONS FOR CONTINGENCIES & CHARGES,Provisions pour risques et charges,PROVISIONS FOR CONTINGENCIES & CHARGES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1d'
+820,16,6,1,LONG & MEDIUM TERM DEBTS,Dettes financ. à long et moy. terme,LONG & MEDIUM TERM DEBTS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1e'
+821,18,8,1,ACCOUNTS WITH AFFILIATED COMPANIES,Comptes de liaison,ACCOUNTS WITH AFFILIATED COMPANIES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x1f'
+822,21,1,2,INTANGIBLE FIXED ASSETS,Immobilisations incorporelles,INTANGIBLE FIXED ASSETS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01! '
+823,22,2,2,TANGIBLE FIXED ASSETS,Immobilisations corporelles,TANGIBLE FIXED ASSETS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!!'
+824,25,5,2,FINANCIAL FIXED ASSETS,Immobilisations financières,FINANCIAL FIXED ASSETS,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01!""'"
+825,28,8,2,DEPRECIATION OF FIXED ASSETS,Amortissement des immobilisations,DEPRECIATION OF FIXED ASSETS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!#'
+826,31,1,3,RAW MATERIALS AND CONSUMABLE GOODS,Approvisionnements,RAW MATERIALS AND CONSUMABLE GOODS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!$'
+827,33,3,3,"GOODS IN PROCESS ( GOODS,WORKS AND SERVI",En cours de productions,"GOODS IN PROCESS ( GOODS,WORKS AND SERVI",2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!%'
+828,35,5,3,PRODUCTS,Stocks de produits,PRODUCTS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!&'
+829,37,7,3,MERCHANDISE FOR SALE,Stocks de marchandises,MERCHANDISE FOR SALE,2010-07-13 12:30:45.937000,0,"b""\x00\x00\x00\x00\x00\x01!'"""
+830,39,9,3,PROVISIONS FOR DIMUNITION IN VALUE OF IN,Prov. pr dépréciat. pdts en cours,PROVISIONS FOR DIMUNITION IN VALUE OF IN,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!('
+831,40,0,4,Creditors,Creditors,Creditors,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!)'
+832,41,1,4,DEBTORS ( CUSTOMERS ),Clients,DEBTORS ( CUSTOMERS ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!*'
+833,42,2,4,PERSONNEL,Personnel,PERSONNEL,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!+'
+834,43,3,4,SOCIAL SECURITY,Organismes sociaux,SOCIAL SECURITY,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01!,'"
+835,44,4,4,GOV'T AND PUBLIC INSTITUTIONS,Etat et collectivités Publiques,GOV'T AND PUBLIC INSTITUTIONS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!-'
+836,45,5,4,PARTNERS,Associés,PARTNERS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!.'
+837,46,6,4,MISCELLANEOUS ACCOUNTS RECEIVABLES & PAY,Tiers divers,MISCELLANEOUS ACCOUNTS RECEIVABLES & PAY,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!/'
+838,47,7,4,PRE-PAYMENTS & ACCRUALS,Comptes de régularisation,PRE-PAYMENTS & ACCRUALS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!0'
+839,50,0,5,SECURITY PLACEMENTS,Valeurs mobilières de placement,SECURITY PLACEMENTS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!1'
+840,51,1,5,FINANCIAL INSTITUTIONS,Etablissements financiers,FINANCIAL INSTITUTIONS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!2'
+841,53,3,5,CASH,Caisse,CASH,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!3'
+842,58,8,5,INTERCOMPANY,Virements internes,INTERCOMPANY,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!4'
+843,59,9,5,PROVISION,Prov. pr dépr. valeurs mob. de pla.,PROVISION,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!5'
+844,60,0,6,Purchase and variation of inventory,Achat marchandises et variat. stock,Purchase and variation of inventory,2011-03-03 11:10:56.123000,0,b'\x00\x00\x00\x00\x00\x01!6'
+845,61,1,6,PURCHASES RAW MATERIALS & CONSUMABLES,Achat d'approv. et variat. de stock,PURCHASES RAW MATERIALS & CONSUMABLES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!7'
+846,62,2,6,OTHER CHARGES & DISBURSMENTS,Autres charges externes,OTHER CHARGES & DISBURSMENTS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!8'
+847,63,3,6,PERSONNEL CHARGES,Charges de personnel,PERSONNEL CHARGES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!9'
+848,64,4,6,FEES & TAXES,"Impôts, taxes et versements assim.",FEES & TAXES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!:'
+849,65,5,6,"AMORTIZATION, DEPRECIATION & PROVISIONS",Dotat. aux amort. et prov. d'expl.,"AMORTIZATION, DEPRECIATION & PROVISIONS",2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!;'
+850,66,6,6,OTHER OPERATING CHARGES,Autres charges d'exploitation,OTHER OPERATING CHARGES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!<'
+851,67,7,6,FINANCIAL CHARGES,Charges financières,FINANCIAL CHARGES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!='
+852,68,8,6,NON-OPERATING CHARGES,Charges hors exploitation,NON-OPERATING CHARGES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!>'
+853,69,9,6,INCOME TAX,Impôts sur bénéfices,INCOME TAX,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!?'
+854,70,0,7,Sales,Ventes de marchandises,Sales,2011-03-03 11:03:27.153000,0,b'\x00\x00\x00\x00\x00\x01!@'
+855,71,1,7,SALES OF PRODUCTION,Production vendue,SALES OF PRODUCTION,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!A'
+856,72,2,7,PRODUCTION ( VARIATION ),Production stockée,PRODUCTION ( VARIATION ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!B'
+857,73,3,7,PRODUCTION OF FIXED ASSETS,Production immobilisée,PRODUCTION OF FIXED ASSETS,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!C'
+858,74,4,7,OPERATING SUBSIDIES,Subventions d'exploitation,OPERATING SUBSIDIES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!D'
+859,75,5,7,PROVISIONS WRITE-BACK,reprises sur provisions exploitat.,PROVISIONS WRITE-BACK,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!E'
+860,76,6,7,OTHER OPERATING INCOME,Autres produits d'exploitation,OTHER OPERATING INCOME,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!F'
+861,77,7,7,FINANCIAL REVENUES,Produits financiers,FINANCIAL REVENUES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!G'
+862,78,8,7,NON-OPERATING REVENUES,Produits hors exploitation,NON-OPERATING REVENUES,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!H'
+863,101,1,10,Capital ( Company or individual),Capital (Social ou pers.),Capital ( Company or individual),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!I'
+864,102,2,10,Premiums Related to the Capital,Primes liées au capital social,Premiums Related to the Capital,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!J'
+865,103,3,10,Revaluation Variances,Ecarts de reévalution,Revaluation Variances,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!K'
+866,109,9,10,Owners Current Account.,Compte personnel de l'exploitant,Owners Current Account.,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!L'
+867,111,1,11,Legal Reserve,Réserves légales,Legal Reserve,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!M'
+868,119,9,11,Other Reserves,Autres réserves,Other Reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!N'
+869,121,1,12,Profit Brought Forward,Profits antérieurs reportés,Profit Brought Forward,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!O'
+870,125,5,12,Loss Brought Forward,Pertes antérieurs reportés,Loss Brought Forward,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!P'
+871,131,1,13,Cross Trade Margin,Marge commerciale,Cross Trade Margin,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!Q'
+872,132,2,13,Value Added,Valeur ajoutée,Value Added,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!R'
+873,133,3,13,Cross Trading Operating Margin,Excédant brut d'exploitation,Cross Trading Operating Margin,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!S'
+874,134,4,13,Operating Result ( Prior to Financial In,Résultat d'exploitation,Operating Result ( Prior to Financial In,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!T'
+875,135,5,13,Result Before Taxation,Résultat courant avant impot,Result Before Taxation,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!U'
+876,136,6,13,Non-Operating Result,Résultat hors exploitation,Non-Operating Result,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!V'
+877,138,8,13,Result of the Period - Profits,Résultat de l'exercise bénéfice,Result of the Period - Profits,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!W'
+878,139,9,13,Result of the Period - Losses,Résultat de l'exercise perte,Result of the Period - Losses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!X'
+879,141,1,14,Investment subsidies Received,Subventions d'investissement reçues,Investment subsidies Received,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!Y'
+880,145,4,14,Investment Subsidies Transferred to Res.,Subventions d'inv. rapp. au résult.,Investment Subsidies Transferred to Res.,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!Z'
+881,148,8,14,Investment Subsidies Transferred to Res.,Autres subventions d'investissement,Investment Subsidies Transferred to Res.,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!['
+882,151,1,15,Provisions for Contingencies,Provisions pour risques,Provisions for Contingencies,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\\'
+883,155,5,15,Provisions for Charges,Provisions pour charges,Provisions for Charges,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!]'
+884,161,1,16,Loans against debenture,Emprunts obligatoires,Loans against debenture,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!^'
+885,168,8,16,Dettes diverses long et moyen terme,Dettes diverses long et moyen terme,Dettes diverses long et moyen terme,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!_'
+886,181,1,18,Branches and Joint Ventures Accounts (On,Liaison établissement,Branches and Joint Ventures Accounts (On,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!`'
+887,186,6,18,Intercompany Charges,Charges  échanges entre établiss.,Intercompany Charges,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!a'
+888,187,7,18,Intercompany Income,Produits  échanges entre établiss.,Intercompany Income,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!b'
+889,211,1,21,"Business Concern (Keymoney,Goodwill,Clie",Fonds de commerce,"Business Concern (Keymoney,Goodwill,Clie",2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!c'
+890,212,2,21,Establishment Expenses,Frais d'établissement,Establishment Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!d'
+891,213,3,21,Research and Development Expenses,Frais de recherche et développement,Research and Development Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!e'
+892,219,9,21,Other Intangible Fixed Assets,Aut. immobilisations incorporelles,Other Intangible Fixed Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!f'
+893,221,1,22,Land,Terrains,Land,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!g'
+894,222,2,22,Agencement terrains,Agencement terrains,Agencement terrains,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!h'
+895,223,3,22,Construction,Constructions,Construction,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!i'
+896,224,4,22,Technical Installations and Industrial T,Matériels et outillages industriels,Technical Installations and Industrial T,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!j'
+897,225,5,22,Transportation Equipment,Matériels de transport,Transportation Equipment,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!k'
+898,226,6,22,Other Tangible Fixed Assets,Autres Immobilisations Corporelles,Other Tangible Fixed Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!l'
+899,227,7,22,Tangible Fixed Assets in Progress,Immobilisat. corporelles en cours,Tangible Fixed Assets in Progress,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!m'
+900,251,1,25,Equity Participation's,Titres de participations,Equity Participation's,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!n'
+901,253,3,25,Other Blocked Securities,Autres titres immobilisés,Other Blocked Securities,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!o'
+902,255,5,25,Long and Medium Term Loans,Prêts à long et moyen terme,Long and Medium Term Loans,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!p'
+903,259,9,25,Other Blocked Term Receivables,Autres créances immobilières,Other Blocked Term Receivables,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!q'
+904,281,1,28,Amortization's of Other Intangible Fixed,Amort. des autres immobilis. incorp,Amortization's of Other Intangible Fixed,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!r'
+905,282,2,28,Depreciation of Tangible Fixed Assets,Amortissement des immob. corp.,Depreciation of Tangible Fixed Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!s'
+906,311,1,31,Raw Materials,Matières premières,Raw Materials,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!t'
+907,315,5,31,Other Consumable Supplies and Materials,Autres approvisionnement,Other Consumable Supplies and Materials,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!u'
+908,331,1,33,Products In Process,Produits en cours,Products In Process,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!v'
+909,332,2,33,Works In Progress,Travaux en cours,Works In Progress,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!w'
+910,335,5,33,Studies In Progress,Etudes en cours,Studies In Progress,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!x'
+911,351,1,35,Semi-Finished Goods,Stocks de produits intermédiaires,Semi-Finished Goods,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!y'
+912,370,0,37,Merchandise for Sale,Marchandises,Merchandise for Sale,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!z'
+913,371,1,37,Merchandise for Sale,Marchandises (ou groupe),Merchandise for Sale,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!{'
+914,401,1,40,Accounts Payable ( Suppliers ),Fournisseurs d'exploitation,Accounts Payable ( Suppliers ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!|'
+915,403,3,40,Fixed Assets Suppliers,Fournisseurs d'immobilisations,Fixed Assets Suppliers,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!}'
+916,409,9,40,Advance payments on account of operation,Avances et acomptes versés,Advance payments on account of operation,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!~'
+917,411,1,41,Invoices,Factures clients,Invoices,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x7f'
+918,413,3,41,Notes Receivables (Clients),Effets à recevoir clients,Notes Receivables (Clients),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x80'
+919,418,9,41,Invoices Under Preparation,Factures à établir,Invoices Under Preparation,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x81'
+920,421,1,42,Payments due to Personnel,Rénumérations dues au personnel,Payments due to Personnel,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x82'
+921,431,1,43,Accounts Payable to Social Security,Dettes aux organismes sociaux,Accounts Payable to Social Security,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x83'
+922,438,8,43,Accounts Receivables from Social Securit,Créances sur organismes sociaux,Accounts Receivables from Social Securit,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x84'
+923,441,1,44,Taxes Due ( Operational ),Dettes fiscales d'exploitation,Taxes Due ( Operational ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x85'
+924,443,3,44,Taxes Due ( Non-Operations),Dettes fiscales hors exploitation,Taxes Due ( Non-Operations),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x86'
+925,451,1,45,Partners Current Account,Comptes courants associés,Partners Current Account,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x87'
+926,453,3,45,Dividends Payables,Dividendes à payer,Dividends Payables,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x88'
+927,459,9,45,Shareholders Receivables,Créances sur les associés,Shareholders Receivables,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x89'
+928,461,1,46,Misc. Operating Accounts Payables,Créditeurs divers d'exploitation,Misc. Operating Accounts Payables,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8a'
+929,465,5,46,Misc. Accc.nts Payables - Non-Operating,Autes créd. divers hors exploitat.,Misc. Accc.nts Payables - Non-Operating,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8b'
+930,468,8,46,Misc. Accounts Receivables - Operating,Débiteurs divers d'exploitation,Misc. Accounts Receivables - Operating,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8c'
+931,469,9,46,Misc. Receivables - Non-Operating,Débiteurs divers hors exploitat.,Misc. Receivables - Non-Operating,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8d'
+932,471,1,47,Deferred Charges,Charges à répartir sur +rs exerc.,Deferred Charges,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8e'
+933,472,2,47,Deferred Income,Charges constatées d'avance,Deferred Income,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x8f'
+934,473,3,47,Accrued Income,Produits constatés d'avance,Accrued Income,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x90'
+935,474,5,47,Charges to Pay,Charges à payer,Charges to Pay,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x91'
+936,502,2,50,Property Rights related to Notes,Titres conférant 1 drt de propriété,Property Rights related to Notes,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x92'
+937,505,5,50,Debentures & Bonds,Obligat. et bons émis par société,Debentures & Bonds,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x93'
+938,506,6,50,to modify,to modify,to modify,2010-07-13 00:00:00,0,b'\x00\x00\x00\x00\x00\x01!\x94'
+939,511,1,51,Cheques & Coupon for Collection,Chèques et coupons à encaisser,Cheques & Coupon for Collection,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x95'
+940,512,2,51,Banks,Banques,Banks,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x96'
+941,519,9,51,Financial Institutions,Organismes de financment,Financial Institutions,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x97'
+942,530,0,53,Cash,Caisse,Cash,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x98'
+943,601,1,60,Purchases,Achat de marchandises,Purchases,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x99'
+944,605,5,60,Variation of Inventory,Variations de stock marchandises,Variation of Inventory,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9a'
+945,611,1,61,Raw Materials and Consumables purchases,Achat d'approvisionnement,Raw Materials and Consumables purchases,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9b'
+946,615,5,61,Variation of Raw Materials & Consumable,Variations stocks d'approvisionn.,Variation of Raw Materials & Consumable,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9c'
+947,621,1,62,Costs Related to Sub Contracts,Achats de sous-traitance,Costs Related to Sub Contracts,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9d'
+948,625,5,62,Leasing & Patents Cost,Redevances,Leasing & Patents Cost,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9e'
+949,626,6,62,External Services,Services extérieurs,External Services,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\x9f'
+950,631,1,63,Salaries & Wages,Rénumérations de personnel,Salaries & Wages,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa0'
+951,635,5,63,Social Security,Charges sociales,Social Security,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa1'
+952,641,1,64,Income Tax on Salaries & Remuneration,"Impôts , taxes sur rénumérations",Income Tax on Salaries & Remuneration,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa2'
+953,642,2,64,Municipal Tax,Impôts et taxes municipales,Municipal Tax,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa3'
+954,644,4,64,Registration Fees,Droits d'enregistrement,Registration Fees,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa4'
+955,651,1,65,Depreciation & Amortization,Dotations aux amortissements,Depreciation & Amortization,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa5'
+956,655,5,65,Provisions,Dotations aux provisions,Provisions,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa6'
+957,673,3,67,Interest,Intérêts et autres charges assimil.,Interest,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa7'
+958,675,5,67,Negative Exchange Differences,Différences négatives de change,Negative Exchange Differences,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa8'
+959,681,1,68,Net Book Value of Fixed Assets Disposed,Valeur comptable immobilière cédée,Net Book Value of Fixed Assets Disposed,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xa9'
+960,685,5,68,Other Charges - Non-Operating,Charges hors exploitation,Other Charges - Non-Operating,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xaa'
+961,701,1,70,Invoices,Ventes de marchandises,Invoices,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xab'
+962,711,1,71,Sales of Production,Vente de produits fabriqués,Sales of Production,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xac'
+963,712,2,71,Works,Travaux,Works,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xad'
+964,713,3,71,Services,Prestations de services,Services,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xae'
+965,731,1,73,Intangible Fixed Assets,Immobilisations incorporelles,Intangible Fixed Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xaf'
+966,732,2,73,Tangible Fixed Assets,Immobilisations corporelles,Tangible Fixed Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb0'
+967,771,1,77,Revenues of Equity Participation,Produits des participations,Revenues of Equity Participation,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb1'
+968,772,2,77,Revenue from Other Assets,Revenus des autres valeurs mobil.,Revenue from Other Assets,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb2'
+969,775,5,77,Foreign Currencies Positive Difference,Diffèrences positives de change,Foreign Currencies Positive Difference,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb3'
+970,778,8,77,Other Financial Income,Autres produits financiers,Other Financial Income,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb4'
+971,1011,1,101,Subscribed Capital (Uncoiled),Capital souscrit non appelé,Subscribed Capital (Uncoiled),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb5'
+972,1012,2,101,Subscribed Capital (called & Unpaid ),Capital souscrit appelé non versé,Subscribed Capital (called & Unpaid ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb6'
+973,1013,3,101,Subscribed Capital (Called & Paid Up ),Capital souscrit appelé et versé,Subscribed Capital (Called & Paid Up ),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb7'
+974,1021,1,102,Issue Premiums,Primes d'émission,Issue Premiums,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb8'
+975,1022,2,102,Merger Premiums,Primes de fusion,Merger Premiums,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xb9'
+976,1023,3,102,Contributions Premiums,Primes d'apport,Contributions Premiums,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xba'
+977,1031,1,103,Revaluation Variances of unamortizable F,Ecarts immob. non amortissable,Revaluation Variances of unamortizable F,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xbb'
+978,1035,5,103,Revaluation variances of Amortizable Fix,Ecarts immob. amortissable,Revaluation variances of Amortizable Fix,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xbc'
+979,1036,6,103,Special revaluated reserves,Réserve spéciale reévaluée,Special revaluated reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xbd'
+980,1090,0,109,Compte personnel de l'exploitant,Compte personnel de l'exploitant,Compte personnel de l'exploitant,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xbe'
+981,1191,1,119,Facultatif reserves,Réserves facultatives,Facultatif reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xbf'
+982,1192,2,119,Disponible reserves,Réserves indisponbles,Disponible reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc0'
+983,1193,3,119,Reglemented reserves,Réserves règlementées,Reglemented reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc1'
+984,1195,5,119,Various reserves,Réserves diverses,Various reserves,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc2'
+985,1210,0,121,Profits and Losses,Pertes et profits,Profits and Losses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc3'
+986,1211,1,121,Profit Brought Forward,Profits antérieurs reportés,Profit Brought Forward,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc4'
+987,1251,1,125,Loss Brought Forward,Pertes antérieurs reportés,Loss Brought Forward,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc5'
+988,1341,1,134,Operating Result ( Prior to Financial In,Résultat d'exploitation,Operating Result ( Prior to Financial In,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc6'
+989,1511,1,151,Provisions for Litigation and Sundry Con,Provisions litiges et event. div.,Provisions for Litigation and Sundry Con,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc7'
+990,1551,1,151,Provision for deferred charges,Prov. charges à repartir +rs exerc.,Provision for deferred charges,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc8'
+991,1555,5,155,Provisions for Taxes,Provisions pour impôts,Provisions for Taxes,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xc9'
+992,1558,8,155,Other provisions for Charges,Autres provisions pour charges,Other provisions for Charges,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xca'
+993,1611,1,161,Loans against debenture,Emprunts obligatoires,Loans against debenture,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xcb'
+994,1612,2,161,Other Loans against debenture,Autres emprunts obligatoires,Other Loans against debenture,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xcc'
+995,1681,1,168,Notes Payable Resulting from the Purchas,Billets de fonds,Notes Payable Resulting from the Purchas,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xcd'
+996,1682,2,168,Deposits and Guarantees,Dépôts et cautionnement,Deposits and Guarantees,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xce'
+997,1683,3,168,Advances from the Government,Avances de l'état,Advances from the Government,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xcf'
+998,1811,1,181,Balances Brought Forward,Liaison établissement nouveau,Balances Brought Forward,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd0'
+999,2120,0,212,Establishment Expenses,Frais d'établissement,Establishment Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd1'
+1000,2121,1,212,Constutution Expenses,Frais de constitution,Constutution Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd2'
+1001,2122,2,212,1st Establishment Expenses,Frais de 1er établissement,1st Establishment Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd3'
+1002,2191,1,219,Droit au bail,Droit au bail,Droit au bail,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd4'
+1003,2210,0,221,Land,Terrains,Land,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd5'
+1004,2211,1,221,Naked Land,Terrains nus,Naked Land,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd6'
+1005,2213,3,221,Extractive Land Stress (Mines & Ovaries),Terrains d'exploitation,Extractive Land Stress (Mines & Ovaries),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd7'
+1006,2221,1,222,Agencement terrains,Agencement terrains,Agencement terrains,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd8'
+1007,2231,1,223,Buildings,Bâtiments,Buildings,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xd9'
+1008,2241,1,224,Specialized Installations,Installations complexes spécialisés,Specialized Installations,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xda'
+1009,2245,5,224,Outillages,Outillages,Outillages,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xdb'
+1010,2248,8,224,Installation,Installation,Installation,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xdc'
+1011,2251,1,225,Transportation Equipment,Matériels de transport,Transportation Equipment,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xdd'
+1012,2263,3,226,Furniture,Mobilier de bureau,Furniture,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xde'
+1013,2268,8,226,Material and Equipment,Matériel et Equipement,Material and Equipment,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xdf'
+1014,2269,9,226,Electric Material and Equipment,Matériels et équipement électriques,Electric Material and Equipment,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe0'
+1015,2271,1,227,Land,Terrains en cours,Land,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe1'
+1016,2511,1,251,Actions,Actions,Actions,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe2'
+1017,2512,2,251,Other Equities,Autres titres,Other Equities,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe3'
+1018,2531,1,253,Ownership Rights (Minor Participation's),Actions et parts sociales,Ownership Rights (Minor Participation's),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe4'
+1019,2551,1,255,Loans to Partners,Prêts aux associés,Loans to Partners,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe5'
+1020,2552,2,255,Loans to Employees,Prêts au personnel,Loans to Employees,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe6'
+1021,2591,1,259,Various receivables,Créances diverses,Various receivables,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe7'
+1022,2811,1,281,Establishment Expenses,Frais d'établissement,Establishment Expenses,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe8'
+1023,2821,1,282,"Extractive Land Stress ( Mines, Ovaries,",Terrains d'exploitation,"Extractive Land Stress ( Mines, Ovaries,",2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xe9'
+1024,2823,3,282,Constructions,Constructions,Constructions,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xea'
+1025,3111,1,311,Raw Materials,Matières ( ou groupe ),Raw Materials,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xeb'
+1026,3112,2,311,Furnitures,Fournitures,Furnitures,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xec'
+1027,3155,5,315,Emballages,Emballages,Emballages,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xed'
+1028,3311,1,331,Products In Process,Produits en cours,Products In Process,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xee'
+1029,3321,1,332,Works In Progress,Travaux en cours,Works In Progress,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xef'
+1030,3351,1,335,Studies In Progress,Etudes en cours,Studies In Progress,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf0'
+1031,3511,1,351,Semi-Finished Goods,Produits intermédiaires,Semi-Finished Goods,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf1'
+1032,3710,0,371,Merchandise for Sale,Stocks de marchandises,Merchandise for Sale,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf2'
+1033,4011,1,401,Suppliers Goods,Fournisseurs comptes courants,Suppliers Goods,2011-03-03 09:01:24.873000,0,b'\x00\x00\x00\x00\x00\x01!\xf3'
+1034,4015,5,401,Notes Payable,Effets à payer,Notes Payable,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf4'
+1035,4018,8,401,Invoices not received yet,Factures à recevoir,Invoices not received yet,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf5'
+1036,4031,1,403,Invoices,Fournisseurs d'immobilisations,Invoices,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf6'
+1037,4035,5,403,Notes Payable,Effets à payer,Notes Payable,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf7'
+1038,4038,8,403,Invoices not received yet,Factures à recevoir,Invoices not received yet,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf8'
+1039,4091,1,409,L.C.,Lettres de crédit,L.C.,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xf9'
+1040,4111,1,411,Ordinary Clients,Clients ordinaires,Ordinary Clients,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xfa'
+1041,4115,5,411,Doubtful Clients,"Clients douteux, litigeux",Doubtful Clients,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xfb'
+1042,4131,1,413,Notes Receivables (Clients),Effets à recevoir,Notes Receivables (Clients),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xfc'
+1043,4132,2,413,Notes Receivables (Clients),Effets à l'encaissement,Notes Receivables (Clients),2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xfd'
+1044,4133,3,413,Discountable Notes,Effets à l'escompte,Discountable Notes,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xfe'
+1045,4181,1,418,Chalets to deliver,Chalets à livrer,Chalets to deliver,2010-07-13 12:30:45.937000,0,b'\x00\x00\x00\x00\x00\x01!\xff'
+1046,4182,2,418,Parkings to deliver,Parkings à livrer,Parkings to deliver,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x01'"
+1047,4211,1,421,Payments due to Personnel,Rénumérations dues au personnel,Payments due to Personnel,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x02'"
+1048,4311,1,431,Benefits Payable,Prestations à verser,Benefits Payable,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x03'"
+1049,4312,2,431,Social Security,Sécurité sociale,Social Security,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x04'"
+1050,4411,1,441,Taxes Due ( Operational ),Impôts et taxes dûs,Taxes Due ( Operational ),2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x05'"
+1051,4415,5,441,Notes Payable ( Taxes and Rates ),Effets à payer impôts et taxes,Notes Payable ( Taxes and Rates ),2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x06'"
+1052,4431,1,443,Taxes on Profit,Impôts sur bénéfices à payer,Taxes on Profit,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x07'"
+1053,4511,1,451,Affiliated Companies,Sociétés apparentées,Affiliated Companies,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x08'"
+1054,4512,2,451,Associates,Associés,Associates,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\t'"
+1055,4516,6,451,ShareHolders,Actionnaires,ShareHolders,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\n'"
+1056,4591,1,459,Subscribed & Uncalled Capital,Capital souscrit non appelé,Subscribed & Uncalled Capital,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x0b'"
+1057,4592,2,459,Subscribed Capital called & Unpaid,Capital souscrit appelé non versé,Subscribed Capital called & Unpaid,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x0c'"
+1058,4711,1,471,Pre-Operation Expenses,Frais de pre-exploitation,Pre-Operation Expenses,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\r'"
+1059,4712,2,471,Major Repairs for Amortization,Grosses réparations à amortir,Major Repairs for Amortization,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x0e'"
+1060,4721,1,472,Deferred Income,Charges constatées d'avance,Deferred Income,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x0f'"
+1061,4731,1,473,Accrued Income,Produits constatés d'avance,Accrued Income,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x10'"
+1062,4741,1,474,Charges to Pay,Charges à payer,Charges to Pay,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x11'"
+1063,5021,1,502,Shares,Actions,Shares,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x12'"
+1064,5023,3,502,F,Parts des entreprises liées,F,2011-06-21 15:22:31.757000,0,"b'\x00\x00\x00\x00\x00\x01""\x13'"
+1065,5051,1,505,Debentures & Bonds,Obligations émises par la société,Debentures & Bonds,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x14'"
+1066,5052,2,505,Bonds by the Society,Bons émis par la société,Bonds by the Society,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x15'"
+1067,5061,1,506,Tresory Bonds,Bons de trésor,Tresory Bonds,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x16'"
+1068,5062,2,506,Cash Bonds,Bons caisses à court terme,Cash Bonds,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x17'"
+1069,5111,1,511,Cheques for Collection,Chèques à encaisser,Cheques for Collection,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x18'"
+1070,5113,3,511,Coupon for Collection,Coupons échus à encaisser,Coupon for Collection,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x19'"
+1071,5120,0,512,Banks,Banques,Banks,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x1a'"
+1072,5122,2,512,Banks FRF,Banques comptes courants FRF,Banks FRF,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x1b'"
+1073,5300,0,530,Cash,Caisse,Cash,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x1c'"
+1074,6011,1,601,PURCHASE OF GOODS,Achat de marchandises,PURCHASE OF GOODS,2012-06-25 11:27:11.690000,0,"b'\x00\x00\x00\x00\x00\x01""\x1d'"
+1075,6051,1,605,Opening Stock,Stock initial,Opening Stock,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x1e'"
+1076,6052,2,605,Closing Stock,Stock final,Closing Stock,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\x1f'"
+1077,6111,1,611,Raw Materials purchases,Achat matières premières,Raw Materials purchases,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"" '"
+1078,6112,2,611,Consumable Materials & Supplies Purchase,Achat Matières & Fournitures Consommable,Consumable Materials & Supplies Purchase,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""!'"
+1079,6113,3,611,Containers & Packing materials purchases,Achats d'emballages,Containers & Packing materials purchases,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""""'"
+1080,6151,1,615,Opening Stock,Stock initial,Opening Stock,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""#'"
+1081,6152,2,615,Closing Stock,Stock final,Closing Stock,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""$'"
+1082,6211,1,621,Sub Contract A,Sous-traitance,Sub Contract A,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""%'"
+1083,6251,1,635,Leasing on Materials,Crédit bail mobilier,Leasing on Materials,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""&'"
+1084,6252,2,635,Leasing on Property,Crédit bail immobilier,Leasing on Property,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""\''"
+1085,6253,3,635,Royalties,Concessions,Royalties,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""('"
+1086,6254,4,635,Licenses,Brevets,Licenses,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"")'"
+1087,6256,6,635,Trade Marks,Marques de fabrique,Trade Marks,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""*'"
+1088,6260,0,626,Office fourniture,Fournitures de bureau,Office fourniture,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""+'"
+1089,6261,1,626,Transportation & Communication,Transports et communications,Transportation & Communication,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"",'"
+1090,6262,2,626,Maintenance & Repairs,Entretiens et réparations,Maintenance & Repairs,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""-'"
+1091,6268,8,626,ASSURANCE,ASSURANCE,ASSURANCE,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"".'"
+1092,6311,1,631,Salaries,Salaires,Salaries,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""/'"
+1093,6312,2,631,Wages,Appointtements,Wages,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""0'"
+1094,6313,3,631,Overtime,Congés payés,Overtime,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""1'"
+1095,6511,1,651,Amortization of Intangible Assets,Immobilisations incorporelles,Amortization of Intangible Assets,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""2'"
+1096,6512,2,651,Depreciation of Fixed Assets,Immobilisations corporelles,Depreciation of Fixed Assets,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""3'"
+1097,6731,1,673,Interest - Accounts Payable & Loans,Intérêts sur emprunts et dettes,Interest - Accounts Payable & Loans,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""4'"
+1098,6734,4,673,Interest - Other Accounts Payables,Intérêts des autres dettes,Interest - Other Accounts Payables,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""5'"
+1099,6735,5,673,Discount Paid,Escomptes accordés,Discount Paid,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""6'"
+1100,6751,1,675,Negative Exchange Differences,Différences négatives de change,Negative Exchange Differences,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""7'"
+1101,6752,2,675,Capital Operations,Diff. nég. change/Opérat. en Capit.,Capital Operations,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""8'"
+1102,6811,1,681,Intangible Fixed Assets,Immobilisations incorporelles,Intangible Fixed Assets,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""9'"
+1103,6812,2,681,Tangible Fixed Assets,Immobilisations corporelles,Tangible Fixed Assets,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"":'"
+1104,6851,1,685,Charges on Administrative Operations,Charges h. exp./Opérat. de gestion,Charges on Administrative Operations,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"";'"
+1105,6855,5,685,Charges on Capital Operations,Charges h. exp./Opérat. en capital,Charges on Capital Operations,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""<'"
+1106,7010,0,701,Sales Of Goods,Marchandises (ou groupe),Sales Of Goods,2011-03-03 11:03:40.500000,0,"b'\x00\x00\x00\x00\x00\x01""='"
+1107,7111,1,711,Sales of Manufactured Goods,Vente de produits finis,Sales of Manufactured Goods,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01"">'"
+1108,7130,0,713,Prestations de service,Prestations de service,Prestations de service,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""?'"
+1109,7711,1,771,Dividends,Revenus des titres de participation,Dividends,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""@'"
+1110,7751,1,775,Foreign Currencies Positive Difference,Diffèrences positives de change,Foreign Currencies Positive Difference,2010-07-13 12:30:45.937000,0,"b'\x00\x00\x00\x00\x00\x01""A'"
+1111,1380,0,138,Result of the period (profit),Result of the period (profit)_fr,Result of the period (profit),2010-07-13 15:33:20.873000,0,"b'\x00\x00\x00\x00\x00\x01""B'"
+1112,1390,0,139,Result Of Period (Losses),Result Of Period (Losses)_fr,Result Of Period (Losses),2010-07-13 15:35:02.030000,0,"b'\x00\x00\x00\x00\x00\x01""C'"
+1113,6264,4,626,Restauration L.L.,Restauration L.L._fr,Restauration L.L.,2010-07-13 15:36:38.263000,0,"b'\x00\x00\x00\x00\x00\x01""D'"
+1114,501,1,50,TEST,TEST,TEST,2010-12-03 13:16:00.890000,0,"b'\x00\x00\x00\x00\x00\x01""E'"
+1115,442,2,44,VAT,VAT,VAT,2010-12-15 10:22:59.763000,0,"b'\x00\x00\x00\x00\x00\x01""F'"
+1116,4426,6,7757,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2010-12-15 00:00:00,0,"b'\x00\x00\x00\x00\x00\x01""G'"
+1117,4427,7,7757,VAVT ON SALE,VAVT ON SALE,VAVT ON SALE,2010-12-15 00:00:00,0,"b'\x00\x00\x00\x00\x00\x01""H'"
+1118,6018,8,601,Charges on purchase,Charges on purchase,Charges on purchase,2011-03-03 11:12:17.543000,0,"b'\x00\x00\x00\x00\x00\x01""I'"
+1119,7018,8,701,Charges on sale,Charges on sale,Charges on sale,2011-03-03 10:25:48.700000,0,"b'\x00\x00\x00\x00\x00\x01""J'"
+1120,709,9,70,Sales Discounts,Sales Discounts,Sales Discounts,2011-03-03 10:24:36,0,"b'\x00\x00\x00\x00\x00\x01""K'"
+1121,7090,0,7763,Discounts,Discounts,Discounts,2011-03-03 10:25:01.280000,0,"b'\x00\x00\x00\x00\x00\x01""L'"
+1122,6012,2,601,EXPENSES PURCHASE,EXPENSES PURCHASE,EXPENSES PURCHASE,2012-06-25 11:27:04.563000,0,"b'\x00\x00\x00\x00\x00\x01""M'"
+1123,5191,1,519,CREDIT CARDS,CREDIT CARDS,CREDIT CARDS,2011-06-21 11:18:42.827000,0,"b'\x00\x00\x00\x00\x00\x01""N'"
+1124,4011,1,401,TEST 4011,TEST 4011,TEST 4011,2011-07-14 10:01:48.537000,0,"b'\x00\x00\x00\x00\x00\x01""O'"
+1125,6019,9,601,DISCOUNTS ON PURCHASES,DISCOUNTS ON PURCHASES,DISCOUNTS ON PURCHASES,2012-06-25 11:31:25.383000,0,"b'\x00\x00\x00\x00\x00\x01""P'"
+1126,6269,9,626,STATONARY & OFFICE SUPLIER,STATONARY & OFFICE SUPLIER,STATONARY & OFFICE SUPLIER,2012-10-04 16:51:32.977000,0,"b'\x00\x00\x00\x00\x00\x01""Q'"
+1127,2261,1,226,تجهيزات داخلية ديكور وتحسينات مختلفة,تجهيزات داخلية ديكور وتحسينات مختلفة,تجهيزات داخلية ديكور وتحسينات مختلفة,2012-10-04 17:50:41.510000,0,"b'\x00\x00\x00\x00\x00\x01""R'"
+1128,44210,1,7796,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2015-02-23 13:44:26.557000,0,"b'\x00\x00\x00\x00\x00\x01""S'"
+1129,442611,1,7788,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2012-12-10 15:24:16.480000,0,"b'\x00\x00\x00\x00\x00\x01""T'"
+1130,44266,6,7789,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2012-12-10 15:24:16.480000,0,"b'\x00\x00\x00\x00\x00\x01""U'"
+1131,442661,1,7790,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2012-12-10 15:24:16.480000,0,"b'\x00\x00\x00\x00\x00\x01""V'"
+1132,44270,0,7759,VAVT ON PURCHASE,VAVT ON PURCHASE,VAVT ON PURCHASE,2012-12-10 15:24:16.480000,0,"b'\x00\x00\x00\x00\x00\x01""W'"
+1133,54,4,5,BANK BLC L.L,BANK BLC L.L,BANK BLC L.L,2013-09-16 15:37:39.233000,0,"b'\x00\x00\x00\x00\x00\x01""X'"
+1134,52,2,5,BANK BLC$,BANK BLC$,BANK BLC$,2013-09-16 15:38:24.323000,0,"b'\x00\x00\x00\x00\x00\x01""Y'"
+1135,4421,0,7757,Purchase Vat,Purchase Vat,Purchase Vat,2015-02-23 13:44:26.543000,0,"b'\x00\x00\x00\x00\x00\x01""Z'"

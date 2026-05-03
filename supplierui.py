@@ -100,6 +100,23 @@ def supplier_page(standalone=False):
                           bool(s_data['is_active']), aux_number)
 
             connection.insertingtodatabase(sql, params)
+            
+            # Fetch the new supplier ID to use for the VAT auxiliary
+            new_id_data = []
+            connection.contogetrows("SELECT MAX(id) FROM suppliers", new_id_data)
+            new_id = new_id_data[0][0] if new_id_data and new_id_data[0][0] else None
+            
+            if new_id and s_data['name'] and not s_data['id']:
+                # Ensure the VAT auxiliary is created for the new supplier
+                import accounting_helpers
+                curr_aux_number = s_data.get('auxiliary_number') or new_id # Use the created one
+                # Retrieve the full inserted row to get the exact auxiliary number if possible
+                aux_fetch = []
+                connection.contogetrows("SELECT auxiliary_number FROM suppliers WHERE id = ?", aux_fetch, params=[new_id])
+                if aux_fetch and aux_fetch[0][0]:
+                     curr_aux_number = aux_fetch[0][0]
+                accounting_helpers.ensure_vat_auxiliary('Supplier', new_id, s_data['name'], curr_aux_number)
+            
             ui.notify('Supplier saved', color='positive')
             refresh_table()
         except Exception as e:

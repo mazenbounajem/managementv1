@@ -1,0 +1,1 @@
+id,product_name,barcode,sku,description,category_id,price,cost_price,stock_quantity,min_stock_level,max_stock_level,supplier_id,created_at,updated_at,is_active,photo,currency_id,local_price,is_vat_subjected,vat_percentage,price_ttc

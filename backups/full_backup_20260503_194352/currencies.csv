@@ -1,0 +1,4 @@
+id,currency_code,currency_name,symbol,exchange_rate,is_active,created_at,updated_at
+1009,USD,US Dollar,$,1.000000,True,2026-05-03 19:06:58.890000,2026-05-03 19:06:58.890000
+1010,EUR,Euro,€,0.920000,True,2026-05-03 19:06:58.900000,2026-05-03 19:06:58.900000
+1011,LBP,Lebanese Pound,LL,89500.000000,True,2026-05-03 19:06:58.903000,2026-05-03 19:06:58.903000

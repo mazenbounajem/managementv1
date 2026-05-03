@@ -67,6 +67,9 @@ from accounting_transactions_ui import accounting_transactions_page_route
 # Import business track UI to register route
 from business_track import business_track_page
 
+# Import backup settings UI to register route
+from settings_backup_ui import settings_backup_page_route
+
 # Stock Reports page
 @ui.page('/stock-reports')
 def stock_reports_page():
@@ -872,4 +875,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     
     # You can add authentication logic here before opening the dashboard
     # For now, we'll just run the app
-    ui.run()
+    ui.run(native=False,storage_secret='mgmt-v1-session-secret-change-in-production')

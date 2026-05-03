@@ -2677,3 +2677,111 @@
 2026-04-19 21:56:17,874 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8116}
 2026-04-19 22:09:50,101 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
 2026-04-19 22:09:50,156 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8117}
+2026-04-20 21:47:15,270 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 21:47:15,589 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8118}
+2026-04-20 22:12:20,980 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:12:21,051 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8119}
+2026-04-20 22:19:43,500 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:19:43,516 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8120}
+2026-04-20 22:50:39,952 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 22:50:40,072 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8121}
+2026-04-20 23:19:14,774 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 23:19:14,826 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8122}
+2026-04-20 23:19:50,820 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-20 23:19:50,832 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8123}
+2026-04-21 20:57:28,561 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-21 20:57:29,040 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8124}
+2026-04-22 22:04:35,492 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:09,494 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:19,570 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:06:34,197 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'maz', 'reason': 'invalid_credentials'}
+2026-04-22 22:07:54,455 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:07:54,942 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 9093}
+2026-04-22 22:21:10,424 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:21:10,595 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 9094}
+2026-04-22 22:50:37,976 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'maze', 'reason': 'invalid_credentials'}
+2026-04-22 22:51:15,447 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-22 22:51:15,844 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 9095}
+2026-04-23 22:13:19,550 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-23 22:13:20,339 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 10093}
+2026-04-24 21:56:59,439 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-24 21:56:59,904 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 10094}
+2026-04-26 16:03:08,936 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 16:03:09,410 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 10095}
+2026-04-26 16:16:49,648 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 16:16:52,205 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 10096}
+2026-04-26 17:09:28,494 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-26 17:09:30,046 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 10097}
+2026-04-29 22:23:00,665 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:23:00,786 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7085}
+2026-04-29 22:44:09,064 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:44:09,147 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7086}
+2026-04-29 22:52:34,254 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 22:52:34,271 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7087}
+2026-04-29 23:05:32,242 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 23:05:32,296 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7088}
+2026-04-29 23:17:39,277 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-29 23:17:39,551 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7089}
+2026-04-30 22:14:15,502 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 22:14:15,612 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7090}
+2026-04-30 22:33:27,488 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 22:33:27,522 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7091}
+2026-04-30 23:08:51,848 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:08:51,925 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7092}
+2026-04-30 23:19:45,141 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:19:45,219 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7093}
+2026-04-30 23:20:24,366 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:20:24,379 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7094}
+2026-04-30 23:49:15,910 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-04-30 23:49:15,929 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7095}
+2026-05-01 00:00:23,151 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-01 00:00:23,168 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7096}
+2026-05-01 23:46:05,837 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-01 23:46:06,044 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7097}
+2026-05-02 00:03:01,100 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 00:03:01,402 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7098}
+2026-05-02 14:13:15,401 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 14:13:16,017 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7099}
+2026-05-02 15:07:09,465 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 15:07:09,521 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7100}
+2026-05-02 22:44:30,331 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-02 22:44:30,380 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7101}
+2026-05-03 14:11:42,224 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 14:11:42,308 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 7102}
+2026-05-03 15:28:50,722 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT, details={'session_id': 7100, 'duration_minutes': 1461}
+2026-05-03 15:28:50,725 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT_SUCCESS, details={'session_id': 7100}
+2026-05-03 18:17:25,169 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 18:17:25,348 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8103}
+2026-05-03 18:55:06,633 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT, details={'session_id': 8103, 'duration_minutes': 37}
+2026-05-03 18:55:06,634 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT_SUCCESS, details={'session_id': 8103}
+2026-05-03 18:55:38,503 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=15, details={'username': 'mazen'}
+2026-05-03 18:55:38,510 - AUDIT - USER_ACTION: user_id=15, action=SESSION_CREATED, details={'session_id': 8104}
+2026-05-03 19:25:20,359 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT, details={'session_id': 8104, 'duration_minutes': 0}
+2026-05-03 19:25:20,362 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT_SUCCESS, details={'session_id': 8104}
+2026-05-03 19:25:28,949 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 19:25:28,974 - AUDIT - USER_ACTION: user_id=1017, action=SESSION_CREATED, details={'session_id': 8105}
+2026-05-03 20:06:33,305 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT, details={'session_id': 8105, 'duration_minutes': 41}
+2026-05-03 20:06:33,306 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT_SUCCESS, details={'session_id': 8105}
+2026-05-03 20:06:42,804 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 20:06:42,821 - AUDIT - USER_ACTION: user_id=1017, action=SESSION_CREATED, details={'session_id': 8106}
+2026-05-03 21:13:55,692 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT, details={'session_id': 7101, 'duration_minutes': 0}
+2026-05-03 21:13:55,694 - AUDIT - USER_ACTION: user_id=15, action=LOGOUT_SUCCESS, details={'session_id': 7101}
+2026-05-03 21:14:08,028 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
+2026-05-03 21:14:08,239 - AUDIT - USER_ACTION: user_id=1018, action=SESSION_CREATED, details={'session_id': 8107}
+2026-05-03 21:14:46,837 - AUDIT - USER_ACTION: user_id=1018, action=LOGOUT, details={'session_id': 8107, 'duration_minutes': 0}
+2026-05-03 21:14:46,837 - AUDIT - USER_ACTION: user_id=1018, action=LOGOUT_SUCCESS, details={'session_id': 8107}
+2026-05-03 21:14:55,291 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 21:14:55,310 - AUDIT - USER_ACTION: user_id=1017, action=SESSION_CREATED, details={'session_id': 8108}
+2026-05-03 21:21:23,141 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT, details={'session_id': 8108, 'duration_minutes': 6}
+2026-05-03 21:21:23,141 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT_SUCCESS, details={'session_id': 8108}
+2026-05-03 21:21:30,443 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:21:40,493 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:21:49,850 - AUDIT - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
+2026-05-03 21:22:45,146 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
+2026-05-03 21:22:45,165 - AUDIT - USER_ACTION: user_id=1018, action=SESSION_CREATED, details={'session_id': 8109}
+2026-05-03 21:57:23,189 - AUDIT - USER_ACTION: user_id=1018, action=LOGOUT, details={'session_id': 8109, 'duration_minutes': 34}
+2026-05-03 21:57:23,227 - AUDIT - USER_ACTION: user_id=1018, action=LOGOUT_SUCCESS, details={'session_id': 8109}
+2026-05-03 21:57:33,090 - AUDIT - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-03 21:57:33,218 - AUDIT - USER_ACTION: user_id=1017, action=SESSION_CREATED, details={'session_id': 8110}
+2026-05-03 22:51:26,654 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT, details={'session_id': 8110, 'duration_minutes': 53}
+2026-05-03 22:51:26,660 - AUDIT - USER_ACTION: user_id=1017, action=LOGOUT_SUCCESS, details={'session_id': 8110}

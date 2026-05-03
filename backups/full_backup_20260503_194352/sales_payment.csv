@@ -1,0 +1,1 @@
+id,sales_id,customer_id,invoice_number,total_amount,sale_date,payment_status,debit,credit,notes,sales_return_id

@@ -776,8 +776,28 @@ class connection:
                     FOREIGN KEY (jv_id) REFERENCES accounting_transactions(id)
                 )
                 """
-                db_manager.execute_update(sql_lines)
+                connection.insertingtodatabase(sql_lines)
                 print("accounting_transaction_lines table created successfully")
+
+            # Ensure vat_settings
+            vat_exists = db_manager.execute_scalar(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'vat_settings'"
+            )
+            if not vat_exists:
+                sql_vat = """
+                CREATE TABLE vat_settings (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    vat_percentage DECIMAL(5,2) NOT NULL,
+                    effective_date DATE NOT NULL,
+                    created_at DATETIME DEFAULT GETDATE()
+                )
+                """
+                db_manager.execute_update(sql_vat)
+                db_manager.execute_update(
+                    "INSERT INTO vat_settings (vat_percentage, effective_date) VALUES (?, ?)",
+                    (11.0, '2020-01-01')
+                )
+                print("vat_settings table created successfully")
 
             # Ensure permissions
             roles = db_manager.execute_query("SELECT id FROM roles")

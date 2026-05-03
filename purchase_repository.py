@@ -193,15 +193,19 @@ class PurchaseRepository:
         
         try:
             import accounting_helpers
+            import business_track_settings
             if supplier_id:
                 supplier_aux = []
                 connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
                 credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
             else:
                 credit_account = "4011.000001"
+
+            has_vat = total_vat > 0
+            purchase_account = business_track_settings.get_purchase_account(has_vat)
                 
             jv_lines = [
-                {'account': '6011.000001', 'debit': subtotal, 'credit': 0}
+                {'account': purchase_account, 'debit': subtotal, 'credit': 0}
             ]
             if total_vat > 0:
                 supplier_name = ""
@@ -258,6 +262,7 @@ class PurchaseRepository:
 
         try:
             import accounting_helpers
+            import business_track_settings
             connection.insertingtodatabase("DELETE FROM accounting_transaction_lines WHERE jv_id IN (SELECT jv_id FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?)", [purchase_id])
             connection.insertingtodatabase("DELETE FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?", [purchase_id])
             
@@ -271,9 +276,12 @@ class PurchaseRepository:
             inv_data = []
             connection.contogetrows(f"SELECT invoice_number FROM purchases WHERE id={purchase_id}", inv_data)
             inv_num = inv_data[0][0] if inv_data else str(purchase_id)
+
+            has_vat = total_vat > 0
+            purchase_account = business_track_settings.get_purchase_account(has_vat)
             
             jv_lines = [
-                {'account': '6011.000001', 'debit': subtotal, 'credit': 0}
+                {'account': purchase_account, 'debit': subtotal, 'credit': 0}
             ]
             if total_vat > 0:
                 supplier_name = ""

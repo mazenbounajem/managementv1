@@ -694,6 +694,124 @@ class Reports:
         return buffer.read()
 
 
-# Note: Removed fetch_hierarchical_trial_balance - Ledger table not found in schema
-# Add if Ledger table exists: implement CTE for hierarchy
+    @staticmethod
+    def fetch_hierarchical_trial_balance(ledger_prefix, from_date=None, to_date=None):
+        """
+        Fetch hierarchical trial balance for ledger prefix (recursive tree).
+        Returns nested structure: [{'code': '701', 'name': 'Sales', 'debit': 10000, 'credit': 9000, 
+        'balance': 1000, 'level': 1, 'children': [...], 'transactions': []}]
+        """
+        data = []
+        params = [ledger_prefix]
+        
+        # Build base CTE for ledger hierarchy under prefix
+        cte_sql = """
+        WITH account_tree AS (
+            SELECT AccountNumber as code, Name_en as name, 1 as level, Id
+            FROM Ledger 
+            WHERE AccountNumber = ?
+            UNION ALL
+            SELECT l.AccountNumber, l.Name_en, at.level + 1, l.Id
+            FROM account_tree at
+            JOIN Ledger l ON l.AccountNumber LIKE at.code + '%' 
+                           AND LEN(l.AccountNumber) = LEN(at.code) + 1
+        )
+        """
+        main_sql = """
+        SELECT at.code, at.name, at.level, 
+               ISNULL(SUM(CASE WHEN atl.debit > 0 THEN atl.debit ELSE 0 END), 0) as total_debit,
+               ISNULL(SUM(CASE WHEN atl.credit > 0 THEN atl.credit ELSE 0 END), 0) as total_credit,
+               ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
+               COUNT(DISTINCT atl.jv_id) as txn_count
+        FROM account_tree at
+        LEFT JOIN accounting_transaction_lines atl ON (
+            atl.account_number = at.code 
+            OR atl.auxiliary_id LIKE at.code + '.%'
+        )
+        LEFT JOIN accounting_transactions atxn ON atl.jv_id = atxn.jv_id
+        """
+        
+        if from_date:
+            main_sql += " AND CAST(atxn.transaction_date AS DATE) >= ?"
+            params.append(from_date)
+        if to_date:
+            main_sql += " AND CAST(atxn.transaction_date AS DATE) <= ?"
+            params.append(to_date)
+            
+        main_sql += """
+        GROUP BY at.code, at.name, at.level
+        ORDER BY at.code
+        """
+        
+        # Execute flat tree query
+        connection.contogetrows_with_params(cte_sql + main_sql, data, tuple(params))
+        
+        # Build flat dicts first
+        tree_nodes = {}
+        leaves_with_txns = {}
+        
+        for row in data:
+            code, name, level, debit, credit, balance, txn_count = row
+            node = {
+                'code': str(code),
+                'name': name or f'Account {code}',
+                'debit': float(debit),
+                'credit': float(credit),
+                'balance': float(balance),
+                'level': int(level),
+                'children': [],
+                'transactions': []
+            }
+            tree_nodes[str(code)] = node
+            
+            # If leaf (has txns), fetch detailed transactions
+            if txn_count > 0:
+                txns = Reports._fetch_leaf_transactions(code, from_date, to_date)
+                node['transactions'] = txns
+        
+        # Build hierarchy
+        root_nodes = []
+        for code, node in tree_nodes.items():
+            if len(code) == len(ledger_prefix):  # Root level
+                root_nodes.append(node)
+                continue
+            
+            parent_code = code[:-1]
+            if parent_code in tree_nodes:
+                tree_nodes[parent_code]['children'].append(node)
+        
+        return root_nodes
+
+    @staticmethod
+    def _fetch_leaf_transactions(code, from_date=None, to_date=None):
+        """Fetch detailed transactions for leaf account"""
+        headers = ['Date', 'Reference', 'Description', 'Account', 'Debit', 'Credit', 'Balance']
+        data = []
+        params = [code, code]
+        sql = """
+            SELECT 
+                CAST(t.transaction_date AS DATE) as Date,
+                t.reference_type + ' #' + ISNULL(CAST(t.reference_id AS VARCHAR), '') as Reference,
+                t.description as Description,
+                COALESCE(l.auxiliary_id, l.account_number) as Account,
+                ISNULL(l.debit, 0) as Debit,
+                ISNULL(l.credit, 0) as Credit,
+                SUM(ISNULL(l.debit, 0) - ISNULL(l.credit, 0)) OVER (
+                    ORDER BY t.transaction_date, t.jv_id, l.line_id 
+                    ROWS UNBOUNDED PRECEDING
+                ) as Balance
+            FROM accounting_transactions t
+            JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            WHERE l.account_number = ? OR l.auxiliary_id LIKE ? + '.%'
+        """
+        if from_date:
+            sql += " AND CAST(t.transaction_date AS DATE) >= ?"
+            params.append(from_date)
+        if to_date:
+            sql += " AND CAST(t.transaction_date AS DATE) <= ?"
+            params.append(to_date)
+        sql += " ORDER BY t.transaction_date, t.jv_id, l.account_number"
+        
+        connection.contogetrows_with_params(sql, data, tuple(params))
+        return [dict(zip(headers, row)) for row in data]
 

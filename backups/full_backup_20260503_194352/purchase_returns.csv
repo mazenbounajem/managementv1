@@ -1,0 +1,1 @@
+id,purchase_id,purchase_date,return_date,invoice_number,supplier_id,subtotal,discount_amount,total_amount,total_vat,reason,status,payment_status,payment_method,currency_id,user_id,created_at

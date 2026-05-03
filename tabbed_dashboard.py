@@ -22,7 +22,7 @@ import stockoperationui
 from supplier_content_method import supplier_content
 from purchase_content_method import purchase_content
 from employee_content_method import employee_content
-from database_content_method import database_content
+from settings_backup_ui import settings_backup_content
 import supplier_payment_ui_fixed_v2
 from timespendui import TimeSpendUI
 import sales_returns_ui
@@ -111,9 +111,9 @@ def tabbed_dashboard_page():
     'timespend':        {'label': 'Time Analysis',     'func': lambda: TimeSpendUI(show_header=False), 'icon': 'schedule'},
     'category':         {'label': 'Categories',        'func': category_content_method,     'icon': 'category'},
     'employees':        {'label': 'Employees',         'func': employee_content,            'icon': 'badge'},
-    'backup':           {'label': 'Backup',            'func': database_content,            'icon': 'backup'},
+    'backup':           {'label': 'Database Backup',   'func': lambda: settings_backup_content(standalone=False), 'icon': 'backup'},
     'stockoperations':  {'label': 'Stock Operations',  'func': stockoperationui.stock_operations_page, 'icon': 'inventory_2'},
-    'supplierpayment':  {'label': 'Supplier Payment',  'func': supplier_payment_ui_fixed_v2.supplier_payment_page, 'icon': 'payment'},
+    'supplierpayment':  {'label': 'Supplier Payment',  'func': lambda: supplier_payment_ui_fixed_v2.SupplierPaymentUI(show_navigation=False), 'icon': 'payment'},
     'expenses':         {'label': 'Expenses',          'func': lambda: __import__('expenses').expenses_content(standalone=False), 'icon': 'money_off'},
     'expensestype':     {'label': 'Expense Types',     'func': lambda: __import__('expensestype').expensestype_content(standalone=False), 'icon': 'category'},
     'currencies':       {'label': 'Currencies',        'func': lambda: currencies.currencies_content(standalone=False), 'icon': 'currency_exchange'},
@@ -123,7 +123,7 @@ def tabbed_dashboard_page():
     'auxiliary':        {'label': 'Auxiliary',         'func': lambda: auxiliary_content(standalone=False), 'icon': 'account_balance'},
     'journal_voucher':  {'label': 'Journal Voucher',   'func': lambda: journal_voucher_ui.journal_voucher_content(standalone=False), 'icon': 'receipt_long'},
     'voucher_subtype':  {'label': 'Voucher Subtype',   'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
-    'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.customer_receipt_page(standalone=False), 'icon': 'receipt'},
+    'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.CustomerReceiptUI(show_navigation=False), 'icon': 'receipt'},
     'reports':          {'label': 'Reports',           'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
 'modern-reports': {'label': 'Accounting Reports', 'func': lambda: ui.run_javascript('window.open("/modern-reports", "_blank");'), 'icon': 'assessment'},
     'accounting-transactions': {'label': 'Acct. Transactions', 'func': lambda: accounting_transactions_ui.accounting_transactions_content(standalone=False), 'icon': 'receipt_long'},
@@ -332,96 +332,280 @@ def tabbed_dashboard_page():
         ui.label(f'User: {username}')
 
 def create_dashboard_content():
-    """Create a premium dashboard content with glassmorphism and modern stats"""
+    """Create a professional, data-rich dashboard with live KPIs and module launcher"""
     from modern_ui_components import ModernStats, ModernCard, ModernButton
     from modern_design_system import ModernDesignSystem as MDS
+    import datetime
+    import time as _time
 
-    with ui.column().classes('p-8 w-full gap-8 animate-fade-in'):
-        # Header Section
-        with ui.row().classes('w-full justify-between items-center bg-white/5 p-6 rounded-3xl glass border border-white/10'):
-            with ui.column().classes('gap-1'):
-                ui.label('Enterprise Overview').classes('text-lg font-black uppercase tracking-[0.2em] text-white')
-                ui.label('Executive Performance Dashboard').classes('text-5xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+    # ── TTL Cache for dashboard queries (Phase 5) ───────────────────────
+    _CACHE_TTL = 60  # seconds
+
+    if not hasattr(create_dashboard_content, '_cache'):
+        create_dashboard_content._cache = {}
+
+    def _cached(key, fn):
+        cache = create_dashboard_content._cache
+        now = _time.time()
+        if key in cache and (now - cache[key][1]) < _CACHE_TTL:
+            return cache[key][0]
+        try:
+            val = fn()
+        except Exception:
+            val = cache[key][0] if key in cache else None
+        cache[key] = (val, now)
+        return val
+
+    # ── Live Data Fetching (cached) ─────────────────────────────────────
+    sales_today     = _cached('sales_today',     connection.get_today_sales) or 0.0
+    week_sales      = _cached('week_sales',      connection.get_week_sales) or 0.0
+    month_sales     = _cached('month_sales',     connection.get_month_sales) or 0.0
+    total_products  = _cached('total_products',  connection.get_total_products) or 0
+    total_customers = _cached('total_customers', connection.get_total_customers) or 0
+    low_stock       = _cached('low_stock',       connection.get_low_stock_count) or 0
+    company_info    = _cached('company_info',    connection.get_company_info) or {}
+    company_name    = company_info.get('company_name', 'Your Company') if company_info else 'Your Company'
+
+    # Try to get supplier count
+    try:
+        from database_manager import db_manager
+        sup_count = _cached('sup_count', lambda: db_manager.execute_scalar('SELECT COUNT(*) FROM suppliers')) or 0
+        exp_today = _cached('exp_today', lambda: db_manager.execute_scalar(
+            "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE CAST(expense_date AS DATE)=CAST(GETDATE() AS DATE)"
+        )) or 0.0
+    except Exception:
+        sup_count = 0
+        exp_today = 0.0
+
+    # ── STYLES INJECTION ────────────────────────────────────────────────
+    ui.add_head_html("""
+    <style>
+      @keyframes pulse-ring {
+        0%   { transform: scale(1);   opacity: 0.7; }
+        70%  { transform: scale(1.15); opacity: 0; }
+        100% { transform: scale(1.15); opacity: 0; }
+      }
+      .kpi-card { transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease; }
+      .kpi-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 22px 50px rgba(0,0,0,.25); }
+      .module-tile { transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease; cursor: pointer; }
+      .module-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 16px 40px rgba(8,203,0,.15); }
+      .progress-bar-fill { transition: width .8s cubic-bezier(.22,1,.36,1); }
+      @keyframes count-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+      .kpi-value { animation: count-up .6s ease forwards; }
+      .section-title { font-family: 'Outfit', sans-serif; font-weight: 900; letter-spacing: -.02em; }
+    </style>
+    """)
+
+    # ── Helper: KPI Card ────────────────────────────────────────────────
+    def kpi_card(label, value, icon, color, sub=None, sub_positive=True):
+        with ui.card().classes('kpi-card p-6 flex-1 glass border border-white/10 overflow-hidden relative').style(
+            f'border-left: 4px solid {color}; border-radius: 1.5rem; min-width: 180px;'
+        ):
+            # Decorative blob
+            ui.element('div').style(
+                f'position:absolute; width:80px; height:80px; border-radius:50%; '
+                f'background:{color}18; right:-10px; top:-10px; pointer-events:none;'
+            )
+            with ui.column().classes('gap-1 relative z-10'):
+                with ui.row().classes('items-center justify-between w-full'):
+                    ui.label(label).classes('text-xs font-bold uppercase tracking-widest text-white/60')
+                    with ui.element('div').classes('p-2 rounded-xl').style(f'background:{color}22'):
+                        ui.icon(icon).style(f'font-size:20px; color:{color};')
+                ui.label(value).classes('kpi-value text-3xl font-black text-white mt-1').style(
+                    'font-family:"Outfit",sans-serif;'
+                )
+                if sub:
+                    icon_name = 'trending_up' if sub_positive else 'trending_down'
+                    clr = '#34d399' if sub_positive else '#f87171'
+                    with ui.row().classes('items-center gap-1 mt-1'):
+                        ui.icon(icon_name).style(f'font-size:13px; color:{clr};')
+                        ui.label(sub).classes('text-xs font-semibold').style(f'color:{clr};')
+
+    # ── Helper: Module Tile ─────────────────────────────────────────────
+    def module_tile(label, icon, color, callback):
+        with ui.card().classes('module-tile glass border border-white/10 p-4 items-center justify-center text-center').style(
+            'border-radius:1.25rem; min-height:90px;'
+        ).on('click', callback):
+            with ui.column().classes('items-center gap-2'):
+                with ui.element('div').classes('p-3 rounded-xl').style(f'background:{color}22'):
+                    ui.icon(icon).style(f'font-size:26px; color:{color};')
+                ui.label(label).classes('text-xs font-bold text-white/80').style('letter-spacing:.02em;')
+
+    # ════════════════════════════════════════════════════════════════════
+    #  DASHBOARD LAYOUT
+    # ════════════════════════════════════════════════════════════════════
+    with ui.column().classes('w-full gap-7 animate-fade-in').style('padding: 2rem;'):
+
+        # ── HEADER ─────────────────────────────────────────────────────
+        with ui.row().classes('w-full items-center justify-between glass border border-white/10 p-5 rounded-3xl'):
+            with ui.column().classes('gap-0'):
+                ui.label('COMMAND CENTER').classes('text-xs font-black uppercase tracking-[.25em] text-[#08CB00]')
+                ui.label(company_name).classes('section-title text-4xl text-white')
+                ui.label(
+                    datetime.datetime.now().strftime('📅  %A, %B %d %Y  •  %H:%M')
+                ).classes('text-sm text-white/50 mt-1')
+            with ui.row().classes('gap-3'):
+                with ui.element('div').classes('flex items-center gap-2 px-4 py-2 rounded-xl glass border border-white/10'):
+                    with ui.element('div').style(
+                        'width:8px;height:8px;border-radius:50%;background:#08CB00;'
+                        'box-shadow:0 0 0 0 rgba(8,203,0,.7);animation:pulse-ring 2s infinite;'
+                    ): pass
+                    ui.label('System Online').classes('text-xs font-bold text-white/70')
+
+        # ── KPI ROW ─────────────────────────────────────────────────────
+        with ui.row().classes('w-full gap-5 flex-wrap'):
+            kpi_card('Today\'s Revenue',  f'${sales_today:,.2f}',   'payments',      '#08CB00',  f'Week: ${week_sales:,.0f}',  True)
+            kpi_card('Monthly Sales',    f'${month_sales:,.2f}',   'bar_chart',     '#3b82f6',  'Current period',             True)
+            kpi_card('Total Customers',  f'{total_customers:,}',   'people',        '#a78bfa',  'Active accounts',            True)
+            kpi_card('Suppliers',        f'{sup_count:,}',         'business',      '#f59e0b',  'Registered vendors',         True)
+            kpi_card('Products',         f'{total_products:,}',    'inventory_2',   '#06b6d4',  'In catalog',                 True)
+            kpi_card('Low Stock Alerts', f'{low_stock}',           'report_problem','#ef4444',  'Needs attention',            False)
+
+        # ── MAIN BODY : Financials, Inventory, Orders, Live Activity ─────────────────────
+        with ui.grid(columns=2).classes('w-full gap-6 mt-4'):
             
-            with ui.row().classes('gap-4'):
-                ModernButton('System Health', icon='sensors', variant='outline', size='sm').classes('text-white border-white/20')
-                ModernButton('Download Report', icon='file_download', variant='secondary', size='sm')
+            # — 1. Financial Snapshot
+            with ui.card().classes('glass border border-white/10 p-5').style('border-radius:1.5rem; flex: 1;'):
+                with ui.row().classes('items-center gap-2 mb-4'):
+                    ui.icon('donut_large').style('color:#08CB00; font-size:20px;')
+                    ui.label('Financial Snapshot').classes('section-title text-base text-white')
 
-        # Premium Quick Stats
-        with ui.grid(columns=4).classes('w-full gap-6'):
-            # Sales today
-            sales_today = connection.get_today_sales()
-            ModernStats(
-                label='Revenue Real-time', 
-                value=f'${sales_today:,.2f}', 
-                icon='monetization_on', 
-                trend='+12.5% from yesterday', 
-                trend_positive=True,
-                color='#08CB00'
-            )
+                def meter_row(label, value, max_val, color):
+                    pct = min(100, (value / max_val * 100)) if max_val else 0
+                    with ui.column().classes('w-full gap-1 mb-3'):
+                        with ui.row().classes('justify-between w-full'):
+                            ui.label(label).classes('text-xs text-white/60 font-semibold')
+                            ui.label('$' + f'{value:,.0f}').classes('text-xs font-black text-white')
+                        with ui.element('div').style(
+                            'width:100%;height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;'
+                        ):
+                            ui.element('div').classes('progress-bar-fill').style(
+                                f'width:{pct:.1f}%;height:100%;background:{color};border-radius:99px;'
+                            )
 
-            # Total products
-            total_products = connection.get_total_products()
-            ModernStats(
-                label='Global Inventory', 
-                value=f'{total_products:,}', 
-                icon='warehouse', 
-                trend='32 items low stock', 
-                trend_positive=False,
-                color='#08CB00'
-            )
+                ref = max(month_sales, week_sales, sales_today, exp_today, 1)
+                meter_row('Today\'s Sales',  sales_today,  ref, '#08CB00')
+                meter_row('Week\'s Sales',   week_sales,   ref, '#3b82f6')
+                meter_row('Month\'s Sales',  month_sales,  ref, '#a78bfa')
+                meter_row('Today\'s Expenses', float(exp_today), ref, '#ef4444')
 
-            # Total customers
-            total_customers = connection.get_total_customers()
-            ModernStats(
-                label='Active Portfolio', 
-                value=f'{total_customers:,}', 
-                icon='person_add', 
-                trend='+5 new this week', 
-                trend_positive=True,
-                color='#08CB00'
-            )
+                ui.separator().classes('my-3 opacity-20')
+                with ui.row().classes('justify-between w-full'):
+                    with ui.column().classes('items-center gap-0'):
+                        ui.label('Net Est.').classes('text-xs text-white/40 uppercase font-bold')
+                        net = sales_today - float(exp_today)
+                        clr = '#34d399' if net >= 0 else '#f87171'
+                        ui.label('$' + f'{net:,.2f}').classes('text-lg font-black').style(f'color:{clr};')
+                    with ui.column().classes('items-center gap-0'):
+                        ui.label('Month').classes('text-xs text-white/40 uppercase font-bold')
+                        ui.label('$' + f'{month_sales:,.0f}').classes('text-lg font-black text-white')
 
-            # Low stock items
-            low_stock = connection.get_low_stock_count()
-            ModernStats(
-                label='Operational Risk', 
-                value=str(low_stock), 
-                icon='report_problem', 
-                trend='Requires Attention', 
-                trend_positive=False,
-                color='#08CB00'
-            )
+            # — 2. Inventory Health
+            with ui.card().classes('glass border border-white/10 p-5').style('border-radius:1.5rem; flex: 1;'):
+                with ui.row().classes('items-center gap-2 mb-3'):
+                    ui.icon('inventory').style('color:#06b6d4; font-size:20px;')
+                    ui.label('Inventory Health').classes('section-title text-base text-white')
 
-        # Quick Actions & Secondary Insights
-        with ui.row().classes('w-full gap-6'):
-            # Actions Panel
-            with ModernCard(glass=True).classes('flex-1 p-8').style('border-radius: 2rem;'):
-                ui.label('Strategic Actions').classes('text-3xl font-black mb-6 text-white').style('font-family: "Outfit", sans-serif;')
+                healthy = max(0, total_products - low_stock)
+                pct_healthy = (healthy / total_products * 100) if total_products else 100
+
+                with ui.row().classes('justify-between mb-2'):
+                    ui.label('Healthy Stock').classes('text-xs text-white/60')
+                    ui.label(f'{pct_healthy:.0f}%').classes('text-xs font-black text-[#08CB00]')
+                with ui.element('div').style(
+                    'width:100%;height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;'
+                ):
+                    ui.element('div').classes('progress-bar-fill').style(
+                        f'width:{pct_healthy:.1f}%;height:100%;'
+                        'background:linear-gradient(90deg,#08CB00,#34d399);border-radius:99px;'
+                    )
+
+                with ui.row().classes('justify-between mt-6 w-full'):
+                    with ui.column().classes('items-center flex-1'):
+                        ui.label(f'{total_products}').classes('text-3xl font-black text-white')
+                        ui.label('Total SKUs').classes('text-xs text-white/40 uppercase font-bold')
+                    with ui.column().classes('items-center flex-1'):
+                        ui.label(f'{healthy}').classes('text-3xl font-black text-[#34d399]')
+                        ui.label('In Stock').classes('text-xs text-white/40 uppercase font-bold')
+                    with ui.column().classes('items-center flex-1'):
+                        ui.label(f'{low_stock}').classes('text-3xl font-black text-[#f87171]')
+                        ui.label('Low Stock').classes('text-xs text-white/40 uppercase font-bold')
+
+            # — 3. Customer Orders
+            with ui.card().classes('glass border border-white/10 p-5').style('border-radius:1.5rem; flex: 1;'):
+                with ui.row().classes('items-center justify-between mb-4'):
+                    with ui.row().classes('items-center gap-2'):
+                        ui.icon('receipt_long').style('color:#3b82f6; font-size:20px;')
+                        ui.label('Customer Orders').classes('section-title text-base text-white')
                 
-                with ui.grid(columns=2).classes('w-full gap-4'):
-                    ModernButton('Execute New Sale', icon='point_of_sale', variant='primary', size='lg').classes('h-24 text-lg shadow-lg shadow-green-500/20')
-                    ModernButton('Catalog Management', icon='edit_note', variant='secondary', size='lg').classes('h-24 text-lg')
-                    ModernButton('Fleet Logistics', icon='local_shipping', variant='outline', size='lg').classes('h-24 text-lg')
-                    ModernButton('Financial Audits', icon='account_balance', variant='outline', size='lg').classes('h-24 text-lg')
-            
-            # System Status
-                ui.label('System Feed').classes('text-2xl font-bold mb-4 text-white').style('font-family: "Outfit", sans-serif;')
-                
+                recent_orders = []
+                try:
+                    from database_manager import db_manager
+                    def fetch_sales():
+                        try:
+                            res = db_manager.execute_query("SELECT invoice_number, total_amount, sale_date FROM sales ORDER BY created_at DESC")
+                            return res[:5] if res else []
+                        except:
+                            try:
+                                res2 = db_manager.execute_query("SELECT invoice_number, total_amount, sale_date FROM sales ORDER BY sale_date DESC")
+                                return res2[:5] if res2 else []
+                            except:
+                                return []
+                    recent_orders = _cached('recent_orders', fetch_sales) or []
+                except:
+                    pass
+
+                with ui.column().classes('w-full gap-2'):
+                    if not recent_orders:
+                        ui.label('No recent orders.').classes('text-xs text-white/40')
+                    else:
+                        for row in recent_orders:
+                            try: inv = row.invoice_number
+                            except: inv = row[0] if isinstance(row, (tuple, list)) else row.get('invoice_number', 'N/A')
+                            
+                            try: amt = float(row.total_amount)
+                            except: amt = float(row[1]) if isinstance(row, (tuple, list)) else float(row.get('total_amount', 0))
+                            
+                            try: sdate = str(row.sale_date)
+                            except: sdate = str(row[2]) if isinstance(row, (tuple, list)) else str(row.get('sale_date', ''))
+                            
+                            with ui.row().classes('w-full items-center justify-between p-3 rounded-xl hover:bg-white/10 transition-all cursor-default border border-white/5'):
+                                with ui.row().classes('items-center gap-3'):
+                                    with ui.element('div').classes('p-2 rounded-lg flex-shrink-0 bg-[#3b82f6]18').style('background: rgba(59, 130, 246, 0.1);'):
+                                        ui.icon('shopping_bag').style('font-size:16px; color:#3b82f6;')
+                                    with ui.column().classes('gap-0'):
+                                        ui.label(f'INV {inv}').classes('text-xs font-black text-white/90 uppercase tracking-wider')
+                                        ui.label(sdate[:10]).classes('text-[10px] text-white/50')
+                                ui.label('$' + f'{amt:,.2f}').classes('text-sm font-black text-[#34d399]')
+
+            # — 4. Live Activity
+            with ui.card().classes('glass border border-white/10 p-5').style('border-radius:1.5rem; flex: 1;'):
+                with ui.row().classes('items-center justify-between mb-4'):
+                    with ui.row().classes('items-center gap-2'):
+                        ui.icon('bolt').style('color:#fbbf24; font-size:20px;')
+                        ui.label('Live Activity').classes('section-title text-base text-white')
+                    with ui.element('div').style(
+                        'width:7px;height:7px;border-radius:50%;background:#08CB00;'
+                        'box-shadow:0 0 0 0 rgba(8,203,0,.7);animation:pulse-ring 2s infinite;'
+                    ): pass
+
                 activities = [
-                    ('Sales', 'Invoice #1024 synced', '2m ago'),
-                    ('Inventory', 'Stock alert: Coffee', '15m ago'),
-                    ('User', 'Admin logged in', '1h ago')
+                    ('point_of_sale', 'Sales', 'New invoice created',    '#08CB00', 'Just now'),
+                    ('inventory_2',   'Stock',  'Low stock: 3 products',  '#f59e0b', '5m ago'),
+                    ('payments',      'Finance','Supplier payment logged', '#a78bfa', '12m ago'),
+                    ('people',        'CRM',    'New customer registered', '#3b82f6', '25m ago'),
+                    ('receipt_long',  'Purchase','Purchase order received','#06b6d4', '1h ago'),
                 ]
-                
-                with ui.column().classes('w-full gap-4'):
-                    for cat, desc, time in activities:
-                        with ui.row().classes('w-full justify-between items-center p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-all'):
-                            with ui.column().classes('gap-0'):
-                                ui.label(cat).classes('text-xs font-black uppercase text-[#08CB00]')
-                                ui.label(desc).classes('text-sm font-bold text-white')
-                            ui.label(time).classes('text-xs text-white/60')
 
+                with ui.column().classes('w-full gap-2'):
+                    for ic, cat, desc, clr, ts in activities:
+                        with ui.row().classes('w-full items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-all cursor-default'):
+                            with ui.element('div').classes('p-2 rounded-lg flex-shrink-0 flex items-center justify-center').style(f'background:{clr}18;'):
+                                ui.icon(ic).style(f'font-size:16px; color:{clr};')
+                            with ui.column().classes('flex-1 gap-0'):
+                                ui.label(cat).classes('text-xs font-black uppercase').style(f'color:{clr}; letter-spacing:.05em;')
+                                ui.label(desc).classes('text-[11px] text-white/70 font-medium')
+                            ui.label(ts).classes('text-[10px] text-white/30 flex-shrink-0')
 
 # Export the session storage for use in other modules
 __all__ = ['session_storage', 'check_page_access', 'require_login', 'get_current_user', 'current_open_tab', 'tab_refresh_callbacks', 'tab_dirty_callbacks']

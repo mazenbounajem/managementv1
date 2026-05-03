@@ -1,0 +1,1 @@
+id,purchase_id,purchase_invoice_number,total_amount,purchase_date,created_date,supplier_id,status,amount_paid,payment_method,debit,credit,notes,purchase_return_id

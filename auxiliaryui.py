@@ -119,17 +119,30 @@ class AuxiliaryUI:
     def refresh_table(self):
         try:
             data = []
-            connection.contogetrows("SELECT id, auxiliary_id, account_name, number, update_date, status FROM auxiliary ORDER BY id DESC", data)
+            sql = """
+                SELECT a.id, a.auxiliary_id, l.Name_en as ledger_name, 
+                       a.account_name, a.number, a.update_date, a.status 
+                FROM auxiliary a
+                LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+                ORDER BY a.id DESC
+            """
+            connection.contogetrows(sql, data)
 
             new_row_data = []
             for row in data:
+                # Extract the auxiliary suffix (e.g., '000001' from '4111.000001')
+                full_number = str(row[4]) if row[4] else ''
+                aux_suffix = full_number.split('.')[-1] if '.' in full_number else full_number
+
                 new_row_data.append({
                     'id': row[0],
                     'auxiliary_id': str(row[1]) if row[1] else '',
-                    'account_name': row[2],
-                    'number': row[3],
-                    'update_date': str(row[4]),
-                    'status': row[5]
+                    'ledger_name': str(row[2]) if row[2] else 'Unknown',
+                    'account_name': row[3],
+                    'number': full_number,
+                    'aux_suffix': aux_suffix,
+                    'update_date': str(row[5]),
+                    'status': row[6]
                 })
 
             if self.table:
@@ -161,17 +174,43 @@ class AuxiliaryUI:
         return None
 
     def print_statement(self):
-        """Print account statement PDF for the selected auxiliary number."""
+        """Open Statement of Account dialog for the selected auxiliary number."""
         from nicegui import ui
         aux_number = self.get_selected_aux_number()
         if not aux_number:
             ui.notify('Select an auxiliary account first', color='warning')
             return
-        
-        from_d = self.from_date.value if self.from_date and self.from_date.value else None
-        to_d = self.to_date.value if self.to_date and self.to_date.value else None
-        
-        accounting_helpers.print_account_statement(aux_number, from_date=from_d, to_date=to_d)
+            
+        from datetime import date
+        today = date.today().strftime('%Y-%m-%d')
+        first_of_month = date.today().replace(day=1).strftime('%Y-%m-%d')
+
+        with ui.dialog() as dlg:
+            dlg.props('persistent')
+            with ModernCard(glass=True).classes('min-w-[400px] p-6'):
+                ui.label('Statement of Account').classes('text-xl font-black text-white mb-4')
+                
+                with ui.column().classes('w-full gap-4'):
+                    from_date_input = ui.input('From Date', value=first_of_month).props('type=date dark outlined').classes('w-full text-white')
+                    to_date_input = ui.input('To Date', value=today).props('type=date dark outlined').classes('w-full text-white')
+                    
+                    def _run_report():
+                        f = from_date_input.value
+                        t = to_date_input.value
+                        if not f or not t:
+                            ui.notify('Select dates.', color='warning')
+                            return
+                        if f > t:
+                            ui.notify('From date must be before To date.', color='negative')
+                            return
+                        import auxiliary_reports
+                        auxiliary_reports.report_auxiliary_statement(f, t)
+                        dlg.close()
+
+                    with ui.row().classes('w-full justify-between mt-4'):
+                        ModernButton('Cancel', on_click=dlg.close, variant='danger')
+                        ModernButton('View Report', on_click=_run_report, variant='primary').classes('bg-purple-600')
+        dlg.open()
 
     def print_trial_balance(self):
         """Print full Trial Balance PDF."""
@@ -220,41 +259,7 @@ class AuxiliaryUI:
                         with ui.column().classes('w-full gap-4'):
                             self.input_refs['account_name'] = ui.input('Account Name').classes('w-full glass-input text-white').props('dark rounded outlined')
 
-                    with ModernCard(glass=True).classes('w-full p-6'):
-                        ui.label('Report Filters').classes('text-lg font-black mb-6 text-white')
-                        with ui.column().classes('w-full gap-4'):
-                            from datetime import datetime
-                            today = datetime.now().strftime('%Y-%m-%d')
-                            first_day = datetime.now().replace(day=1).strftime('%Y-%m-%d')
-                            
-                            with ui.input('From Date', value=first_day).classes('w-full glass-input text-white').props('dark rounded outlined type=date') as self.from_date:
-                                with ui.menu().props('no-parent-event') as menu:
-                                    ui.date().bind_value(self.from_date).on('change', menu.close)
-                                ui.button(icon='event', on_click=menu.open).props('flat color=white').classes('cursor-pointer')
-                                
-                            with ui.input('To Date', value=today).classes('w-full glass-input text-white').props('dark rounded outlined type=date') as self.to_date:
-                                with ui.menu().props('no-parent-event') as menu2:
-                                    ui.date().bind_value(self.to_date).on('change', menu2.close)
-                                ui.button(icon='event', on_click=menu2.open).props('flat color=white').classes('cursor-pointer')
-
-                    with ModernCard(glass=True).classes('w-full p-4'):
-                        ui.label('Actions').classes('text-sm font-black mb-3 text-white')
-                        with ui.column().classes('w-full gap-2'):
-                            ui.button(
-                                'Statement PDF',
-                                icon='print',
-                                on_click=self.print_statement
-                            ).classes('w-full').props('outlined color=purple')
-                            ui.button(
-                                'View Ledger',
-                                icon='receipt_long',
-                                on_click=self.view_transactions
-                            ).classes('w-full').props('outlined color=blue')
-                            ui.button(
-                                'Trial Balance',
-                                icon='account_balance',
-                                on_click=self.print_trial_balance
-                            ).classes('w-full').props('outlined color=green')
+                    # Removed 'Report Filters' and 'Actions' cards as they are now handled by ModernActionBar and Report Center
                 # Middle Column: List
                 with ui.column().classes('flex-1 gap-6'):
                     with ModernCard(glass=True).classes('w-full p-6'):
@@ -264,9 +269,11 @@ class AuxiliaryUI:
                             self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
                         column_defs = [
-                            {'headerName': 'Aux Code', 'field': 'auxiliary_id', 'width': 120},
+                            {'headerName': 'Ledger Name', 'field': 'ledger_name', 'width': 130},
+                            {'headerName': 'Account (Aux Code)', 'field': 'auxiliary_id', 'width': 140},
                             {'headerName': 'Name', 'field': 'account_name', 'width': 220, 'flex': 1},
-                            {'headerName': 'Number', 'field': 'number', 'width': 120},
+                            {'headerName': 'Auxiliary', 'field': 'aux_suffix', 'width': 100},
+                            {'headerName': 'Full Number', 'field': 'number', 'width': 130},
                             {'headerName': 'Status', 'field': 'status', 'width': 100, 'cellRenderer': 'params => params.value == 1 ? "Active" : "Inactive"'}
                         ]
 
@@ -310,6 +317,10 @@ class AuxiliaryUI:
                         on_delete=self.delete_auxiliary,
                         on_refresh=self.refresh_table,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
+                        on_print=self.print_statement,
+                        on_print_special=lambda: __import__('auxiliary_reports').open_print_special_dialog(),
+                        on_view_transaction=self.view_transactions,
+                        target_table=self.table,
                         button_class='h-16',
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
