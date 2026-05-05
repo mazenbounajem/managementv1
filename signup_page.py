@@ -55,7 +55,9 @@ class SignupPage:
                     with ui.element('div').classes('p-3 rounded-2xl glass mb-4 hover-lift'):
                         ui.icon('person_add', size='2.5rem').style(f'color: {MDS.ACCENT}')
                     
-                    ui.label('Join ManagementOS').classes('text-4xl font-black text-white tracking-tighter mb-1 os-logo')
+                    company_info = connection.get_company_info()
+                    company_name = company_info.get('company_name', 'ManagementOS') if company_info else 'ManagementOS'
+                    ui.label(f'Join {company_name}').classes('text-4xl font-black text-white tracking-tighter mb-1 os-logo')
                     ui.label('Start your journey with precision.').classes('text-xs text-gray-400 font-bold uppercase tracking-widest mb-4')
 
                 # Custom Glass Signup Card

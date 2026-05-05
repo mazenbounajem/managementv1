@@ -702,14 +702,14 @@ class Reports:
         'balance': 1000, 'level': 1, 'children': [...], 'transactions': []}]
         """
         data = []
-        params = [ledger_prefix]
+        params = [ledger_prefix, ledger_prefix]
         
         # Build base CTE for ledger hierarchy under prefix
         cte_sql = """
         WITH account_tree AS (
             SELECT AccountNumber as code, Name_en as name, 1 as level, Id
             FROM Ledger 
-            WHERE AccountNumber = ?
+            WHERE AccountNumber = ? OR (? = '' AND LEN(AccountNumber) = 1)
             UNION ALL
             SELECT l.AccountNumber, l.Name_en, at.level + 1, l.Id
             FROM account_tree at
@@ -743,8 +743,34 @@ class Reports:
         ORDER BY at.code
         """
         
-        # Execute flat tree query
+        # Execute flat tree query for Ledger accounts
         connection.contogetrows_with_params(cte_sql + main_sql, data, tuple(params))
+        
+        # Add Auxiliaries to the data list
+        aux_sql = """
+            SELECT a.number as code, a.account_name as name, 99 as level,
+                   ISNULL(SUM(atl.debit), 0) as total_debit,
+                   ISNULL(SUM(atl.credit), 0) as total_credit,
+                   ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
+                   COUNT(DISTINCT atl.jv_id) as txn_count
+            FROM auxiliary a
+            LEFT JOIN accounting_transaction_lines atl ON atl.auxiliary_id = a.number
+            LEFT JOIN accounting_transactions atxn ON atl.jv_id = atxn.jv_id
+            WHERE 1=1
+        """
+        aux_params = []
+        if from_date:
+            aux_sql += " AND CAST(atxn.transaction_date AS DATE) >= ?"
+            aux_params.append(from_date)
+        if to_date:
+            aux_sql += " AND CAST(atxn.transaction_date AS DATE) <= ?"
+            aux_params.append(to_date)
+        
+        aux_sql += " GROUP BY a.number, a.account_name"
+        
+        aux_data = []
+        connection.contogetrows_with_params(aux_sql, aux_data, tuple(aux_params))
+        data.extend(aux_data)
         
         # Build flat dicts first
         tree_nodes = {}
@@ -772,14 +798,29 @@ class Reports:
         # Build hierarchy
         root_nodes = []
         for code, node in tree_nodes.items():
-            if len(code) == len(ledger_prefix):  # Root level
+            if node['level'] == 1 or code == ledger_prefix:  # Root level
                 root_nodes.append(node)
                 continue
             
-            parent_code = code[:-1]
+            if node['level'] == 99: # Auxiliary
+                parent_code = code.split('.')[0] if '.' in code else code[:-1]
+            else:
+                parent_code = code[:-1]
+                
             if parent_code in tree_nodes:
                 tree_nodes[parent_code]['children'].append(node)
-        
+            else:
+                # If parent not found, try finding any parent that is a prefix
+                found = False
+                p = parent_code
+                while p:
+                    if p in tree_nodes:
+                        tree_nodes[p]['children'].append(node)
+                        found = True
+                        break
+                    p = p[:-1]
+                if not found:
+                    root_nodes.append(node)
         return root_nodes
 
     @staticmethod

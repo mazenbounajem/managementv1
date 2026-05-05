@@ -5,14 +5,17 @@ from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 
 class CompanyUI:
-    def __init__(self):
-        self.saving = False  # Flag to prevent multiple saves
-        self.ui_created = False  # Flag to prevent multiple UI creations
-        self.timer_set = False  # Flag to prevent multiple timer setups
-        # Defer authentication check to avoid event loop issues
-        if not self.timer_set:
-            ui.timer(0.01, self.check_authentication_and_setup_ui)
-            self.timer_set = True
+    def __init__(self, show_navigation=True, show_footer=True):
+        self.saving = False
+        self.ui_created = False
+        self.timer_set = False
+        self.show_navigation = show_navigation
+        self.show_footer = show_footer
+        
+        # Setup data and UI
+        self.company_data = {}
+        self.load_company_info()
+        self.check_authentication_and_setup_ui()
 
     def check_authentication_and_setup_ui(self):
         # Prevent multiple UI creations
@@ -28,15 +31,13 @@ class CompanyUI:
 
         # Get user permissions
         permissions = connection.get_user_permissions(user['role_id'])
-        allowed_pages = {page for page, can_access in permissions.items() if can_access}
+        
+        if self.show_navigation:
+            # Create enhanced navigation instance
+            navigation = EnhancedNavigation(permissions, user)
+            navigation.create_navigation_drawer()  # Create drawer first
+            navigation.create_navigation_header()  # Then create header with toggle button
 
-        # Create enhanced navigation instance
-        navigation = EnhancedNavigation(permissions, user)
-        navigation.create_navigation_drawer()  # Create drawer first
-        navigation.create_navigation_header()  # Then create header with toggle button
-
-        self.company_data = {}
-        self.load_company_info()
         self.create_ui()
         self.ui_created = True  # Mark UI as created
 
@@ -127,26 +128,26 @@ class CompanyUI:
                          on_click=self.save_company_info,
                          icon='save').props('color=primary size=lg')
 
-        # Footer with system time, company name, and username
-        with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
-            # System time
-            def update_time():
-                now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                time_label.set_text(f'System Time: {now}')
-            time_label = ui.label()
-            update_time()
-            ui.timer(1.0, update_time)
+        if self.show_footer:
+            # Footer with system time, company name, and username
+            with ui.footer().classes('flex justify-between items-center p-4 bg-gray-100 text-sm text-gray-600'):
+                # System time
+                def update_time():
+                    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    time_label.set_text(f'System Time: {now}')
+                time_label = ui.label()
+                update_time()
+                ui.timer(1.0, update_time)
 
-            # Company name from database
-            company_info = connection.get_company_info()
-            company_name = company_info.get('company_name') if company_info else 'Company Name'
-            ui.label(f'Company: {company_name}')
+                # Company name from database
+                company_info = connection.get_company_info()
+                company_name = company_info.get('company_name') if company_info else ''
+                ui.label(f'Company: {company_name}')
 
-            # Username from session
-            from app import session_storage
-            user = session_storage.get('user')
-            username = user.get('username') if user else 'Guest'
-            ui.label(f'User: {username}')
+                # Username from session
+                user = session_storage.get('user')
+                username = user.get('username') if user else 'Guest'
+                ui.label(f'User: {username}')
 
 @ui.page('/company')
 def company_page_route():

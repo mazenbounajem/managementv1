@@ -81,9 +81,9 @@ class CairoInvoiceGenerator:
                 ctx.show_text(f"Phone: {company_info['phone']}")
                 y_position += 20
         else:
-            # Fallback to hardcoded values if no company info in database
+            # Fallback to empty values if no company info in database
             ctx.move_to(self.margin, y_position)
-            ctx.show_text("Your Company Name")
+            ctx.show_text("")
             y_position += 20
             
             ctx.move_to(self.margin, y_position)
@@ -215,7 +215,9 @@ class CairoInvoiceGenerator:
         ctx.move_to(self.margin, y + 15)
         ctx.show_text("Payment terms: Net 30 days")
         ctx.move_to(self.margin, y + 30)
-        ctx.show_text("For questions, contact us at info@yourcompany.com")
+        company_info = connection.get_company_info()
+        contact_email = company_info.get('email', 'info@yourcompany.com') if company_info else 'info@yourcompany.com'
+        ctx.show_text(f"For questions, contact us at {contact_email}")
 
 # Integration function for salesui_aggrid_compact.py
 def generate_sales_invoice_pdf(rows, customer_name, invoice_number, total_amount):

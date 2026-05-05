@@ -179,7 +179,7 @@ class PurchaseRepository:
         purchase_payment_values = (purchase_id, invoice_number, total_amount, purchase_date, created_date, supplier_id, total_amount, 'Cash', total_amount, total_amount, notes)
         connection.insertingtodatabase(purchase_payment_sql, purchase_payment_values)
 
-    def create_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, invoice_number, created_at, payment_status, currency_id=1, total_vat=0):
+    def create_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, invoice_number, created_at, payment_status, currency_id=1, total_vat=0, payment_method='Cash'):
         purchase_sql = """
             INSERT INTO purchases (purchase_date, supplier_id, subtotal, discount_amount, total_amount, invoice_number, created_at, payment_status, currency_id, total_vat)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -223,9 +223,10 @@ class PurchaseRepository:
             jv_lines.append({'account': credit_account, 'debit': 0, 'credit': final_total})
             
             if payment_status != 'pending':
+                payment_aux = business_track_settings.get_payment_account(payment_method)
                 # Cash payment logic
                 jv_lines.append({'account': credit_account, 'debit': final_total, 'credit': 0})
-                jv_lines.append({'account': '5300.000001', 'debit': 0, 'credit': final_total})
+                jv_lines.append({'account': payment_aux, 'debit': 0, 'credit': final_total})
 
                 # Record cash drawer operation
                 try:
@@ -247,7 +248,7 @@ class PurchaseRepository:
             
         return last_id
 
-    def update_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, created_at, payment_status, purchase_id, currency_id=1, total_vat=0):
+    def update_purchase(self, purchase_date, supplier_id, subtotal, discount_amount, final_total, created_at, payment_status, purchase_id, currency_id=1, total_vat=0, payment_method='Cash'):
         purchase_sql = """
             UPDATE purchases
             SET purchase_date = ?, supplier_id = ?, subtotal = ?, discount_amount = ?,
@@ -312,8 +313,9 @@ class PurchaseRepository:
                     except Exception as ex:
                         print(f"Cash Drawer Reversal Error: {ex}")
 
+                payment_aux = business_track_settings.get_payment_account(payment_method)
                 jv_lines.append({'account': credit_account, 'debit': final_total, 'credit': 0})
-                jv_lines.append({'account': '5300.000001', 'debit': 0, 'credit': final_total})
+                jv_lines.append({'account': payment_aux, 'debit': 0, 'credit': final_total})
 
                 # Record new cash drawer operation
                 try:

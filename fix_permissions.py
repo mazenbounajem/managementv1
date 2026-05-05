@@ -6,7 +6,7 @@ cursor = conn.cursor()
 
 pages = [
     'dashboard', 'timespend', 'sales', 'sales-returns', 'products', 'purchase', 
-    'purchase-returns', 'modern-purchase', 'stockoperations', 'category', 
+    'purchase-returns', 'stockoperations', 'category', 
     'customers', 'customerreceipt', 'suppliers', 'supplierpayment', 'expenses', 
     'expensestype', 'currencies', 'accounting', 'cash-drawer', 'ledger', 
     'auxiliary', 'journal_voucher', 'voucher_subtype', 'accounting-transactions', 

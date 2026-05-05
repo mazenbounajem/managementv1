@@ -32,7 +32,7 @@ class RolesUI:
             'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'timespend',
             'stockoperations', 'cash-drawer', 'currencies', 'services', 'appointments',
             'ledger', 'auxiliary', 'journal_voucher', 'voucher_subtype', 'company',
-            'sales-returns', 'purchase-returns'
+            'sales-returns', 'purchase-returns', 'hide-history'
         ]
         self.create_ui()
 

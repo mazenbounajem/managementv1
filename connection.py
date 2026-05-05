@@ -798,23 +798,29 @@ class connection:
                     (11.0, '2020-01-01')
                 )
                 print("vat_settings table created successfully")
-
-            # Ensure permissions
-            roles = db_manager.execute_query("SELECT id FROM roles")
-            for role in roles:
-                role_id = role[0]
-                for page in ['accounting-transactions', 'business-track']:
-                    existing = db_manager.execute_scalar(
-                        "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = ?",
-                        (role_id, page)
-                    )
-                    if not existing:
-                        db_manager.execute_update(
-                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, 1)",
-                            (role_id, page)
-                        )
         except Exception as ex:
             print(f"Error ensuring accounting tables: {str(ex)}")
+
+    @staticmethod
+    def ensure_hide_history_permission():
+        """Ensure the 'hide-history' permission is added for the Admin role"""
+        try:
+            # Get Admin role ID
+            admin_role_id = db_manager.execute_scalar("SELECT id FROM roles WHERE name = 'Admin'")
+            if admin_role_id:
+                # Check if permission already exists
+                existing = db_manager.execute_scalar(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'hide-history'",
+                    admin_role_id
+                )
+                if not existing:
+                    db_manager.execute_update(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (admin_role_id, 'hide-history', 1)
+                    )
+                    print(f"Added 'hide-history' permission for Admin role (ID {admin_role_id})")
+        except Exception as ex:
+            print(f"Error ensuring hide-history permission: {str(ex)}")
 
     @staticmethod
     def ensure_accounting_transactions_table():

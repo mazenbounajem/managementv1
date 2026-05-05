@@ -75,3 +75,34 @@ def get_purchase_return_account(has_vat: bool) -> str:
     """Return the expense account for a purchase return (VAT vs Non-VAT)."""
     col = 0 if has_vat else 1
     return _get_account('purchase', 4, col, _DEFAULT_PURCHASE_ACCOUNT)
+
+
+# ── Treasury (Ledger 5) ──────────────────────────────────────────────────────
+
+def get_payment_account(method: str) -> str:
+    """Return the ledger 5 account for a payment method."""
+    method = method.lower() if method else 'cash'
+    if 'cash' in method:
+        if 'usd' in method:
+            return '5300.000002'
+        return '5300.000001'
+    elif 'visa' in method or 'card' in method:
+        return '5121.000001'
+    elif 'transfer' in method:
+        return '5121.000002'
+    elif 'omt' in method:
+        return '5121.000004'
+    return '5300.000001'
+
+
+# ── Products (Ledger 3) ──────────────────────────────────────────────────────
+
+def get_product_inventory_account() -> str:
+    """Return the default ledger 3 account for stock."""
+    return '3700.000001'
+
+
+# ── Assets / Capital (Ledger 1/2) ────────────────────────────────────────────
+
+def get_asset_account() -> str:
+    return '1000.000001'

@@ -87,7 +87,9 @@ class LoginPage:
                     with ui.element('div').classes('os-logo-container p-4 rounded-3xl glass mb-4 hover-lift'):
                         ui.icon('cloud_done', size='3.5rem').style(f'color: {MDS.ACCENT}')
                     
-                    ui.label('ManagementOS').classes('text-5xl font-black text-white tracking-tighter mb-1 os-logo')
+                    company_info = connection.get_company_info()
+                    company_name = company_info.get('company_name', 'ManagementOS') if company_info else 'ManagementOS'
+                    ui.label(company_name).classes('text-5xl font-black text-white tracking-tighter mb-1 os-logo')
                     ui.label('Precision Management. Defined.').classes('text-sm text-gray-400 font-bold uppercase tracking-widest mb-6')
                     
                     # Feature pills

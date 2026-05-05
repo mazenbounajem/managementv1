@@ -543,22 +543,26 @@ def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=
         table_data = [['Level', 'Code', 'Name', 'Debit', 'Credit', 'Balance']]
         grand_debit = grand_credit = 0
 
-        def flatten_tree(node, indent=''):
+        def flatten_tree(node, indent='', is_root=True):
             nonlocal grand_debit, grand_credit
+            display_level = node['level'] if node['level'] != 99 else 'Aux'
             table_data.append([
-                node['level'],
+                display_level,
                 indent + node['code'],
                 node['name'][:40] + '...' if len(node['name']) > 40 else node['name'],
                 f"{node['debit']:,.2f}",
                 f"{node['credit']:,.2f}",
                 f"{node['balance']:+,.2f}"
             ])
-            grand_debit += node['debit']
-            grand_credit += node['credit']
+            if is_root:
+                grand_debit += node['debit']
+                grand_credit += node['credit']
+            
             for child in node['children']:
-                flatten_tree(child, indent + '  ')
-            # Add transaction summary for leaves
-            if node['transactions']:
+                flatten_tree(child, indent + '  ', is_root=False)
+            
+            # Add transaction summary for leaves (only if they are auxiliary or leaf ledger)
+            if node['transactions'] and (node['level'] == 99 or not node['children']):
                 story.append(Spacer(1, 6))
                 details_title = Paragraph(f"Transactions - {node['code']} {node['name']}", styles['Heading2'])
                 story.append(details_title)
@@ -581,7 +585,7 @@ def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=
                 story.append(txn_tbl)
 
         for root in tree_data:
-            flatten_tree(root)
+            flatten_tree(root, is_root=True)
 
         # Grand totals
         story.append(Spacer(1, 12))

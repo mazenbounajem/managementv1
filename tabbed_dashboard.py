@@ -33,6 +33,8 @@ from auxiliaryui import auxiliary_content
 import voucher_subtype_ui
 import accounting_transactions_ui
 from business_track import business_track_content
+import company_ui
+import trial_hierarchy_ui
 
 # Global registries for tab management
 current_open_tab = None
@@ -104,7 +106,7 @@ def tabbed_dashboard_page():
     'dashboard':        {'label': 'Dashboard',        'func': create_dashboard_content,   'icon': 'dashboard'},
     'sales':            {'label': 'Sales',             'func': sales_content,               'icon': 'point_of_sale'},
     'purchase':         {'label': 'Purchase',          'func': purchase_content,            'icon': 'shopping_bag'},
-    'modern-purchase':  {'label': 'Modern Purchase',   'func': make_iframe('/modern-purchase'), 'icon': 'shopping_cart'},
+
     'products':         {'label': 'Products',          'func': product_content,             'icon': 'inventory'},
     'customers':        {'label': 'Customers',         'func': customer_content,            'icon': 'person'},
     'suppliers':        {'label': 'Suppliers',         'func': supplier_content,            'icon': 'business'},
@@ -133,7 +135,8 @@ def tabbed_dashboard_page():
     'sales-returns':    {'label': 'Sales Returns',     'func': lambda: sales_returns_ui.SalesReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
     'purchase-returns': {'label': 'Purchase Returns',  'func': lambda: purchase_returns_ui.PurchaseReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
     'services':         {'label': 'Services',          'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
-    'company':          {'label': 'Company',           'func': make_iframe('/company'),     'icon': 'business_center'},
+    'company':          {'label': 'Company',           'func': lambda: company_ui.CompanyUI(show_navigation=False, show_footer=False), 'icon': 'business_center'},
+    'trial-hierarchy':  {'label': 'Trial Hierarchy',   'func': lambda: trial_hierarchy_ui.trial_hierarchy_content(standalone=False), 'icon': 'account_tree'},
     'profile':          {'label': 'My Account',        'func': make_iframe('/profile'),     'icon': 'manage_accounts'},
 }
 
@@ -324,8 +327,8 @@ def tabbed_dashboard_page():
 
         # Company name from database
         company_info = connection.get_company_info()
-        company_name = company_info.get('company_name') if company_info else 'Company Name'
-        ui.label(f'Company: {company_name}')
+        company_name = company_info.get('company_name') if company_info else ''
+        ui.label(company_name)
 
         # Username
         username = user.get('username') if user else 'Guest'
@@ -364,7 +367,7 @@ def create_dashboard_content():
     total_customers = _cached('total_customers', connection.get_total_customers) or 0
     low_stock       = _cached('low_stock',       connection.get_low_stock_count) or 0
     company_info    = _cached('company_info',    connection.get_company_info) or {}
-    company_name    = company_info.get('company_name', 'Your Company') if company_info else 'Your Company'
+    company_name    = company_info.get('company_name', '') if company_info else ''
 
     # Try to get supplier count
     try:

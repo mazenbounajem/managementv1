@@ -145,6 +145,9 @@ class LedgerUI:
             data = []
             connection.contogetrows("SELECT Id, AccountNumber, SubNumber, ParentId, Name_en, Name_fr, Name_ar, UpdateDate, Status FROM Ledger ORDER BY AccountNumber", data)
 
+            aux_raw = []
+            connection.contogetrows("SELECT Id, number, account_name, auxiliary_id FROM auxiliary", aux_raw)
+
             self.row_data = []
             for row in data:
                 self.row_data.append({
@@ -156,10 +159,11 @@ class LedgerUI:
                     'Name_fr': row[5],
                     'Name_ar': row[6],
                     'UpdateDate': str(row[7]),
-                    'Status': row[8]
+                    'Status': row[8],
+                    'type': 'ledger'
                 })
 
-            self.tree_data = self.build_account_tree(self.row_data)
+            self.tree_data = self.build_account_tree(self.row_data, aux_raw)
             if self.tree:
                 self.tree._props['nodes'] = self.tree_data
                 self.tree.update()
@@ -169,8 +173,8 @@ class LedgerUI:
         except Exception as e:
             ui.notify(f'Error refreshing data: {str(e)}', color='negative')
 
-    def build_account_tree(self, accounts):
-        """Build hierarchical tree from flat account list based on account number prefix."""
+    def build_account_tree(self, accounts, auxiliaries=[]):
+        """Build hierarchical tree from flat account list and auxiliary accounts."""
         sorted_accs = sorted(accounts, key=lambda x: (len(x['AccountNumber']), x['AccountNumber']))
 
         nodes = {}
@@ -186,29 +190,73 @@ class LedgerUI:
                 'label': label,
                 'account_number': acc_num,
                 'children': [],
+                'type': 'ledger',
                 'data': acc
             }
 
+        # Add Auxiliaries as leaf nodes
+        for aux in auxiliaries:
+            aux_id, aux_num, aux_name, parent_ledger = aux
+            aux_num = str(aux_num)
+            parent_num = str(parent_ledger) if parent_ledger else None
+            
+            # If parent_num is not set, try dot prefix
+            if not parent_num and '.' in aux_num:
+                parent_num = aux_num.split('.')[0]
+                
+            label = f"🔸 {aux_num} - {aux_name}"
+            aux_node = {
+                'id': f"aux_{aux_id}",
+                'label': label,
+                'account_number': aux_num,
+                'children': [],
+                'type': 'auxiliary',
+                'data': {'Id': aux_id, 'AccountNumber': aux_num, 'Name_en': aux_name, 'type': 'auxiliary'}
+            }
+            
+            if parent_num:
+                if parent_num not in nodes:
+                    # Create virtual parent if missing
+                    nodes[parent_num] = {
+                        'id': f"V_{parent_num}",
+                        'label': f"🏮 {parent_num} - (Parent)",
+                        'account_number': parent_num,
+                        'children': [],
+                        'type': 'ledger',
+                        'data': {'Id': 0, 'AccountNumber': parent_num, 'Name_en': 'Virtual Parent', 'type': 'ledger'}
+                    }
+                nodes[parent_num]['children'].append(aux_node)
+            else:
+                # Top level auxiliary? 
+                nodes[aux_num] = aux_node
+
         roots = []
-        for acc_num, node in nodes.items():
-            if len(acc_num) == 1 and acc_num in '1234567':
+        # Second pass to build structure between ledger nodes
+        # Keys are all ledger nodes plus any auxiliaries that didn't find parents
+        for code in sorted(nodes.keys(), key=lambda x: len(x)):
+            node = nodes[code]
+            if node.get('type') == 'auxiliary' and '.' in code: continue # Already handled if dot notation
+            
+            if len(code) == 1 and code in '1234567':
                 roots.append(node)
                 continue
 
             # Walk up the prefix chain to find a parent
-            parent_num = acc_num[:-1]
+            parent_num = code[:-1]
             found_parent = False
             while parent_num:
                 if parent_num in nodes:
-                    nodes[parent_num]['children'].append(node)
+                    if node not in nodes[parent_num]['children']:
+                        nodes[parent_num]['children'].append(node)
                     found_parent = True
                     break
                 parent_num = parent_num[:-1]
 
             if not found_parent:
                 # Orphan account under 1-7, attach as root-level
-                if acc_num and acc_num[0] in '1234567':
-                    roots.append(node)
+                if code and code[0] in '1234567':
+                    if node not in roots:
+                        roots.append(node)
 
         return sorted(roots, key=lambda n: n['account_number'])
 
@@ -318,6 +366,7 @@ class LedgerUI:
                         ui.label('Reports').classes('text-sm font-bold mb-2 text-white')
                         ui.button('Full Trial Balance', icon='account_balance', on_click=lambda: accounting_helpers.print_trial_balance()).props('flat full-width color=green')
                         ui.button('Hierarchical TB', icon='account_tree', on_click=lambda: accounting_helpers.print_hierarchical_trial_balance_pdf(self.input_refs['account_number'].value)).props('flat full-width color=orange')
+                        ui.button('Trial Hierarchy UI', icon='visibility', on_click=lambda: ui.navigate.to('/trial-hierarchy')).props('flat full-width color=blue')
 
             ui.timer(0.1, self.refresh_table, once=True)
         finally:

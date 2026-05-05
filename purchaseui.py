@@ -32,12 +32,15 @@ class PurchaseUI:
             return
 
         # Get user permissions
-        permissions = connection.get_user_permissions(user['role_id'])
-        allowed_pages = {page for page, can_access in permissions.items() if can_access}
+        self.permissions = connection.get_user_permissions(user['role_id'])
+        # Fallback: Admin role (usually ID 1 or name 'Admin') gets hide-history by default
+        is_admin = user.get('role_name') == 'Admin' or user.get('role_id') == 1
+        self.can_hide_history = self.permissions.get('hide-history', False) or is_admin
+        allowed_pages = {page for page, can_access in self.permissions.items() if can_access}
 
         if show_navigation:
             # Create enhanced navigation instance
-            navigation = EnhancedNavigation(permissions, user)
+            navigation = EnhancedNavigation(self.permissions, user)
             navigation.create_navigation_drawer()  # Create drawer first
             navigation.create_navigation_header()  # Then create header with toggle button
 
@@ -445,6 +448,14 @@ class PurchaseUI:
         except Exception as e:
             ui.notify(f'Error removing product: {str(e)}')
 
+    def toggle_history(self):
+        """Toggle the visibility of the purchase history panel"""
+        if hasattr(self, 'history_panel'):
+            self.history_panel.visible = not self.history_panel.visible
+            if hasattr(self, 'show_history_btn'):
+                self.show_history_btn.visible = not self.history_panel.visible
+            ui.notify('History ' + ('hidden' if not self.history_panel.visible else 'shown'), color='info', duration=1)
+
     def update_totals(self):
         total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
         subtotal = sum(row['subtotal'] for row in self.rows)
@@ -765,7 +776,7 @@ class PurchaseUI:
         # Fetch session metadata for footer
         user = session_storage.get('user', {})
         company_info = connection.get_company_info()
-        company_name = company_info.get('company_name', 'Company Name') if company_info else 'Company Name'
+        company_name = company_info.get('company_name', '') if company_info else ''
 
         ui.add_head_html(MDS.get_global_styles())
         
@@ -773,13 +784,19 @@ class PurchaseUI:
                     with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
                         with ui.column().classes('flex-1 h-full p-4 gap-2 relative overflow-hidden'):
                             with ui.row().classes('w-full flex-1 gap-3 overflow-hidden'):
-                                with ui.column().classes('w-[35%] h-full gap-2'):
+                                # LEFT PANEL: Purchase History (35%)
+                                self.history_panel = ui.column().classes('w-[35%] h-full gap-2')
+                                with self.history_panel:
                                     with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
                                         with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 transition-all'):
                                             ui.icon('history', size='1.25rem').classes('text-purple-400 ml-1')
                                             self.history_search = ui.input(placeholder='Search history...').props('borderless dense clearable dark')\
                                                 .classes('flex-1 text-white font-bold')\
                                                 .on_value_change(lambda e: self.filter_history_table(e.value))
+                                            
+                                            if self.can_hide_history:
+                                                ui.button(icon='first_page', on_click=self.toggle_history).props('flat dense color=white').classes('ml-auto bg-purple-600/30 hover:bg-purple-600 rounded-lg transition-colors').tooltip('Hide History Panel')
+                                            
                                             ui.icon('search', size='1.1rem').classes('text-gray-500 mr-2')
                         
                                         self.purchase_history_aggrid = ui.aggrid({
@@ -800,7 +817,12 @@ class PurchaseUI:
                         
                                         self.purchase_history_aggrid.on('cellClicked', self.handle_history_aggrid_click_wrapper)
                  
-                                with ui.row().classes('flex-1 h-full gap-2 overflow-hidden'):
+                                with ui.row().classes('flex-1 h-full gap-2 overflow-hidden relative'):
+                                    if self.can_hide_history:
+                                        self.show_history_btn = ui.button(icon='last_page', on_click=self.toggle_history)\
+                                            .props('flat dense color=white').classes('absolute -left-2 top-1/2 z-50 bg-purple-600 rounded-r-xl shadow-lg border border-white/20 h-12 w-6')\
+                                            .tooltip('View History')
+                                        self.show_history_btn.visible = False
                                     with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
                                         with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-5 items-center'):
                                             # Date

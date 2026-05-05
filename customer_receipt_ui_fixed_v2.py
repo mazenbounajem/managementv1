@@ -354,11 +354,13 @@ class CustomerReceiptUI:
 
                 connection.insertingtodatabase("UPDATE customers SET balance = balance - ? WHERE id = ?", (normalized_amount, self.selected_customer['id']))
 
+                import business_track_settings
+                payment_aux = business_track_settings.get_payment_account(self.method_select.value)
                 # Accounting - Use normalized amounts for the ledger (base currency)
                 accounting_helpers.save_accounting_transaction('Receipt', str(receipt_id), [
-                    {'account': '5300.000001', 'debit': normalized_amount, 'credit': 0},
+                    {'account': payment_aux, 'debit': normalized_amount, 'credit': 0},
                     {'account': cust_aux, 'debit': 0, 'credit': normalized_amount},
-                ], description=f"Customer Receipt #{receipt_id} - {self.selected_customer['name']}")
+                ], description=f"Customer {self.method_select.value} Receipt #{receipt_id} - {self.selected_customer['name']}")
                 
                 connection.update_cash_drawer_balance(normalized_amount, 'In', user_id, f"Receipt #{receipt_id}")
 

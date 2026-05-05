@@ -1386,3 +1386,8 @@
 2026-05-03 21:21:49,851 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'sarah', 'reason': 'invalid_credentials'}
 2026-05-03 21:22:45,147 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
 2026-05-03 21:57:33,091 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-04 17:44:59,765 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-04 18:19:15,758 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-04 18:23:42,818 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1018, details={'username': 'sarah'}
+2026-05-04 18:31:55,319 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-04 18:42:50,952 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}

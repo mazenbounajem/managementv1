@@ -26,11 +26,13 @@ def report_trial_balance_hierarchical(fd, td):
 REPORTS = {
     'tb_flat': ('Trial Balance (Flat)', report_trial_balance_flat),
     'tb_hier': ('Trial Balance (Hierarchical)', report_trial_balance_hierarchical),
+    'tb_ui': ('Trial Hierarchy (Detailed UI)', lambda f, t: ui.navigate.to('/trial-hierarchy')),
 }
 
 DESCRIPTIONS = {
     'tb_flat': 'Standard flat trial balance showing all accounts with debit, credit, and balance.',
     'tb_hier': 'Hierarchical trial balance grouped by ledger root accounts (1 to 7).',
+    'tb_ui': 'Interactive tree-based trial balance showing Ledger and Auxiliary levels with live balances.',
 }
 
 

@@ -56,10 +56,11 @@ from ledgerui import ledger_page_route
 from auxiliaryui import auxiliary_page_route
 from journal_voucher_ui import journal_voucher_page_route
 from voucher_subtype_ui import voucher_subtype_page_route
+from trial_hierarchy_ui import trial_hierarchy_page_route
 
 # Import modern design system pages
 from modern_sales_ui import modern_sales_page
-from modern_purchase_ui import modern_purchase_page
+
 
 # Import accounting transactions UI to register route
 from accounting_transactions_ui import accounting_transactions_page_route
@@ -757,8 +758,8 @@ def dashboard_page():
 
         # Company name from database
         company_info = connection.get_company_info()
-        company_name = company_info.get('company_name') if company_info else 'Company Name'
-        ui.label(f'Company: {company_name}')
+        company_name = company_info.get('company_name') if company_info else ''
+        ui.label(company_name)
 
         # Username
         username = user.get('username') if user else 'Guest'
@@ -851,6 +852,7 @@ if __name__ in {"__main__", "__mp_main__"}:
     try:
         connection.ensure_accounting_transactions_table()
         connection.ensure_business_track_permission()
+        connection.ensure_hide_history_permission()
     except Exception as e:
         print(f"Error ensuring accounting or business track permissions: {str(e)}")
 
@@ -876,3 +878,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     # You can add authentication logic here before opening the dashboard
     # For now, we'll just run the app
     ui.run(native=False,storage_secret='mgmt-v1-session-secret-change-in-production')
+

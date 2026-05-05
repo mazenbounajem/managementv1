@@ -179,7 +179,8 @@ class PurchaseService:
             data['discount_amount'] / exchange_rate,
             data['final_total'] / exchange_rate, 
             invoice_number, data['created_at'], data['payment_status'], currency_id,
-            data.get('total_vat', 0) / exchange_rate
+            data.get('total_vat', 0) / exchange_rate,
+            data.get('payment_method', 'Cash')
         )
 
         # Get ledger id for purchases (6011)
@@ -222,7 +223,8 @@ class PurchaseService:
             data['discount_amount'] / exchange_rate,
             data['final_total'] / exchange_rate, 
             data['created_at'], data['payment_status'], purchase_id, currency_id,
-            data.get('total_vat', 0) / exchange_rate
+            data.get('total_vat', 0) / exchange_rate,
+            data.get('payment_method', 'Cash')
         )
         
         self.repository.delete_purchase_items(purchase_id)

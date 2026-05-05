@@ -58,7 +58,7 @@ class EnhancedNavigation:
                     'products':        {'label': 'Products',         'path': '/products',         'icon': 'inventory',     'shortcut': 'Alt+P'},
                     'purchase':        {'label': 'Purchase',         'path': '/purchase',         'icon': 'shopping_bag',  'shortcut': 'Alt+U'},
                     'purchase-returns': {'label': 'Purchase Returns', 'path': '/purchasereturn',   'icon': 'assignment_return', 'shortcut': 'Alt+T'},
-                    'modern-purchase': {'label': 'Modern Purchase',  'path': '/modern-purchase',  'icon': 'shopping_cart', 'shortcut': 'Alt+Y'},
+
                     'stockoperations': {'label': 'Stock Operations', 'path': '/stockoperations',  'icon': 'inventory_2',   'shortcut': 'Alt+K'},
                     'category':        {'label': 'Category',         'path': '/category',         'icon': 'category',      'shortcut': 'Alt+C'},
                 }

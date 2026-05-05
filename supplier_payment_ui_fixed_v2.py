@@ -351,11 +351,13 @@ class SupplierPaymentUI:
                     # Use actual L.L. amount for L.L. balance column
                     connection.insertingtodatabase("UPDATE suppliers SET balance = balance - ? WHERE id = ?", (pay_amount, self.selected_supplier['id']))
 
+                import business_track_settings
+                payment_aux = business_track_settings.get_payment_account(self.method_select.value)
                 # Accounting - Use normalized amounts for the ledger (base currency)
                 accounting_helpers.save_accounting_transaction('Payment', str(payment_id), [
                     {'account': supp_aux, 'debit': normalized_amount, 'credit': 0},
-                    {'account': '5300.000001', 'debit': 0, 'credit': normalized_amount},
-                ], description=f"Supplier Payment #{payment_id} - {self.selected_supplier['name']}")
+                    {'account': payment_aux, 'debit': 0, 'credit': normalized_amount},
+                ], description=f"Supplier {self.method_select.value} Payment #{payment_id} - {self.selected_supplier['name']}")
                 
                 connection.update_cash_drawer_balance(normalized_amount, 'Out', user_id, f"Payment #{payment_id}")
 
