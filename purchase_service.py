@@ -1,5 +1,7 @@
 from datetime import datetime
 from purchase_repository import PurchaseRepository
+import accounting_helpers
+import business_track_settings
 
 class PurchaseService:
     def __init__(self):
@@ -132,6 +134,25 @@ class PurchaseService:
         if invoice_number:
             self.repository.delete_supplier_payment_by_invoice(invoice_number)
 
+        # Clean up accounting JVs (match save_accounting_transaction() cleanup semantics)
+        from connection import connection
+
+        for reference_type in ('Purchase', 'Purchase Payment'):
+            jvs = []
+            connection.contogetrows(
+                "SELECT jv_id FROM accounting_transactions WHERE reference_type = ? AND reference_id = ?",
+                jvs, (reference_type, str(purchase_id))
+            )
+            for jv in jvs:
+                connection.deleterow(
+                    "DELETE FROM accounting_transaction_lines WHERE jv_id = ?",
+                    (jv[0],)
+                )
+                connection.deleterow(
+                    "DELETE FROM accounting_transactions WHERE jv_id = ?",
+                    (jv[0],)
+                )
+
         # Delete purchase items and purchase header
         self.repository.delete_purchase_items(purchase_id)
         self.repository.delete_purchase(purchase_id)
@@ -188,19 +209,8 @@ class PurchaseService:
         if ledger_data:
             ledger_id = ledger_data[0][0]
 
-            # Get next subnumber for auxiliary
-            next_sub = last_purchase_id
-            account_number = f"6011.{next_sub:05d}"
-
-            # Create auxiliary
-            self.repository.create_auxiliary(ledger_id, account_number, invoice_number)
-
-            # Get auxiliary id
-            aux_id_data = self.repository.get_last_auxiliary_id()
-            aux_id = aux_id_data[0][0]
-
-            # Update purchase with auxiliary_number
-            self.repository.update_purchase_auxiliary_number(last_purchase_id, f"{next_sub:05d}")
+            # We no longer create individual auxiliary suffixes for each purchase. 
+            # All purchases map directly to the base ledger account 6011.
 
         self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows, currency_id, exchange_rate)
 
@@ -208,6 +218,19 @@ class PurchaseService:
             purchase_id=last_purchase_id,
             is_update=False,
             **data
+        )
+
+        # ── Accounting JVs ──────────────────────────────────────────────
+        self._record_purchase_accounting(
+            purchase_id=last_purchase_id,
+            supplier_id=data['supplier_id'],
+            rows=rows,
+            exchange_rate=exchange_rate,
+            normalized_total=data['final_total'] / exchange_rate,
+            normalized_subtotal=data['subtotal'] / exchange_rate,
+            normalized_vat=data.get('total_vat', 0) / exchange_rate,
+            payment_method=data.get('payment_method', 'Cash'),
+            invoice_number=invoice_number,
         )
 
     def _update_existing_purchase(self, data, rows, purchase_id):
@@ -236,6 +259,19 @@ class PurchaseService:
             purchase_id=purchase_id,
             is_update=True,
             **data
+        )
+
+        # ── Accounting JVs (re-created; old ones auto-cleaned) ────────
+        self._record_purchase_accounting(
+            purchase_id=purchase_id,
+            supplier_id=data['supplier_id'],
+            rows=rows,
+            exchange_rate=exchange_rate,
+            normalized_total=data['final_total'] / exchange_rate,
+            normalized_subtotal=data['subtotal'] / exchange_rate,
+            normalized_vat=data.get('total_vat', 0) / exchange_rate,
+            payment_method=data.get('payment_method', 'Cash'),
+            invoice_number=invoice_number or data.get('invoice_number', ''),
         )
 
     def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows, purchase_currency_id, exchange_rate):
@@ -386,3 +422,174 @@ class PurchaseService:
             'purchase_date': purchase_date,
             'currency_symbol': currency_symbol
         }
+
+    def _record_purchase_accounting(self, purchase_id, supplier_id, rows,
+                                     exchange_rate, normalized_total,
+                                     normalized_subtotal, normalized_vat,
+                                     payment_method, invoice_number):
+        """
+        Record double-entry accounting JVs for a purchase:
+          Purchase JV:  Debit expense (6xxx) + Debit VAT (44210.x) / Credit supplier (401x)
+          Payment JV:   Debit supplier (401x) / Credit caisse (5300.x)  [if cash]
+        """
+        try:
+            from connection import connection
+
+            # Resolve supplier auxiliary
+            sup_res = []
+            connection.contogetrows(
+                "SELECT id, name, auxiliary_number FROM suppliers WHERE id = ?",
+                sup_res, (supplier_id,)
+            )
+            supplier_name = sup_res[0][1] if sup_res else f"Supplier {supplier_id}"
+            supplier_account = sup_res[0][2] if sup_res and sup_res[0][2] else None
+
+            if not supplier_account:
+                supplier_account = accounting_helpers.ensure_supplier_auxiliary(
+                    supplier_id, supplier_name=supplier_name, fallback_account_number='4011'
+                )
+
+            # VAT auxiliary for supplier
+            vat_account = accounting_helpers.ensure_vat_auxiliary(
+                'Supplier', supplier_id, supplier_name, supplier_account
+            )
+
+            # Fetch purchase auxiliary_number so we can link to the exact 6011/6019 aux for this purchase.
+            p_aux_res = []
+            connection.contogetrows(
+                "SELECT auxiliary_number, discount_amount FROM purchases WHERE id = ?",
+                p_aux_res, (purchase_id,)
+            )
+            purchase_aux_number = p_aux_res[0][0] if p_aux_res else None
+            purchase_discount_amount = float(p_aux_res[0][1] or 0) if p_aux_res else 0.0
+
+            # Determine which base expense ledger was configured, but force it to the purchase-specific auxiliary number.
+            has_vat = any(row.get('vat_percentage', 0) > 0 for row in rows)
+            expense_account_base = business_track_settings.get_purchase_account(has_vat)
+
+            expense_base_ledger = str(expense_account_base).split('.')[0] if expense_account_base else '6011'
+            expense_aux_number = str(expense_base_ledger)
+
+            # Discount auxiliary linking (6019) when discount exists
+            discount_aux_number = "6019" if purchase_discount_amount > 0 else None
+            normalized_discount = purchase_discount_amount / exchange_rate if purchase_discount_amount else 0.0
+
+            # We no longer dynamically insert 6011/6019 auxiliaries into the auxiliary table.
+            # Base accounts are resolved properly in accounting_helpers.
+
+            # ── Purchase Invoice JV ──────────────────────────────────────
+            jv_lines = [
+                {'account': expense_aux_number, 'debit': normalized_subtotal, 'credit': 0},
+                {'account': vat_account,        'debit': normalized_vat,      'credit': 0},
+                {'account': supplier_account,  'debit': 0,                   'credit': normalized_total},
+            ]
+
+            # Add discount line to the configured 6019.<suffix> auxiliary (credit decreases purchase expense).
+            # Existing schema sometimes stores discount as separate line; keep same semantics:
+            # - if discount exists: credit 6019 auxiliary by normalized_discount
+            if normalized_discount > 0.005:
+                jv_lines.append({'account': discount_aux_number, 'debit': 0, 'credit': normalized_discount})
+
+            # Filter out zero-amount lines (e.g. zero VAT)
+            jv_lines = [l for l in jv_lines if l['debit'] > 0.005 or l['credit'] > 0.005]
+
+            jv_id = accounting_helpers.save_accounting_transaction(
+                'Purchase', purchase_id, jv_lines,
+                description=f"Purchase {invoice_number}"
+            )
+
+            # ── Persist ledgerextend reporting rows (base accounts only) ──
+            # Only store extended accounts for:
+            #   - Purchases: 6011.<suffix> (expense) and 6019.<suffix> (discount)
+            try:
+                connection.insertingtodatabase(
+                    "DELETE FROM ledgerextend WHERE purchase_id = ? AND invoice_number = ?",
+                    (int(purchase_id), str(invoice_number))
+                )
+            except Exception:
+                pass
+
+            # Aggregate per (invoice_number, ledger_root, extended_account_number)
+            ledger_rows = {}
+            for l in jv_lines:
+                acc = str(l.get('account') or '').strip()
+                if not acc:
+                    continue
+                if '.' not in acc:
+                    continue
+                base = acc.split('.')[0]
+                if base not in ('6011', '6019'):
+                    continue
+
+                suffix = acc.split('.')[-1]
+                key = (str(invoice_number), base, acc)
+                prev = ledger_rows.get(key) or {'debit': 0.0, 'credit': 0.0}
+                prev['debit'] += float(l.get('debit', 0) or 0)
+                prev['credit'] += float(l.get('credit', 0) or 0)
+                ledger_rows[key] = prev
+
+            for (inv_no, base, extended_acc), amounts in ledger_rows.items():
+                connection.insertingtodatabase(
+                    """
+                    INSERT INTO ledgerextend
+                    (ledger_root, extended_ledger_account, invoice_number, purchase_id, sale_id, suffix, extended_account_number, created_at, debit, credit)
+                    VALUES (?, ?, ?, ?, NULL, ?, ?, GETDATE(), ?, ?)
+                    """,
+                    (
+                        base,
+                        base,
+                        str(inv_no),
+                        int(purchase_id),
+                        str(amounts['debit']),
+                        str(amounts['credit']),
+                        # suffix / extended_account_number
+                        str(extended_acc.split('.')[-1]),
+                        str(extended_acc),
+                    )
+                )
+
+            # ── Persist auxiliary linkage (for /auxiliary & auditing) ──
+            # Keep link table in sync on create/update.
+            # (Schema: purchase_invoice_account_links)
+            try:
+                connection.insertingtodatabase(
+                    "DELETE FROM purchase_invoice_account_links WHERE purchase_invoice_number = ?",
+                    (str(invoice_number),)
+                )
+            except Exception as e:
+                print(f"[purchase link] DELETE failed for purchase_invoice_number={invoice_number}: {e}")
+
+            try:
+                connection.insertingtodatabase(
+                    """
+                    INSERT INTO purchase_invoice_account_links
+                    (purchase_invoice_number, purchase_id, expense_aux_number, discount_aux_number, vat_aux_number)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(invoice_number),
+                        int(purchase_id),
+                        expense_aux_number,
+                        discount_aux_number,
+                        vat_account
+                    )
+                )
+            except Exception as e:
+                print(f"[purchase link] INSERT failed for purchase_invoice_number={invoice_number}: {e}")
+
+            # ── Purchase Payment JV (cash only) ─────────────────────────
+            if payment_method and payment_method.lower() != 'on account':
+                caisse_account = business_track_settings.get_payment_account(payment_method)
+                accounting_helpers.ensure_caisse_auxiliary(caisse_account)
+
+                payment_jv = [
+                    {'account': supplier_account, 'debit': normalized_total, 'credit': 0},
+                    {'account': caisse_account,    'debit': 0,                'credit': normalized_total},
+                ]
+                accounting_helpers.save_accounting_transaction(
+                    'Purchase Payment', purchase_id, payment_jv,
+                    description=f"{payment_method} Payment for Purchase {invoice_number}"
+                )
+
+        except Exception as e:
+            print(f"Error recording purchase accounting for ID {purchase_id}: {e}")

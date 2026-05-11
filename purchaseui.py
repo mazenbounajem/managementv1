@@ -36,6 +36,7 @@ class PurchaseUI:
         # Fallback: Admin role (usually ID 1 or name 'Admin') gets hide-history by default
         is_admin = user.get('role_name') == 'Admin' or user.get('role_id') == 1
         self.can_hide_history = self.permissions.get('hide-history', False) or is_admin
+        self.can_view_profit_analytics = self.permissions.get('profit-analytics', False) or is_admin
         allowed_pages = {page for page, can_access in self.permissions.items() if can_access}
 
         if show_navigation:
@@ -583,6 +584,13 @@ class PurchaseUI:
                     return
 
                 supplier_id = self.service.get_supplier_id(supplier_name)
+                # Ensure supplier auxiliary exists for accounting linkage
+                import accounting_helpers
+                accounting_helpers.ensure_supplier_auxiliary(
+                    supplier_id,
+                    supplier_name=supplier_name,
+                    fallback_account_number='4011'
+                )
                 selected_currency_id = self.currency_select.value
                 
                 payment_method = self.payment_method.value
@@ -650,6 +658,8 @@ class PurchaseUI:
     def show_profit_dialog(self):
         """Show margin analysis (profit based on retail price)"""
         try:
+            if not self.can_view_profit_analytics:
+                return ui.notify('Access denied: profit analytics', color='negative')
             total_cost = sum(row['subtotal'] for row in self.rows)
             total_retail = sum(row['quantity'] * row['price'] for row in self.rows)
             profit = total_retail - total_cost
@@ -775,6 +785,7 @@ class PurchaseUI:
     def create_ui(self):
         # Fetch session metadata for footer
         user = session_storage.get('user', {})
+        is_employee = user.get('role_name') == 'Employee'
         company_info = connection.get_company_info()
         company_name = company_info.get('company_name', '') if company_info else ''
 
@@ -932,7 +943,8 @@ class PurchaseUI:
                                         ui.icon('analytics', size='1.2rem').classes('text-purple-400')
                                         with ui.column().classes('gap-0'):
                                             ui.label('Procurement Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest')
-                                            ui.button('MARGIN', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
+                                            if self.can_view_profit_analytics:
+                                                ui.button('MARGIN', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
                                     
                                     with ui.row().classes('items-center gap-4 bg-white/5 py-1 px-4 rounded-xl border border-white/10'):
                                         with ui.column().classes('items-center gap-0'):

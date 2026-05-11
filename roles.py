@@ -7,6 +7,7 @@ from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
 from modern_design_system import ModernDesignSystem as MDS
 
+
 def roles_content(standalone=False):
     """Content method for roles that can be used in tabs"""
     if standalone:
@@ -15,9 +16,11 @@ def roles_content(standalone=False):
     else:
         RolesUI(standalone=False)
 
+
 @ui.page('/roles')
 def roles_page_route():
     roles_content(standalone=True)
+
 
 class RolesUI:
     def __init__(self, standalone=True):
@@ -32,7 +35,10 @@ class RolesUI:
             'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'timespend',
             'stockoperations', 'cash-drawer', 'currencies', 'services', 'appointments',
             'ledger', 'auxiliary', 'journal_voucher', 'voucher_subtype', 'company',
-            'sales-returns', 'purchase-returns', 'hide-history'
+            'sales-returns', 'purchase-returns', 'hide-history',
+            'business-track', 'accounting-transactions',
+            'profit-analytics',
+            'dashboard-kpis'
         ]
         self.create_ui()
 
@@ -87,12 +93,21 @@ class RolesUI:
             # Save Permissions
             for page in self.available_pages:
                 can_access = 1 if self.input_refs[f'perm_{page}'].value else 0
-                perm_exists = connection.getrow("SELECT id FROM role_permissions WHERE role_id=? AND page_name=?", (role_id, page))
-                
+                perm_exists = connection.getrow(
+                    "SELECT id FROM role_permissions WHERE role_id=? AND page_name=?",
+                    (role_id, page)
+                )
+
                 if perm_exists:
-                    connection.insertingtodatabase("UPDATE role_permissions SET can_access=?, updated_at=GETDATE() WHERE role_id=? AND page_name=?", (can_access, role_id, page))
+                    connection.insertingtodatabase(
+                        "UPDATE role_permissions SET can_access=?, updated_at=GETDATE() WHERE role_id=? AND page_name=?",
+                        (can_access, role_id, page)
+                    )
                 else:
-                    connection.insertingtodatabase("INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)", (role_id, page, can_access))
+                    connection.insertingtodatabase(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (role_id, page, can_access)
+                    )
 
             ui.notify('Role and Permissions saved', color='positive')
             if self.table:
@@ -106,13 +121,13 @@ class RolesUI:
         if not id_val:
             ui.notify('Select a role to delete', color='warning')
             return
-        
+
         # Check if role is assigned to any users
         users_count = connection.getrow("SELECT COUNT(*) FROM users WHERE role_id=?", (id_val,))
         if users_count and users_count[0] > 0:
             ui.notify('Cannot delete: Role is assigned to users', color='warning')
             return
-        
+
         try:
             connection.deleterow("DELETE FROM role_permissions WHERE role_id=?", id_val)
             connection.deleterow("DELETE FROM roles WHERE id=?", id_val)
@@ -130,7 +145,6 @@ class RolesUI:
                 rows.append({'id': r[0], 'name': r[1], 'description': r[2]})
             self.table.options['rowData'] = rows
             self.table.update()
-            # Load last entry into form and undim
             self._load_last_row()
         except Exception as e:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
@@ -141,9 +155,12 @@ class RolesUI:
             for p in self.available_pages:
                 if f'perm_{p}' in self.input_refs:
                     self.input_refs[f'perm_{p}'].value = False
-            
+
             perms = []
-            connection.contogetrows(f"SELECT page_name, can_access FROM role_permissions WHERE role_id={role_id}", perms)
+            connection.contogetrows(
+                f"SELECT page_name, can_access FROM role_permissions WHERE role_id={role_id}",
+                perms
+            )
             for p_name, can_acc in perms:
                 if f'perm_{p_name}' in self.input_refs:
                     self.input_refs[f'perm_{p_name}'].value = bool(can_acc)
@@ -155,13 +172,14 @@ class RolesUI:
         if self.standalone:
             layout_container = ModernPageLayout("Roles & Permissions", standalone=True)
             layout_container.__enter__()
-        
+
         try:
             with ui.row().classes('w-full gap-6 items-start'):
                 # Left Column: Role List
                 with ui.column().classes('w-1/3 gap-4'):
                     with ModernCard(glass=True).classes('w-full p-6'):
-                        ui.label('Roles Directory').classes('text-lg font-black mb-4 text-white uppercase tracking-widest opacity-70')
+                        ui.label('Roles Directory')\
+                            .classes('text-lg font-black mb-4 text-white uppercase tracking-widest opacity-70')
                         self.table = ui.aggrid({
                             'columnDefs': [
                                 {'headerName': 'ID', 'field': 'id', 'width': 70},
@@ -171,7 +189,7 @@ class RolesUI:
                             'defaultColDef': MDS.get_ag_grid_default_def(),
                             'rowSelection': 'single',
                         }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
-                        
+
                         def on_row_click(e):
                             selected = e.args.get('data', {})
                             if selected:
@@ -181,6 +199,7 @@ class RolesUI:
                                 self.load_permissions(selected['id'])
                                 if self.table:
                                     self.table.classes(remove='dimmed')
+
                         self.table.on('cellClicked', on_row_click)
 
                 # Center Column: Details & Permissions
@@ -190,9 +209,12 @@ class RolesUI:
                         with ModernCard(glass=True).classes('flex-1 p-6'):
                             ui.label('Role Definition').classes('text-xl font-black mb-6 text-white')
                             with ui.column().classes('w-full gap-4'):
-                                self.input_refs['name'] = ui.input('Role Name').classes('w-full glass-input').props('dark rounded outlined dense')
-                                self.input_refs['description'] = ui.textarea('Official Description').classes('w-full glass-input').props('dark rounded outlined h-32')
-                                self.input_refs['id'] = ui.input('Reference ID').classes('w-48 glass-input opacity-50').props('dark rounded outlined readonly dense')
+                                self.input_refs['name'] = ui.input('Role Name')\
+                                    .classes('w-full glass-input').props('dark rounded outlined dense')
+                                self.input_refs['description'] = ui.textarea('Official Description')\
+                                    .classes('w-full glass-input').props('dark rounded outlined h-32')
+                                self.input_refs['id'] = ui.input('Reference ID')\
+                                    .classes('w-48 glass-input opacity-50').props('dark rounded outlined readonly dense')
 
                         # Permissions Card
                         with ModernCard(glass=True).classes('w-[500px] p-6'):

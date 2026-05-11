@@ -24,7 +24,7 @@ class DatabaseManager:
     CONNECTION_CONFIG = {
         "driver": "SQL Server Native Client 11.0",
         "server": "DESKTOP-Q7U1STD\\SQLEXPRESS02",
-        "database": "POSDB",
+        "database": "POSDb1Test",
         "trusted_connection": "yes"
     }
 

@@ -53,7 +53,8 @@ def customer_page(standalone=False):
         sql = """SELECT id, customer_name, email, phone, address, city, balance, is_active, 
                  CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo,
                  instagram, facebook, twitter, tiktok,
-                 COALESCE((SELECT SUM(ISNULL(s.total_amount, 0)) FROM sales s WHERE s.customer_id = c.id AND s.payment_status = 'pending'), 0) as pending_sales
+                 COALESCE((SELECT SUM(ISNULL(s.total_amount, 0)) FROM sales s WHERE s.customer_id = c.id AND s.payment_status = 'pending'), 0) as pending_sales,
+                 is_default
                  FROM customers c ORDER BY id DESC"""
         connection.contogetrows(sql, data)
         rows = []
@@ -62,7 +63,8 @@ def customer_page(standalone=False):
             rows.append({
                 'id': r[0], 'customer_name': r[1], 'email': r[2], 'phone': r[3], 'address': r[4], 
                 'city': r[5], 'balance': r[6], 'is_active': r[7], 'has_photo': bool(r[8]),
-                'instagram': r[9], 'facebook': r[10], 'twitter': r[11], 'tiktok': r[12], 'pending_sales': to_float(r[13])
+                'instagram': r[9], 'facebook': r[10], 'twitter': r[11], 'tiktok': r[12], 
+                'pending_sales': to_float(r[13]), 'is_default': bool(r[14])
             })
         table.options['rowData'] = rows
         table.update()
@@ -71,6 +73,7 @@ def customer_page(standalone=False):
     def clear_inputs():
         for k, ref in input_refs.items():
             if k == 'is_active': ref.set_value(True)
+            elif k == 'is_default': ref.set_value(False)
             elif k == 'balance': ref.set_value(0)
             elif k == 'uploader': continue
             else: ref.set_value('')
@@ -90,7 +93,7 @@ def customer_page(standalone=False):
         row = table.options['rowData'][0]
         cid = row['id']
         input_refs['id'].set_value(str(cid))
-        for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok']:
+        for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok', 'is_default']:
             if k in row: input_refs[k].set_value(row[k])
         
         # Fetch photo on-demand
@@ -115,18 +118,26 @@ def customer_page(standalone=False):
                 return ui.notify('Customer name required', color='negative')
 
             if c_data['id']:
+                # If setting this customer as default, uncheck others
+                if bool(c_data['is_default']):
+                    connection.insertingtodatabase("UPDATE customers SET is_default = 0")
+                
                 dup_chk = []
                 connection.contogetrows("SELECT COUNT(*) FROM customers WHERE customer_name=? AND id!=?", dup_chk, params=[c_data['customer_name'], c_data['id']])
                 if dup_chk and dup_chk[0][0] > 0:
                     return ui.notify('A customer with this name already exists', color='negative')
                     
                 sql = """UPDATE customers SET customer_name=?, email=?, phone=?, address=?, 
-                         city=?, balance=?, is_active=?, photo=?, instagram=?, facebook=?, twitter=?, tiktok=? WHERE id=?"""
+                         city=?, balance=?, is_active=?, photo=?, instagram=?, facebook=?, twitter=?, tiktok=?, is_default=? WHERE id=?"""
                 params = (c_data['customer_name'], c_data['email'], c_data['phone'], c_data['address'],
                           c_data['city'], float(c_data['balance'] or 0), bool(c_data['is_active']), 
                           c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'],
-                          c_data['id'])
+                          bool(c_data['is_default']), c_data['id'])
             else:
+                # If setting this customer as default, uncheck others
+                if bool(c_data['is_default']):
+                    connection.insertingtodatabase("UPDATE customers SET is_default = 0")
+                
                 dup_chk = []
                 connection.contogetrows("SELECT COUNT(*) FROM customers WHERE customer_name=?", dup_chk, params=[c_data['customer_name']])
                 if dup_chk and dup_chk[0][0] > 0:
@@ -137,11 +148,12 @@ def customer_page(standalone=False):
                 accounting_helpers.register_auxiliary(aux_number, c_data['customer_name'])
                 
                 sql = """INSERT INTO customers (customer_name, email, phone, address, city, balance, 
-                         created_at, is_active, photo, instagram, facebook, twitter, tiktok, auxiliary_number) 
-                         VALUES (?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?, ?, ?)"""
+                         created_at, is_active, photo, instagram, facebook, twitter, tiktok, auxiliary_number, is_default) 
+                         VALUES (?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?, ?, ?, ?)"""
                 params = (c_data['customer_name'], c_data['email'], c_data['phone'], c_data['address'],
                           c_data['city'], float(c_data['balance'] or 0), bool(c_data['is_active']),
-                          c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'], aux_number)
+                          c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'], 
+                          aux_number, bool(c_data['is_default']))
 
             connection.insertingtodatabase(sql, params)
             
@@ -201,7 +213,9 @@ def customer_page(standalone=False):
                         input_refs['address'] = ui.input('Address').props('outlined dense').classes('w-full')
                         input_refs['city'] = ui.input('City').props('outlined dense').classes('w-full mt-2')
                         input_refs['balance'] = ui.number('Account Balance').props('outlined dense').classes('w-full mt-2')
-                        input_refs['is_active'] = ui.checkbox('Active', value=True).classes('mt-2')
+                        with ui.row().classes('w-full items-center gap-4 mt-2'):
+                            input_refs['is_active'] = ui.checkbox('Active', value=True)
+                            input_refs['is_default'] = ui.checkbox('Default Sales Customer', value=False)
 
                 # List
                 with ui.column().classes('flex-1'):
@@ -219,7 +233,8 @@ def customer_page(standalone=False):
                             {'headerName': 'Phone', 'field': 'phone', 'width': 130},
                             {'headerName': 'Pending Sales', 'field': 'pending_sales', 'width': 130, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
                             {'headerName': 'Account Balance', 'field': 'balance', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
-                            {'headerName': 'Status', 'field': 'is_active', 'cellRenderer': 'agCheckboxRenderer'}
+                            {'headerName': 'Default', 'field': 'is_default', 'width': 90, 'cellRenderer': 'agCheckboxRenderer'},
+                            {'headerName': 'Status', 'field': 'is_active', 'width': 90, 'cellRenderer': 'agCheckboxRenderer'}
                         ]
                         
                         # Custom renderer script for images in ag-grid if base64
@@ -257,7 +272,7 @@ def customer_page(standalone=False):
                                 
                                 # Update inputs immediately
                                 input_refs['id'].set_value(str(cid))
-                                for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok']:
+                                for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok', 'is_default']:
                                     if k in row: input_refs[k].set_value(row[k])
                                 
                                 # Fetch high-res photo on-demand from database

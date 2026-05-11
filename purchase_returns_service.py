@@ -133,6 +133,25 @@ class PurchaseReturnService:
         if invoice_number:
             self.repository.delete_supplier_payment_by_invoice(invoice_number)
 
+        # Clean up accounting JVs (Purchase + Purchase Payment) by reference_type/reference_id
+        from connection import connection
+        for reference_type in ('Purchase', 'Purchase Payment'):
+            jvs = []
+            connection.contogetrows(
+                "SELECT jv_id FROM accounting_transactions WHERE reference_type = ? AND reference_id = ?",
+                jvs,
+                (reference_type, str(purchase_id))
+            )
+            for jv in jvs:
+                connection.deleterow(
+                    "DELETE FROM accounting_transaction_lines WHERE jv_id = ?",
+                    (jv[0],)
+                )
+                connection.deleterow(
+                    "DELETE FROM accounting_transactions WHERE jv_id = ?",
+                    (jv[0],)
+                )
+
         # Delete purchase items and purchase header
         self.repository.delete_purchase_items(purchase_id)
         self.repository.delete_purchase(purchase_id)

@@ -28,9 +28,14 @@ class SalesUI:
 
         # Get user permissions
         self.permissions = connection.get_user_permissions(user['role_id'])
+        self.is_employee = user.get('role_name') == 'Employee'
         # Fallback: Admin role (usually ID 1 or name 'Admin') gets hide-history by default
         is_admin = user.get('role_name') == 'Admin' or user.get('role_id') == 1
         self.can_hide_history = self.permissions.get('hide-history', False) or is_admin
+
+        # Profit analytics permission gating
+        self.can_view_profit_analytics = self.permissions.get('profit-analytics', False) or is_admin
+
         allowed_pages = {page for page, can_access in self.permissions.items() if can_access}
 
         if show_navigation:
@@ -73,6 +78,7 @@ class SalesUI:
 
         # Initialize UI
         self.create_ui()
+        self.load_default_customer()
 
     def load_currencies(self):
         try:
@@ -223,8 +229,7 @@ class SalesUI:
     def clear_inputs(self):
         self.sales_aggrid.classes('dimmed')
         #ui.run_javascript(f'document.getElementById({self.sales_aggrid.id}).disabled = true;')
-        self.customer_input.value = 'Cash Client'
-        self.phone_input.value = ''
+        self.load_default_customer()
         self.barcode_input.value = ''
         self.product_input.value = ''
         self.quantity_input.value = 1
@@ -383,6 +388,8 @@ class SalesUI:
     def show_profit_dialog(self):
         """Calculate and display profit in a dialog dynamically based on current cart items."""
         try:
+            if not self.can_view_profit_analytics:
+                return ui.notify('Access denied: profit analytics', color='negative')
             if not self.rows:
                 ui.notify('No items in cart to calculate profit')
                 return
@@ -1145,19 +1152,103 @@ class SalesUI:
 
                     # Determine revenue account based on VAT status
                     has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
-                    revenue_account = business_track_settings.get_sales_account(has_vat)
+                    revenue_account_base = business_track_settings.get_sales_account(has_vat)
+                    revenue_base_ledger = str(revenue_account_base).split('.')[0] if revenue_account_base else '7010'
+
+                    # Derive a stable base account per sale invoice.
+                    # This ensures we use full auxiliaries like 7010 and 7090.
+                    revenue_aux_number = str(revenue_base_ledger)
+                    discount_aux_number = "7090" if normalized_discount > 0 else None
 
                     # Always debit customer and credit sales/VAT for the invoice
                     jv = [
-                        {'account': customer_account, 'debit': normalized_total, 'credit': 0},
-                        {'account': revenue_account,  'debit': 0, 'credit': normalized_subtotal},
-                        {'account': vat_account,      'debit': 0, 'credit': normalized_total_vat},
+                        {'account': customer_account,     'debit': normalized_total, 'credit': 0},
+                        {'account': revenue_aux_number,  'debit': 0,                 'credit': normalized_subtotal},
+                        {'account': vat_account,         'debit': 0,                 'credit': normalized_total_vat},
                     ]
 
-                    accounting_helpers.save_accounting_transaction(
+                    # Add discount as separate credit line when present, using 7090.<suffix>
+                    if discount_aux_number:
+                        jv.append({'account': discount_aux_number, 'debit': 0, 'credit': normalized_discount})
+
+                    sale_jv_id = accounting_helpers.save_accounting_transaction(
                         'Sale', self.current_sale_id, jv, description=f"Sale {self.invoicenumber}"
                     )
-                    
+
+                    # ── Persist ledgerextend reporting rows (base accounts only) ──
+                    # Only store base extended accounts:
+                    #   - Sales revenue: 7011.<suffix>
+                    #   - Sales discount: 7090.<suffix>
+                    try:
+                        connection.insertingtodatabase(
+                            "DELETE FROM ledgerextend WHERE sale_id = ? AND invoice_number = ?",
+                            (int(self.current_sale_id), str(self.invoicenumber))
+                        )
+                    except Exception:
+                        pass
+
+                    ledger_rows = {}
+                    for l in jv:
+                        acc = str(l.get('account') or '').strip()
+                        if not acc or '.' not in acc:
+                            continue
+                        base = acc.split('.')[0]
+                        if base not in ('7011', '7090'):
+                            continue
+                        suffix = acc.split('.')[-1]
+                        key = (str(self.invoicenumber), base, acc)
+                        prev = ledger_rows.get(key) or {'debit': 0.0, 'credit': 0.0}
+                        prev['debit'] += float(l.get('debit', 0) or 0)
+                        prev['credit'] += float(l.get('credit', 0) or 0)
+                        ledger_rows[key] = prev
+
+                    for (inv_no, base, extended_acc), amounts in ledger_rows.items():
+                        connection.insertingtodatabase(
+                            """
+                            INSERT INTO ledgerextend
+                            (ledger_root, extended_ledger_account, invoice_number, purchase_id, sale_id, suffix, extended_account_number, created_at, debit, credit)
+                            VALUES (?, ?, ?, NULL, ?, ?, ?, GETDATE(), ?, ?)
+                            """,
+                            (
+                                base,                         # ledger_root
+                                base,                         # extended_ledger_account
+                                str(inv_no),                 # invoice_number
+                                int(self.current_sale_id),    # sale_id
+                                str(extended_acc.split('.')[-1]),  # suffix
+                                str(extended_acc),           # extended_account_number
+                                float(amounts['debit']),
+                                float(amounts['credit']),
+                            )
+                        )
+
+                    # ── Persist auxiliary linkage (for /auxiliary & auditing) ──
+                    # Schema: sales_invoice_account_links
+                    try:
+                        connection.insertingtodatabase(
+                            "DELETE FROM sales_invoice_account_links WHERE sales_invoice_number = ?",
+                            (str(self.invoicenumber),)
+                        )
+                    except Exception:
+                        pass
+
+                    try:
+                        connection.insertingtodatabase(
+                            """
+                            INSERT INTO sales_invoice_account_links
+                            (sales_invoice_number, sale_id, revenue_aux_number, discount_aux_number, vat_aux_number)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (
+                                str(self.invoicenumber),
+                                int(self.current_sale_id),
+                                revenue_aux_number,
+                                discount_aux_number,
+                                vat_account
+                            )
+                        )
+                    except Exception:
+                        pass
+
                     if payment_method != 'On Account':
                         import business_track_settings
                         payment_aux = business_track_settings.get_payment_account(payment_method)
@@ -1272,22 +1363,62 @@ class SalesUI:
 
                     # Determine revenue account based on VAT status
                     has_vat = any(row.get('vat_percentage', 0) > 0 for row in self.rows)
-                    revenue_account = business_track_settings.get_sales_account(has_vat)
+                    revenue_account_base = business_track_settings.get_sales_account(has_vat)
+                    revenue_base_ledger = str(revenue_account_base).split('.')[0] if revenue_account_base else '7010'
+
+                    # Derive a stable base account per sale invoice.
+                    # This ensures we use full auxiliaries like 7010 and 7090.
+                    revenue_aux_number = str(revenue_base_ledger)
+                    discount_aux_number = "7090" if normalized_discount > 0 else None
 
                     # Always debit customer and credit sales/VAT for the invoice
                     jv = [
-                        {'account': customer_account, 'debit': normalized_total, 'credit': 0},
-                        {'account': revenue_account,  'debit': 0, 'credit': normalized_subtotal},
-                        {'account': vat_account,      'debit': 0, 'credit': normalized_total_vat},
+                        {'account': customer_account,     'debit': normalized_total, 'credit': 0},
+                        {'account': revenue_aux_number,  'debit': 0,                 'credit': normalized_subtotal},
+                        {'account': vat_account,         'debit': 0,                 'credit': normalized_total_vat},
                     ]
+
+                    # Add discount as separate credit line when present, using 7090.<suffix>
+                    if discount_aux_number:
+                        jv.append({'account': discount_aux_number, 'debit': 0, 'credit': normalized_discount})
 
                     accounting_helpers.save_accounting_transaction(
                         'Sale', last_sale_id, jv, description=f"Sale {invoice_number}"
                     )
-                    
+
+                    # ── Persist auxiliary linkage (for /auxiliary & auditing) ──
+                    # Schema: sales_invoice_account_links
+                    try:
+                        connection.insertingtodatabase(
+                            "DELETE FROM sales_invoice_account_links WHERE sales_invoice_number = ?",
+                            (str(invoice_number),)
+                        )
+                    except Exception:
+                        pass
+
+                    try:
+                        connection.insertingtodatabase(
+                            """
+                            INSERT INTO sales_invoice_account_links
+                            (sales_invoice_number, sale_id, revenue_aux_number, discount_aux_number, vat_aux_number)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (
+                                str(invoice_number),
+                                int(last_sale_id),
+                                revenue_aux_number,
+                                discount_aux_number,
+                                vat_account
+                            )
+                        )
+                    except Exception:
+                        pass
+
                     if payment_method == 'Cash':
+                        caisse_account = business_track_settings.get_payment_account(payment_method)
+                        accounting_helpers.ensure_caisse_auxiliary(caisse_account)
                         payment_jv = [
-                            {'account': '5300.000001',    'debit': normalized_total, 'credit': 0},
+                            {'account': caisse_account,    'debit': normalized_total, 'credit': 0},
                             {'account': customer_account, 'debit': 0, 'credit': normalized_total},
                         ]
                         accounting_helpers.save_accounting_transaction(
@@ -1444,8 +1575,6 @@ class SalesUI:
                                             ],
                                             'rowData': [],
                                             'rowSelection': 'single',
-                                            'pagination': True,
-                                            'paginationPageSize': 15,
                                             'domLayout': 'normal',
                                         }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 100%;')
                                 
@@ -1532,8 +1661,6 @@ class SalesUI:
                                             'rowData': self.rows,
                                             'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
                                             'rowSelection': 'single',
-                                            'pagination': True,
-                                            'paginationPageSize': 10,
                                             'domLayout': 'normal',
                                         }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; flex-grow: 1;')
                                         self.aggrid.on('cellClicked', self.handle_aggrid_click_wrapper)
@@ -1566,7 +1693,8 @@ class SalesUI:
                                         ui.icon('analytics', size='1.2rem').classes('text-purple-400')
                                         with ui.column().classes('gap-0'):
                                             ui.label('Inventory Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest')
-                                            ui.button('PROFIT', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
+                                            if self.can_view_profit_analytics:
+                                                ui.button('PROFIT', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
                                     
                                     with ui.row().classes('items-center gap-4 bg-white/5 py-1 px-4 rounded-xl border border-white/10'):
                                         with ui.column().classes('items-center gap-0'):
@@ -1725,6 +1853,21 @@ class SalesUI:
             return ui.notify('Select a sale to view its connected transaction', color='warning')
         import accounting_helpers
         accounting_helpers.show_transactions_dialog(reference_type="Sale", reference_id=sale_id)
+
+    def load_default_customer(self):
+        try:
+            res = []
+            connection.contogetrows("SELECT customer_name, phone FROM customers WHERE is_default = 1", res)
+            if res:
+                self.customer_input.value = res[0][0]
+                self.phone_input.value = res[0][1]
+            else:
+                self.customer_input.value = 'Cash Client'
+                self.phone_input.value = ''
+        except Exception as e:
+            print(f"Error loading default customer: {e}")
+            self.customer_input.value = 'Cash Client'
+            self.phone_input.value = ''
 
 @ui.page('/sales')
 def sales_page_route():

@@ -26,10 +26,18 @@ def get_next_auxiliary(account_base):
 
 
 def register_auxiliary(auxiliary_number, account_name):
-    """Registers the generated auxiliary in the database"""
+    """Registers the generated auxiliary in the database."""
     try:
-        sql = "INSERT INTO auxiliary (account_name, number, update_date, status) VALUES (?, ?, GETDATE(), 1)"
-        connection.insertingtodatabase(sql, (account_name, auxiliary_number))
+        base_ledger = str(auxiliary_number).split('.')[0] if '.' in str(auxiliary_number) else str(auxiliary_number)
+
+        # UI `auxiliaryui.py` joins using:
+        #   LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+        # So `auxiliary.auxiliary_id` must contain the ledger AccountNumber (e.g. "4111").
+        sql = """
+            INSERT INTO auxiliary (auxiliary_id, account_name, number, update_date, status)
+            VALUES (?, ?, ?, GETDATE(), 1)
+        """
+        connection.insertingtodatabase(sql, (base_ledger, account_name, auxiliary_number))
         return True
     except Exception as e:
         print(f"Error registering auxiliary {auxiliary_number}: {e}")
@@ -39,10 +47,19 @@ def register_auxiliary(auxiliary_number, account_name):
 def ensure_vat_auxiliary(reference_type, entity_id, entity_name, auxiliary_number):
     """
     Ensures a specific VAT auxiliary account exists for a supplier or customer.
+
     reference_type: 'Supplier' or 'Customer'
     entity_id: ID in the respective table
     entity_name: Name of supplier/customer
-    auxiliary_number: The main auxiliary number (e.g. 4011.000001)
+    auxiliary_number: The main auxiliary number (e.g. 4111.000001 or 4011.000001)
+
+    Behavior:
+    - For customers:
+        - ordinary aux: 4111.<suffix> => "Customer: <name>"
+        - vat aux on sales: 44270.<suffix> => "VAT Customer: <name>"
+    - For suppliers:
+        - ordinary aux: 4011.<suffix> => "Supplier: <name>" (fallback)
+        - vat aux: 44210.<suffix> => "VAT Supplier: <name>"
     """
     try:
         if reference_type == 'Supplier':
@@ -51,10 +68,12 @@ def ensure_vat_auxiliary(reference_type, entity_id, entity_name, auxiliary_numbe
         else:
             base_ledger = '44270'
             account_name_prefix = "VAT Customer"
-            
+
+        # IMPORTANT: always keep the same suffix sequence as the ordinary auxiliary
+        # e.g. auxiliary_number=4111.000001 => vat number=44270.000001
         suffix = str(auxiliary_number).split('.')[-1] if '.' in str(auxiliary_number) else str(auxiliary_number)
         vat_acct = f"{base_ledger}.{suffix}"
-        
+
         # Check if exists
         exists = []
         connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", exists, params=[vat_acct])
@@ -65,16 +84,133 @@ def ensure_vat_auxiliary(reference_type, entity_id, entity_name, auxiliary_numbe
             if not ledger_data:
                 print(f"ERROR: Ledger {base_ledger} not found")
                 return vat_acct
-                
+
             ledger_id = ledger_data[0][0]
+            # UI `auxiliaryui.py` joins using: LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+            # So we must write the ledger AccountNumber into auxiliary.auxiliary_id (not ledger_id).
             connection.insertingtodatabase(
-                "INSERT INTO auxiliary (ledger_id, number, account_name, status) VALUES (?, ?, ?, 1)",
-                (ledger_id, vat_acct, f"{account_name_prefix}: {entity_name}")
+                "INSERT INTO auxiliary (auxiliary_id, number, account_name, status) VALUES (?, ?, ?, 1)",
+                (base_ledger, vat_acct, f"{account_name_prefix}: {entity_name}")
             )
         return vat_acct
     except Exception as e:
         print(f"Error ensuring VAT auxiliary: {e}")
         return f"{base_ledger}.000001" if 'base_ledger' in locals() else "44210.000001"
+
+
+def _try_update_auxiliary_number(table_name, entity_id, auxiliary_number):
+    """
+    Attempts to persist auxiliary_number into the given entity table.
+    If the column doesn't exist in DB schema yet, silently ignore.
+    """
+    try:
+        connection.insertingtodatabase(
+            f"UPDATE {table_name} SET auxiliary_number = ? WHERE id = ?",
+            (auxiliary_number, entity_id)
+        )
+        return True
+    except Exception:
+        return False
+
+
+def ensure_customer_auxiliary(customer_id, customer_name=None, fallback_account_number='4111'):
+    """
+    Ensures customers.auxiliary_number exists and that the auxiliary row exists.
+    Returns auxiliary_number string like '4111.000001'.
+    """
+    try:
+        res = []
+        connection.contogetrows(
+            "SELECT auxiliary_number, customer_name FROM customers WHERE id = ?",
+            res, params=[customer_id]
+        )
+        existing_aux = res[0][0] if res and res[0] else None
+        name = customer_name or (res[0][1] if res and res[0] and res[0][1] else None) or f"Customer {customer_id}"
+
+        if existing_aux and str(existing_aux).strip():
+            return str(existing_aux).strip()
+
+        new_aux = get_next_auxiliary(fallback_account_number)
+
+        # Ensure auxiliary exists in auxiliary table
+        exists = []
+        connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", exists, params=[new_aux])
+        if not exists:
+            # Find ledger
+            ledger_data = []
+            connection.contogetrows(
+                "SELECT Id FROM Ledger WHERE AccountNumber = ?",
+                ledger_data, params=[fallback_account_number]
+            )
+            if ledger_data and ledger_data[0][0]:
+                ledger_id = ledger_data[0][0]
+                # UI `auxiliaryui.py` joins using: LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+                # So we must write the ledger AccountNumber into auxiliary.auxiliary_id (not ledger_id).
+                connection.insertingtodatabase(
+                    "INSERT INTO auxiliary (auxiliary_id, number, account_name, status) VALUES (?, ?, ?, 1)",
+                    (fallback_account_number, new_aux, f"Customer: {name}")
+                )
+            else:
+                # If ledger not found, still return the computed aux; accounting may fail later
+                return new_aux
+
+        _try_update_auxiliary_number('customers', customer_id, new_aux)
+        return new_aux
+    except Exception as e:
+        print(f"Error ensuring customer auxiliary: {e}")
+        return get_next_auxiliary(fallback_account_number)
+
+
+def ensure_supplier_auxiliary(supplier_id, supplier_name=None, fallback_account_number='4011'):
+    """
+    Ensures suppliers.auxiliary_number exists and that the auxiliary row exists.
+    Returns auxiliary_number string like '4011.000001'.
+
+    Notes:
+    - `/auxiliary` UI joins using: LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+      So we must insert base ledger AccountNumber into auxiliary.auxiliary_id (not ledger_id).
+    """
+    try:
+        res = []
+        connection.contogetrows(
+            "SELECT auxiliary_number, name FROM suppliers WHERE id = ?",
+            res, params=[supplier_id]
+        )
+        existing_aux = res[0][0] if res and res[0] else None
+        name = supplier_name or (res[0][1] if res and res[0] and res[0][1] else None) or f"Supplier {supplier_id}"
+
+        # If supplier already has auxiliary_number, keep it and do not create new auxiliaries.
+        if existing_aux and str(existing_aux).strip():
+            return str(existing_aux).strip()
+
+        new_aux = get_next_auxiliary(fallback_account_number)
+
+        # Only create the auxiliary row if it's missing.
+        exists = []
+        connection.contogetrows(
+            "SELECT id FROM auxiliary WHERE number = ?",
+            exists, params=[new_aux]
+        )
+        if not exists:
+            # Ensure ledger exists (for referential integrity / mapping correctness)
+            ledger_data = []
+            connection.contogetrows(
+                "SELECT Id FROM Ledger WHERE AccountNumber = ?",
+                ledger_data, params=[fallback_account_number]
+            )
+            if not ledger_data:
+                return new_aux
+
+            connection.insertingtodatabase(
+                "INSERT INTO auxiliary (auxiliary_id, number, account_name, status) VALUES (?, ?, ?, 1)",
+                (fallback_account_number, new_aux, f"Supplier: {name}")
+            )
+
+        _try_update_auxiliary_number('suppliers', supplier_id, new_aux)
+        return new_aux
+    except Exception as e:
+        print(f"Error ensuring supplier auxiliary: {e}")
+        return get_next_auxiliary(fallback_account_number)
 
 
 def _normalize_lines(lines):
@@ -102,6 +238,43 @@ def _normalize_lines(lines):
         else:
             print(f"Unknown line format, skipping: {line}")
     return normalized
+
+
+def _resolve_auxiliary_id(auxiliary_number_or_id):
+    """
+    Resolve a provided auxiliary number (e.g. '4111.000001') into auxiliary.id (INT).
+
+    If the input is already an int-like value, return it as-is.
+    If not found / not resolvable, return None.
+    """
+    if auxiliary_number_or_id is None:
+        return None
+
+    # If already an int (or int-like string), treat as id
+    if isinstance(auxiliary_number_or_id, int):
+        return auxiliary_number_or_id
+
+    s = str(auxiliary_number_or_id).strip()
+    if not s:
+        return None
+
+    # If looks like an integer id, accept it
+    try:
+        if s.isdigit():
+            return int(s)
+    except Exception:
+        pass
+
+    # Otherwise assume it's an auxiliary "number" like '4111.000001'
+    try:
+        res = []
+        connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", res, params=[s])
+        if res and res[0][0]:
+            return res[0][0]
+    except Exception:
+        pass
+
+    return None
 
 
 def save_accounting_transaction(reference_type, reference_id, lines, description=None, notes=None):
@@ -160,13 +333,18 @@ def save_accounting_transaction(reference_type, reference_id, lines, description
             INSERT INTO accounting_transaction_lines (jv_id, account_number, auxiliary_id, debit, credit)
             VALUES (?, ?, ?, ?, ?)
             """
-            aux_id    = line.get('account', '')
-            base_acct = aux_id.split('.')[0] if '.' in str(aux_id) else str(aux_id)
+            aux_ref  = line.get('account', '')
+            aux_ref_str = '' if aux_ref is None else str(aux_ref).strip()
+
+            base_acct = aux_ref_str.split('.')[0] if '.' in aux_ref_str else aux_ref_str
+
+            # Convert auxiliary number -> auxiliary.id (INT) if possible
+            resolved_aux_id = _resolve_auxiliary_id(aux_ref_str)
 
             connection.insertingtodatabase(line_sql, (
                 jv_id,
                 base_acct,
-                aux_id,
+                resolved_aux_id,
                 float(line.get('debit',  0)),
                 float(line.get('credit', 0))
             ))
@@ -190,19 +368,88 @@ def show_transactions_dialog(reference_type=None, reference_id=None, account_num
 
         data = []
         sql = """
-        SELECT t.jv_id, t.transaction_date, t.reference_type, t.reference_id,
-               l.account_number, l.auxiliary_id, l.debit, l.credit, t.description
+        SELECT
+               t.jv_id,
+               t.transaction_date,
+               t.reference_type,
+               t.reference_id,
+               l.account_number,
+               l.auxiliary_id,
+               aux.number as auxiliary_number,
+               aux.account_name as auxiliary_name,
+               l.debit,
+               l.credit,
+               t.description
         FROM accounting_transactions t
         INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+        LEFT JOIN auxiliary aux ON l.auxiliary_id = aux.id
         WHERE 1=1
         """
         params = []
         if reference_type and reference_id:
-            sql += " AND t.reference_type = ? AND t.reference_id = ?"
-            params.extend([reference_type, str(reference_id)])
+            # Include linked cash payment JVs so that caisse/treasury lines appear
+            # in the "Sale" / "Purchase" reference view.
+            if reference_type == "Sale":
+                sql += " AND ( (t.reference_type = ? OR t.reference_type = ?) AND t.reference_id = ? )"
+                params.extend(["Sale", "Sale Receipt", str(reference_id)])
+            elif reference_type == "Purchase":
+                sql += " AND ( (t.reference_type = ? OR t.reference_type = ?) AND t.reference_id = ? )"
+                params.extend(["Purchase", "Purchase Payment", str(reference_id)])
+            else:
+                sql += " AND t.reference_type = ? AND t.reference_id = ?"
+                params.extend([reference_type, str(reference_id)])
         elif account_number:
-            sql += " AND (l.auxiliary_id = ? OR l.account_number = ?)"
-            params.extend([account_number, account_number])
+            # Filter by either:
+            # - exact auxiliary/ledger account number match
+            # - or prefix match when caller passes base like '5300' (treat as '5300.%')
+            acc_str = str(account_number).strip()
+
+            # If account_number looks like a full auxiliary number (e.g. 5314.000001),
+            # resolve it to auxiliary.id (INT) to safely compare with l.auxiliary_id.
+            resolved_aux_id = _resolve_auxiliary_id(account_number) if '.' in acc_str else None
+
+            if '.' not in acc_str:
+                # Caller likely passed a suffix only (e.g. '000001').
+                # Then match any full account that ends with '.<suffix>'.
+                suffix = acc_str
+                sql += """
+                    AND (
+                        aux.number = ?
+                        OR l.account_number = ?
+                        OR l.account_number LIKE '%.' + ? -- any base.<suffix>
+                    )
+                """
+                params.extend([suffix, suffix, suffix])
+            else:
+                # Full auxiliary number case
+                base = acc_str.split('.')[0]
+                if resolved_aux_id is not None:
+                    # Tight match: for a resolved full auxiliary view, filter strictly by auxiliary_id.
+                    # This guarantees that totals reconcile for the exact auxiliary subset.
+                    sql += """
+                        AND (
+                            l.auxiliary_id = ?
+                        )
+                    """
+                    params.extend([
+                        resolved_aux_id,
+                    ])
+                else:
+                    # Fallback when aux.number can't be resolved to aux.id
+                    sql += """
+                        AND (
+                            aux.number = ?
+                            OR l.account_number = ?
+                            OR aux.number LIKE ? + '.%' -- base like '5300'
+                            OR l.account_number LIKE ? + '.%'
+                        )
+                    """
+                    params.extend([
+                        acc_str,
+                        acc_str,
+                        base,
+                        base,
+                    ])
 
         if from_date:
             sql += " AND CAST(t.transaction_date AS DATE) >= ?"
@@ -221,18 +468,33 @@ def show_transactions_dialog(reference_type=None, reference_id=None, account_num
         running_balance = 0.0
 
         for r in data:
-            debit  = float(r[6] or 0)
-            credit = float(r[7] or 0)
+            debit  = float(r[8] or 0)
+            credit = float(r[9] or 0)
             total_debit  += debit
             total_credit += credit
             running_balance += debit - credit
 
+            # Account display:
+            # - r[6] is aux.number (auxiliary_number) when l.auxiliary_id resolves to a row in auxiliary
+            # - Sometimes aux.number may be stored as only the suffix (e.g. '000001') without the base ledger prefix.
+            #   In that case, fallback to l.account_number to keep it consistent (e.g. '4111.000001').
+            aux_display = r[6]
+            base_account = str(r[4] or '').strip()
+
+            # If auxiliary_number is stored as only a suffix (e.g. '0000001'),
+            # combine it with base account_number to display full aux number (e.g. '4111.000001').
+            if aux_display:
+                aux_display = str(aux_display).strip()
+                if '.' not in aux_display and base_account:
+                    aux_display = f"{base_account}.{aux_display}"
+            account_display = str(aux_display or base_account or '')
+            remark = str(r[10] or '')
             rows.append({
                 'jv_id':   r[0],
                 'date':    str(r[1]).split(' ')[0] if r[1] else '',
                 'ref':     f"{r[2]} #{r[3]}",
-                'account': str(r[5] or r[4] or ''),
-                'remark':  str(r[8] or ''),
+                'account': str(account_display),
+                'remark':  remark,
                 'debit':   f"{debit:,.2f}"  if debit  else '',
                 'credit':  f"{credit:,.2f}" if credit else '',
                 'balance': f"{running_balance:,.2f}",
@@ -287,14 +549,33 @@ def print_account_statement(account_number, from_date=None, to_date=None):
         from io import BytesIO
 
         data = []
-        sql = """
-        SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
-               l.debit, l.credit
-        FROM accounting_transactions t
-        INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
-        WHERE (l.auxiliary_id = ? OR l.account_number = ?)
-        """
-        params = [account_number, account_number]
+
+        # Avoid SQL Server nvarchar->int conversion errors:
+        # l.auxiliary_id is INT, so if caller passes an auxiliary number like '4111.000001'
+        # we should resolve it to auxiliary.id first before binding to auxiliary_id.
+        resolved_aux_id = None
+        if account_number is not None:
+            resolved_aux_id = _resolve_auxiliary_id(account_number)
+
+        # Build statement query safely depending on whether we could resolve aux.id (INT)
+        if resolved_aux_id is not None:
+            sql = """
+            SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
+                   l.debit, l.credit
+            FROM accounting_transactions t
+            INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            WHERE (l.auxiliary_id = ? OR l.account_number = ?)
+            """
+            params = [resolved_aux_id, account_number]
+        else:
+            sql = """
+            SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
+                   l.debit, l.credit
+            FROM accounting_transactions t
+            INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            WHERE (l.account_number = ?)
+            """
+            params = [account_number]
 
         if from_date:
             sql += " AND CAST(t.transaction_date AS DATE) >= ?"
@@ -404,15 +685,31 @@ def export_ledger_csv(account_number=None, from_date=None, to_date=None):
     import csv
     try:
         data = []
-        sql = """
-        SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
-               l.account_number, l.auxiliary_id, l.debit, l.credit,
-               SUM(l.debit - l.credit) OVER (ORDER BY t.jv_id ROWS UNBOUNDED PRECEDING) as Balance
-        FROM accounting_transactions t
-        INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
-        WHERE (l.auxiliary_id = ? OR l.account_number = ?)
-        """
-        params = [account_number, account_number]
+
+        resolved_aux_id = None
+        if account_number is not None:
+            resolved_aux_id = _resolve_auxiliary_id(account_number)
+
+        if resolved_aux_id is not None:
+            sql = """
+            SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
+                   l.account_number, l.auxiliary_id, l.debit, l.credit,
+                   SUM(l.debit - l.credit) OVER (ORDER BY t.jv_id ROWS UNBOUNDED PRECEDING) as Balance
+            FROM accounting_transactions t
+            INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            WHERE (l.auxiliary_id = ? OR l.account_number = ?)
+            """
+            params = [resolved_aux_id, account_number]
+        else:
+            sql = """
+            SELECT t.transaction_date, t.reference_type, t.reference_id, t.description,
+                   l.account_number, l.auxiliary_id, l.debit, l.credit,
+                   SUM(l.debit - l.credit) OVER (ORDER BY t.jv_id ROWS UNBOUNDED PRECEDING) as Balance
+            FROM accounting_transactions t
+            INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            WHERE (l.account_number = ?)
+            """
+            params = [account_number]
         if from_date: params.append(from_date)
         if to_date: params.append(to_date)
         if from_date:
@@ -626,3 +923,33 @@ def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=
         ui.notify(f"Error generating PDF: {str(e)}", color='negative')
         print(f"PDF generation error: {e}")
 
+
+def ensure_caisse_auxiliary(auxiliary_number='5300.000001', account_name='Caisse Cash LBP'):
+    """
+    Ensures the given caisse/treasury auxiliary account exists in the auxiliary table.
+    Called lazily before recording cash-related journal entries.
+    """
+    try:
+        exists = []
+        connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", exists, params=[auxiliary_number])
+        if exists:
+            return auxiliary_number
+
+        base_ledger = auxiliary_number.split('.')[0]  # e.g. '5300'
+        ledger_data = []
+        connection.contogetrows(
+            "SELECT Id FROM Ledger WHERE AccountNumber = ?",
+            ledger_data, params=[base_ledger]
+        )
+        ledger_id = ledger_data[0][0] if ledger_data else None
+
+        # Also try to register an auxiliary_id link to the ledger
+        connection.insertingtodatabase(
+            "INSERT INTO auxiliary (auxiliary_id, ledger_id, number, account_name, update_date, status) "
+            "VALUES (?, ?, ?, ?, GETDATE(), 1)",
+            (base_ledger, ledger_id, auxiliary_number, account_name)
+        )
+        return auxiliary_number
+    except Exception as e:
+        print(f"Error ensuring caisse auxiliary {auxiliary_number}: {e}")
+        return auxiliary_number

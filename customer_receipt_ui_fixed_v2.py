@@ -311,24 +311,26 @@ class CustomerReceiptUI:
                 selected_currency_id = self.currency_select.value
                 exchange_rate = float(self.currency_exchange_rates.get(selected_currency_id, 1.0))
                 normalized_amount = round(pay_amount / exchange_rate, 2)
-                
+
                 receipt_date = self.date_input.value or datetime.now().strftime('%Y-%m-%d')
-                user_id = session_storage.get('user')['user_id']
 
-                # Fetch auxiliary number
-                cust_aux_res = []
-                connection.contogetrows("SELECT auxiliary_number FROM customers WHERE id = ?", cust_aux_res, (self.selected_customer['id'],))
-                cust_aux = cust_aux_res[0][0] if cust_aux_res and cust_aux_res[0][0] else '4111.000001'
+                # Auxiliary for accounting (ensure auxiliary exists automatically)
+                import accounting_helpers
+                cust_aux = accounting_helpers.ensure_customer_auxiliary(
+                    self.selected_customer['id'],
+                    customer_name=self.selected_customer.get('name'),
+                    fallback_account_number='4111'
+                )
 
-                # Standardized INSERT with auxiliary, user, and currency info
+                # Standardized INSERT based on current DB schema (customer_receipt has no auxiliary_number/user_id/currency_id columns)
                 sql_receipt = """
-                    INSERT INTO customer_receipt 
-                    (customer_id, amount, total_amount, payment_date, payment_method, auxiliary_number, user_id, currency_id, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    INSERT INTO customer_receipt
+                    (customer_id, amount, total_amount, payment_date, payment_method, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'completed', GETDATE())
                 """
                 connection.insertingtodatabase(sql_receipt, (
-                    self.selected_customer['id'], normalized_amount, pay_amount, 
-                    receipt_date, self.method_select.value, cust_aux, user_id, selected_currency_id
+                    self.selected_customer['id'], normalized_amount, pay_amount,
+                    receipt_date, self.method_select.value
                 ))
                 
                 receipt_id = connection.getid("SELECT MAX(id) FROM customer_receipt", [])
@@ -339,29 +341,40 @@ class CustomerReceiptUI:
                     norm_settlement = round(alloc['settlement_amount'] / exchange_rate, 2)
                     new_total = round(alloc['amount'] - norm_settlement, 2)
                     status = 'completed' if new_total == 0 else ('pending' if new_total > 0 else 'credit')
-                    
+
                     if alloc['type'] == 'Return':
                         # Settlement for a return credit Note
-                        connection.insertingtodatabase("UPDATE sales_returns SET total_amount = ?, payment_status = ? WHERE id = ?", (abs(new_total), status, alloc['id']))
+                        connection.insertingtodatabase(
+                            "UPDATE sales_returns SET total_amount = ?, payment_status = ? WHERE id = ?",
+                            (abs(new_total), status, alloc['id'])
+                        )
                     else:
-                        connection.insertingtodatabase("UPDATE sales SET total_amount = ?, payment_status = ? WHERE id = ?", (new_total, status, alloc['id']))
-                    
-                    # Record settlement details for robust "Undo/Delete"
-                    connection.insertingtodatabase(
-                        "INSERT INTO customer_receipt_details (receipt_id, source_type, source_id, settlement_amount) VALUES (?, ?, ?, ?)",
-                        (receipt_id, alloc['type'], alloc['id'], alloc['settlement_amount'])
-                    )
+                        connection.insertingtodatabase(
+                            "UPDATE sales SET total_amount = ?, payment_status = ? WHERE id = ?",
+                            (new_total, status, alloc['id'])
+                        )
 
+                # customer_receipt_details table does not exist in current schema (db_schema.json),
+                # so we cannot persist per-invoice allocations for full undo.
                 connection.insertingtodatabase("UPDATE customers SET balance = balance - ? WHERE id = ?", (normalized_amount, self.selected_customer['id']))
 
                 import business_track_settings
-                payment_aux = business_track_settings.get_payment_account(self.method_select.value)
-                # Accounting - Use normalized amounts for the ledger (base currency)
-                accounting_helpers.save_accounting_transaction('Receipt', str(receipt_id), [
-                    {'account': payment_aux, 'debit': normalized_amount, 'credit': 0},
-                    {'account': cust_aux, 'debit': 0, 'credit': normalized_amount},
-                ], description=f"Customer {self.method_select.value} Receipt #{receipt_id} - {self.selected_customer['name']}")
-                
+                # For customer receipts (settling customer invoices):
+                # Debit customer account (4111.xxxxx) and Credit 5300.000001
+                # Note: VAT is not mentioned for customer receipt in your instructions.
+                payment_credit_account = '5300.000001'
+                accounting_helpers.save_accounting_transaction(
+                    'Receipt',
+                    str(receipt_id),
+                    [
+                        {'account': cust_aux, 'debit': normalized_amount, 'credit': 0},
+                        {'account': payment_credit_account, 'debit': 0, 'credit': normalized_amount},
+                    ],
+                    description=f"Customer {self.method_select.value} Receipt #{receipt_id} - {self.selected_customer['name']}"
+                )
+
+                # Cash drawer needs the acting user_id
+                user_id = session_storage.get('user')['user_id']
                 connection.update_cash_drawer_balance(normalized_amount, 'In', user_id, f"Receipt #{receipt_id}")
 
                 ui.notify(f'Saved: {self.get_current_currency_symbol()}{pay_amount:.2f} (Normalized: ${normalized_amount:.2f})', color='positive')
@@ -389,23 +402,15 @@ class CustomerReceiptUI:
                             try:
                                 # 1. Fetch receipt core info
                                 res = []
-                                connection.contogetrows("SELECT customer_id, amount, auxiliary_number FROM customer_receipt WHERE id = ?", res, (self.draft_receipt_id,))
+                                connection.contogetrows("SELECT customer_id, amount FROM customer_receipt WHERE id = ?", res, (self.draft_receipt_id,))
                                 if not res: return ui.notify('Receipt record not found')
-                                cust_id, norm_amount, cust_aux = res[0]
+                                cust_id, norm_amount = res[0]
 
-                                # 2. Revert Settlements
-                                settlements = []
-                                connection.contogetrows("SELECT source_type, source_id, settlement_amount FROM customer_receipt_details WHERE receipt_id = ?", settlements, (self.draft_receipt_id,))
-                                for s_type, s_id, s_amt in settlements:
-                                    if s_type == 'Return':
-                                        # abs(s_amt) because returns are stored negative in UI but positive in DB? 
-                                        # Wait, in settlement_dialog I used -total_amount.
-                                        # So if s_amt is -20, total_amount += -(-20) = +20. Correct.
-                                        connection.insertingtodatabase("UPDATE sales_returns SET total_amount = total_amount + ?, payment_status = 'pending' WHERE id = ?", (abs(s_amt), s_id))
-                                    else:
-                                        connection.insertingtodatabase("UPDATE sales SET total_amount = total_amount + ?, payment_status = 'pending' WHERE id = ?", (s_amt, s_id))
+                                # 2. Revert Customer Balance only.
+                                # The allocations/details table used for reverting invoice totals is not present in current schema,
+                                # therefore we cannot reliably revert which sales/sales_returns rows were affected.
+                                ui.notify('Receipt deleted and customer balance/cash updated. Invoice settlements cannot be auto-reverted in this build.', color='warning')
 
-                                # 3. Revert Customer Balance
                                 connection.insertingtodatabase("UPDATE customers SET balance = balance + ? WHERE id = ?", (norm_amount, cust_id))
 
                                 # 4. Reverse Cash Drawer
@@ -416,7 +421,6 @@ class CustomerReceiptUI:
                                 accounting_helpers.save_accounting_transaction('Receipt', str(self.draft_receipt_id), [])
 
                                 # 6. Clean up records
-                                connection.insertingtodatabase("DELETE FROM customer_receipt_details WHERE receipt_id = ?", (self.draft_receipt_id,))
                                 connection.insertingtodatabase("DELETE FROM customer_receipt WHERE id = ?", (self.draft_receipt_id,))
 
                                 ui.notify(f'Receipt #{self.draft_receipt_id} deleted successfully', color='positive')

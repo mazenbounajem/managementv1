@@ -35,6 +35,7 @@ import accounting_transactions_ui
 from business_track import business_track_content
 import company_ui
 import trial_hierarchy_ui
+import vat_close_ui
 
 # Global registries for tab management
 current_open_tab = None
@@ -84,6 +85,8 @@ def tabbed_dashboard_page():
     permissions = connection.get_user_permissions(user['role_id'])
     allowed_pages = {page for page, can_access in permissions.items() if can_access}
 
+    can_profit = permissions.get('profit-analytics', False)
+    can_dashboard_kpis = permissions.get('dashboard-kpis', False)
     # Create enhanced navigation instance
     navigation = EnhancedNavigation(permissions, user)
     navigation.tabbed_mode = True
@@ -99,47 +102,46 @@ def tabbed_dashboard_page():
             )
         return _loader
 
-   # In tabbed_dashboard.py, update the content_map entries:
-
-   # Update the content_map:
+    # Update the content_map:
     content_map = {
-    'dashboard':        {'label': 'Dashboard',        'func': create_dashboard_content,   'icon': 'dashboard'},
-    'sales':            {'label': 'Sales',             'func': sales_content,               'icon': 'point_of_sale'},
-    'purchase':         {'label': 'Purchase',          'func': purchase_content,            'icon': 'shopping_bag'},
+        'dashboard':               {'label': 'Dashboard', 'func': lambda: create_dashboard_content(can_dashboard_kpis=can_dashboard_kpis), 'icon': 'dashboard'},
+        'vat-close':               {'label': 'VAT Close', 'func': lambda: vat_close_ui.vat_close_content(standalone=False), 'icon': 'account_balance_wallet'},
+        'sales':                   {'label': 'Sales', 'func': sales_content, 'icon': 'point_of_sale'},
+        'purchase':                {'label': 'Purchase', 'func': purchase_content, 'icon': 'shopping_bag'},
 
-    'products':         {'label': 'Products',          'func': product_content,             'icon': 'inventory'},
-    'customers':        {'label': 'Customers',         'func': customer_content,            'icon': 'person'},
-    'suppliers':        {'label': 'Suppliers',         'func': supplier_content,            'icon': 'business'},
-    'timespend':        {'label': 'Time Analysis',     'func': lambda: TimeSpendUI(show_header=False), 'icon': 'schedule'},
-    'category':         {'label': 'Categories',        'func': category_content_method,     'icon': 'category'},
-    'employees':        {'label': 'Employees',         'func': employee_content,            'icon': 'badge'},
-    'backup':           {'label': 'Database Backup',   'func': lambda: settings_backup_content(standalone=False), 'icon': 'backup'},
-    'stockoperations':  {'label': 'Stock Operations',  'func': stockoperationui.stock_operations_page, 'icon': 'inventory_2'},
-    'supplierpayment':  {'label': 'Supplier Payment',  'func': lambda: supplier_payment_ui_fixed_v2.SupplierPaymentUI(show_navigation=False), 'icon': 'payment'},
-    'expenses':         {'label': 'Expenses',          'func': lambda: __import__('expenses').expenses_content(standalone=False), 'icon': 'money_off'},
-    'expensestype':     {'label': 'Expense Types',     'func': lambda: __import__('expensestype').expensestype_content(standalone=False), 'icon': 'category'},
-    'currencies':       {'label': 'Currencies',        'func': lambda: currencies.currencies_content(standalone=False), 'icon': 'currency_exchange'},
-    'accounting':       {'label': 'Accounting',        'func': lambda: accounting_finance.accounting_finance_content(standalone=False), 'icon': 'account_balance'},
-    'cash-drawer':      {'label': 'Cash Drawer',       'func': lambda: cashdrawer_ui.cash_drawer_content(standalone=False), 'icon': 'account_balance_wallet'},
-    'ledger':           {'label': 'Ledger',            'func': lambda: ledgerui.ledger_content(standalone=False), 'icon': 'account_balance'},
-    'auxiliary':        {'label': 'Auxiliary',         'func': lambda: auxiliary_content(standalone=False), 'icon': 'account_balance'},
-    'journal_voucher':  {'label': 'Journal Voucher',   'func': lambda: journal_voucher_ui.journal_voucher_content(standalone=False), 'icon': 'receipt_long'},
-    'voucher_subtype':  {'label': 'Voucher Subtype',   'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
-    'customerreceipt':  {'label': 'Customer Receipt',  'func': lambda: customer_receipt_ui_fixed_v2.CustomerReceiptUI(show_navigation=False), 'icon': 'receipt'},
-    'reports':          {'label': 'Reports',           'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
-'modern-reports': {'label': 'Accounting Reports', 'func': lambda: ui.run_javascript('window.open("/modern-reports", "_blank");'), 'icon': 'assessment'},
-    'accounting-transactions': {'label': 'Acct. Transactions', 'func': lambda: accounting_transactions_ui.accounting_transactions_content(standalone=False), 'icon': 'receipt_long'},
-    'business-track':   {'label': 'Business Track',    'func': lambda: business_track_content(standalone=False), 'icon': 'insights'},
-    'roles':            {'label': 'Roles',             'func': lambda: roles.roles_content(standalone=False), 'icon': 'group'},
-    'appointments':     {'label': 'Appointments',      'func': lambda: appointments_ui.appointments_content(standalone=False), 'icon': 'event'},
-    'sales-returns':    {'label': 'Sales Returns',     'func': lambda: sales_returns_ui.SalesReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
-    'purchase-returns': {'label': 'Purchase Returns',  'func': lambda: purchase_returns_ui.PurchaseReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
-    'services':         {'label': 'Services',          'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
-    'company':          {'label': 'Company',           'func': lambda: company_ui.CompanyUI(show_navigation=False, show_footer=False), 'icon': 'business_center'},
-    'trial-hierarchy':  {'label': 'Trial Hierarchy',   'func': lambda: trial_hierarchy_ui.trial_hierarchy_content(standalone=False), 'icon': 'account_tree'},
-    'profile':          {'label': 'My Account',        'func': make_iframe('/profile'),     'icon': 'manage_accounts'},
-}
+        'products':                {'label': 'Products', 'func': product_content, 'icon': 'inventory'},
+        'customers':               {'label': 'Customers', 'func': customer_content, 'icon': 'person'},
+        'suppliers':               {'label': 'Suppliers', 'func': supplier_content, 'icon': 'business'},
+        'timespend':               {'label': 'Time Analysis', 'func': lambda: TimeSpendUI(show_header=False), 'icon': 'schedule'},
+        'category':                {'label': 'Categories', 'func': category_content_method, 'icon': 'category'},
+        'employees':               {'label': 'Employees', 'func': employee_content, 'icon': 'badge'},
+        'backup':                  {'label': 'Database Backup', 'func': lambda: settings_backup_content(standalone=False), 'icon': 'backup'},
+        'stockoperations':         {'label': 'Stock Operations', 'func': stockoperationui.stock_operations_page, 'icon': 'inventory_2'},
+        'supplierpayment':         {'label': 'Supplier Payment', 'func': lambda: supplier_payment_ui_fixed_v2.SupplierPaymentUI(show_navigation=False), 'icon': 'payment'},
+        'expenses':                {'label': 'Expenses', 'func': lambda: __import__('expenses').expenses_content(standalone=False), 'icon': 'money_off'},
+        'expensestype':            {'label': 'Expense Types', 'func': lambda: __import__('expensestype').expensestype_content(standalone=False), 'icon': 'category'},
+        'currencies':              {'label': 'Currencies', 'func': lambda: currencies.currencies_content(standalone=False), 'icon': 'currency_exchange'},
+        'accounting':              {'label': 'Accounting', 'func': lambda: accounting_finance.accounting_finance_content(standalone=False), 'icon': 'account_balance'},
+        'cash-drawer':             {'label': 'Cash Drawer', 'func': lambda: cashdrawer_ui.cash_drawer_content(standalone=False), 'icon': 'account_balance_wallet'},
+        'ledger':                  {'label': 'Ledger', 'func': lambda: ledgerui.ledger_content(standalone=False), 'icon': 'account_balance'},
+        'auxiliary':               {'label': 'Auxiliary', 'func': lambda: auxiliary_content(standalone=False), 'icon': 'account_balance'},
+        'journal_voucher':         {'label': 'Journal Voucher', 'func': lambda: journal_voucher_ui.journal_voucher_content(standalone=False), 'icon': 'receipt_long'},
+        'voucher_subtype':         {'label': 'Voucher Subtype', 'func': lambda: voucher_subtype_ui.voucher_subtype_content(standalone=False), 'icon': 'category'},
+        'customerreceipt':       {'label': 'Customer Receipt', 'func': lambda: customer_receipt_ui_fixed_v2.CustomerReceiptUI(show_navigation=False), 'icon': 'receipt'},
+        'reports':               {'label': 'Reports', 'func': lambda: reports_ui.reports_content(standalone=False), 'icon': 'analytics'},
+        'modern-reports':         {'label': 'Accounting Reports', 'func': lambda: ui.run_javascript('window.open("/modern-reports", "_blank");'), 'icon': 'assessment'},
 
+        'accounting-transactions': {'label': 'Acct. Transactions', 'func': lambda: accounting_transactions_ui.accounting_transactions_content(standalone=False), 'icon': 'receipt_long'},
+        'business-track':          {'label': 'Business Track', 'func': lambda: business_track_content(standalone=False), 'icon': 'insights'},
+        'roles':                   {'label': 'Roles', 'func': lambda: roles.roles_content(standalone=False), 'icon': 'group'},
+        'appointments':            {'label': 'Appointments', 'func': lambda: appointments_ui.appointments_content(standalone=False), 'icon': 'event'},
+        'sales-returns':          {'label': 'Sales Returns', 'func': lambda: sales_returns_ui.SalesReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
+        'purchase-returns':      {'label': 'Purchase Returns', 'func': lambda: purchase_returns_ui.PurchaseReturnsUI(show_navigation=False), 'icon': 'assignment_return'},
+        'services':               {'label': 'Services', 'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
+        'company':                {'label': 'Company', 'func': lambda: company_ui.CompanyUI(show_navigation=False, show_footer=False), 'icon': 'business_center'},
+        'trial-hierarchy':        {'label': 'Trial Hierarchy', 'func': lambda: trial_hierarchy_ui.trial_hierarchy_content(standalone=False), 'icon': 'account_tree'},
+        'profile':                {'label': 'My Account', 'func': make_iframe('/profile'), 'icon': 'manage_accounts'},
+    }
 
     # State for Split View
     state = {
@@ -334,7 +336,7 @@ def tabbed_dashboard_page():
         username = user.get('username') if user else 'Guest'
         ui.label(f'User: {username}')
 
-def create_dashboard_content():
+def create_dashboard_content(can_dashboard_kpis: bool = False):
     """Create a professional, data-rich dashboard with live KPIs and module launcher"""
     from modern_ui_components import ModernStats, ModernCard, ModernButton
     from modern_design_system import ModernDesignSystem as MDS
@@ -457,12 +459,15 @@ def create_dashboard_content():
 
         # ── KPI ROW ─────────────────────────────────────────────────────
         with ui.row().classes('w-full gap-5 flex-wrap'):
-            kpi_card('Today\'s Revenue',  f'${sales_today:,.2f}',   'payments',      '#08CB00',  f'Week: ${week_sales:,.0f}',  True)
-            kpi_card('Monthly Sales',    f'${month_sales:,.2f}',   'bar_chart',     '#3b82f6',  'Current period',             True)
-            kpi_card('Total Customers',  f'{total_customers:,}',   'people',        '#a78bfa',  'Active accounts',            True)
-            kpi_card('Suppliers',        f'{sup_count:,}',         'business',      '#f59e0b',  'Registered vendors',         True)
-            kpi_card('Products',         f'{total_products:,}',    'inventory_2',   '#06b6d4',  'In catalog',                 True)
-            kpi_card('Low Stock Alerts', f'{low_stock}',           'report_problem','#ef4444',  'Needs attention',            False)
+            if can_dashboard_kpis:
+                kpi_card('Today\'s Revenue',  f'${sales_today:,.2f}',   'payments',      '#08CB00',  f'Week: ${week_sales:,.0f}',  True)
+                kpi_card('Monthly Sales',    f'${month_sales:,.2f}',   'bar_chart',     '#3b82f6',  'Current period',             True)
+                kpi_card('Total Customers',  f'{total_customers:,}',   'people',        '#a78bfa',  'Active accounts',            True)
+                kpi_card('Suppliers',        f'{sup_count:,}',         'business',      '#f59e0b',  'Registered vendors',         True)
+                kpi_card('Products',         f'{total_products:,}',    'inventory_2',   '#06b6d4',  'In catalog',                 True)
+                kpi_card('Low Stock Alerts', f'{low_stock}',           'report_problem','#ef4444',  'Needs attention',            False)
+            else:
+                ui.label('Dashboard KPIs are hidden for your role.').classes('text-sm text-white/60').style('padding: 1rem;')
 
         # ── MAIN BODY : Financials, Inventory, Orders, Live Activity ─────────────────────
         with ui.grid(columns=2).classes('w-full gap-6 mt-4'):

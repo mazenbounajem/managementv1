@@ -662,7 +662,21 @@ def dashboard_page():
         ui.notify('Please login to access this page', color='red')
         ui.run_javascript('window.location.href = "/login"')
         return
-    
+
+    # Employee should not see dashboard landing info (landing page hide)
+    is_employee = user.get('role_name') == 'Employee'
+    if not is_employee:
+        try:
+            emp_role_id = connection.getid("SELECT id FROM roles WHERE name = 'Employee'")
+            is_employee = bool(emp_role_id and user.get('role_id') == emp_role_id)
+        except Exception:
+            is_employee = False
+
+    if is_employee:
+        # Redirect employee to a safe page instead of landing dashboard
+        ui.run_javascript('window.location.href = "/products";')
+        return
+
     # Redirect to tabbed-dashboard
     ui.run_javascript('window.location.href = "/tabbed-dashboard";')
     return
@@ -802,11 +816,11 @@ def sample_template_page():
 
 if __name__ in {"__main__", "__mp_main__"}:
     # Create users table on app startup
-    connection.create_users_table()
+#    connection.create_users_table()
     # Create roles and permissions tables
-    connection.create_roles_tables()
+#    connection.create_roles_tables()
     # Create default admin user
-    connection.create_default_admin_user()
+#    connection.create_default_admin_user()
     # Create user_sessions table (only if it doesn't exist)
     # try:
     #     from create_user_sessions_table_fixed import create_user_sessions_table
@@ -836,40 +850,42 @@ if __name__ in {"__main__", "__mp_main__"}:
    
 
     # Ensure services permission for all roles
-    try:
-        connection.ensure_services_permission()
-    except Exception as e:
-        print(f"Error ensuring services permission: {str(e)}")
+    # try:
+    #     connection.ensure_services_permission()
+    # except Exception as e:
+    #     print(f"Error ensuring services permission: {str(e)}")
 
-    # Ensure ledger permission for all roles
-    try:
-        connection.ensure_ledger_permission()
-        connection.ensure_auxiliary_permission()
-    except Exception as e:
-        print(f"Error ensuring ledger permission or auxiliary permission: {str(e)}")
+    # # Ensure ledger permission for all roles
+    # try:
+    #     connection.ensure_ledger_permission()
+    #     connection.ensure_auxiliary_permission()
+    # except Exception as e:
+    #     print(f"Error ensuring ledger permission or auxiliary permission: {str(e)}")
 
 
-    try:
-        connection.ensure_accounting_transactions_table()
-        connection.ensure_business_track_permission()
-        connection.ensure_hide_history_permission()
-    except Exception as e:
-        print(f"Error ensuring accounting or business track permissions: {str(e)}")
+    # try:
+    #     connection.ensure_accounting_transactions_table()
+    #     connection.ensure_business_track_permission()
+    #     connection.ensure_hide_history_permission()
+    #     connection.ensure_profit_analytics_permission()
+    #     connection.ensure_vat_close_permission()
+    # except Exception as e:
+    #     print(f"Error ensuring accounting/biztrack/profit permissions: {str(e)}")
 
-    # Create returns tables if not exists
-    try:
-        from migrate_returns import TABLES as _RT
-        for _name, _ddl in _RT:
-            _chk = []
-            connection.contogetrows(
-                f"SELECT COUNT(*) FROM sysobjects WHERE name='{_name}' AND xtype='U'",
-                _chk
-            )
-            if not (_chk and _chk[0][0] > 0):
-                connection.insertingtodatabase(_ddl, ())
-                print(f"  DB: Created table {_name}")
-    except Exception as e:
-        print(f"Returns migration error: {e}")
+    # # Create returns tables if not exists
+    # try:
+    #     from migrate_returns import TABLES as _RT
+    #     for _name, _ddl in _RT:
+    #         _chk = []
+    #         connection.contogetrows(
+    #             f"SELECT COUNT(*) FROM sysobjects WHERE name='{_name}' AND xtype='U'",
+    #             _chk
+    #         )
+    #         if not (_chk and _chk[0][0] > 0):
+    #             connection.insertingtodatabase(_ddl, ())
+    #             print(f"  DB: Created table {_name}")
+    # except Exception as e:
+    #     print(f"Returns migration error: {e}")
 
 
     # The following page routes are already registered via @ui.page decorators
@@ -877,5 +893,6 @@ if __name__ in {"__main__", "__mp_main__"}:
     
     # You can add authentication logic here before opening the dashboard
     # For now, we'll just run the app
-    ui.run(native=False,storage_secret='mgmt-v1-session-secret-change-in-production')
+    #storage_secret='mgmt-v1-session-secret-change-in-production'
+    ui.run(native=False)
 

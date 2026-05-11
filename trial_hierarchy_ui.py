@@ -43,16 +43,18 @@ class TrialHierarchyUI:
             """, aux_data)
             
             # 3. Fetch Balances (Summed from transaction lines)
+            # We must JOIN with auxiliary to get the 'number' because l.auxiliary_id often stores the internal ID (int).
             balance_data = []
             sql_balances = """
                 SELECT 
-                    COALESCE(l.auxiliary_id, l.account_number) as code,
+                    COALESCE(a.number, l.account_number) as code,
                     ISNULL(SUM(l.debit), 0) as total_debit,
                     ISNULL(SUM(l.credit), 0) as total_credit
                 FROM accounting_transaction_lines l
+                LEFT JOIN auxiliary a ON (l.auxiliary_id = CAST(a.id AS NVARCHAR(50)) OR l.auxiliary_id = a.number)
                 INNER JOIN accounting_transactions t ON l.jv_id = t.jv_id
                 WHERE CAST(t.transaction_date AS DATE) BETWEEN ? AND ?
-                GROUP BY COALESCE(l.auxiliary_id, l.account_number)
+                GROUP BY COALESCE(a.number, l.account_number)
             """
             connection.contogetrows_with_params(sql_balances, balance_data, (self.from_date, self.to_date))
             
@@ -65,10 +67,9 @@ class TrialHierarchyUI:
 
     def build_tree(self):
         ledger_raw, aux_raw, balances = self.fetch_data()
-        
         nodes = {}
         
-        # Add Ledger Nodes
+        # 1. Create nodes for all known Ledger accounts
         for row in ledger_raw:
             id_val, code, name, parent_id = row
             code = str(code)
@@ -81,80 +82,75 @@ class TrialHierarchyUI:
                 'children': [],
                 'type': 'ledger'
             }
-            # Direct postings to ledger code (if any)
-            if code in balances:
-                nodes[code]['debit'] += balances[code]['debit']
-                nodes[code]['credit'] += balances[code]['credit']
 
-        # Add Auxiliary Nodes
+        # 2. Create nodes for all known Auxiliary accounts
         for row in aux_raw:
             id_val, aux_number, name, parent_ledger = row
             aux_number = str(aux_number)
             parent_ledger = str(parent_ledger) if parent_ledger else None
             
-            # If parent_ledger is not explicitly set, try to derive it from the dot notation
+            # Auto-derive parent if missing but has dot
             if not parent_ledger and '.' in aux_number:
                 parent_ledger = aux_number.split('.')[0]
                 
-            node = {
+            nodes[aux_number] = {
                 'id': f"A_{aux_number}",
                 'code': aux_number,
                 'name': name,
-                'debit': balances.get(aux_number, {}).get('debit', 0.0),
-                'credit': balances.get(aux_number, {}).get('credit', 0.0),
+                'debit': 0.0,
+                'credit': 0.0,
                 'children': [],
-                'type': 'auxiliary'
+                'type': 'auxiliary',
+                'parent_code': parent_ledger
             }
-            
-            if parent_ledger:
-                if parent_ledger not in nodes:
-                    # Create virtual parent if missing from Ledger table
-                    nodes[parent_ledger] = {
-                        'id': f"L_{parent_ledger}",
-                        'code': parent_ledger,
-                        'name': f"Parent {parent_ledger}",
-                        'debit': 0.0,
-                        'credit': 0.0,
-                        'children': [],
-                        'type': 'ledger'
-                    }
-                nodes[parent_ledger]['children'].append(node)
-            else:
-                # If no parent can be determined, add it as a top-level node (or let the structure pass handle it)
-                nodes[aux_number] = node
 
-        # Second pass to build the actual tree structure
-        final_nodes = {}
-        for code in sorted(nodes.keys(), key=lambda x: len(x)):
+        # 3. Handle ghost accounts (codes in 'balances' that aren't in masters)
+        for code in balances:
+            if code not in nodes:
+                nodes[code] = {
+                    'id': f"M_{code}",
+                    'code': code,
+                    'name': f"Unmapped Account {code}",
+                    'debit': 0.0,
+                    'credit': 0.0,
+                    'children': [],
+                    'type': 'ledger'
+                }
+
+        # 4. Build Hierarchy
+        final_roots = {}
+        # Sorting by code ensures we process 1, then 10, then 100... mostly helpful for consistency
+        for code in sorted(nodes.keys()):
             node = nodes[code]
-            if node['type'] == 'auxiliary': continue # Auxiliaries were already attached to their parents during initialization
             
-            if len(code) == 1 and code in '1234567':
-                final_nodes[code] = node
-            else:
-                parent_code = code[:-1]
-                found = False
-                while parent_code:
-                    if parent_code in nodes:
-                        # Append this ledger node as a child of its parent ledger account
-                        if node not in nodes[parent_code]['children']:
-                            nodes[parent_code]['children'].append(node)
-                        found = True
+            # Determine logic for finding parent
+            p_code = None
+            if node['type'] == 'auxiliary':
+                p_code = node.get('parent_code')
+            elif len(code) > 1:
+                # For ledgers, look for parent by trimming last digit repeatedly
+                temp_p = code[:-1]
+                while temp_p:
+                    if temp_p in nodes:
+                        p_code = temp_p
                         break
-                    parent_code = parent_code[:-1]
-                if not found:
-                    final_nodes[code] = node
+                    temp_p = temp_p[:-1]
 
-        # Final cleanup: aggregate root level totals from children again because second pass might have moved nodes
-        # Actually a recursive aggregation would be better.
-        
+            # Attach to parent if found, otherwise it's a root
+            if p_code and p_code in nodes:
+                if node not in nodes[p_code]['children']:
+                    nodes[p_code]['children'].append(node)
+            else:
+                final_roots[code] = node
+
+        # 5. Recursive aggregation of totals
         def recursive_aggregate(node):
-            # Start with direct postings to this specific account code
             code = node['code']
+            # Start with direct balance posted precisely to this code
             d = balances.get(code, {}).get('debit', 0.0)
             c = balances.get(code, {}).get('credit', 0.0)
             
-            # Recursively add all children totals
+            # Add up all children
             for child in node['children']:
                 cd, cc = recursive_aggregate(child)
                 d += cd
@@ -164,7 +160,7 @@ class TrialHierarchyUI:
             node['credit'] = c
             return d, c
 
-        result_roots = sorted(list(final_nodes.values()), key=lambda x: x['code'])
+        result_roots = sorted(list(final_roots.values()), key=lambda x: x['code'])
         for r in result_roots:
             recursive_aggregate(r)
             

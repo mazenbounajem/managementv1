@@ -146,7 +146,8 @@ class CashDrawerUI:
             ui.notify('Operation added successfully', color='positive')
             self.amount_input.value = None
             self.notes_input.value = ''
-            self.load_balance()
+            # Force a second UI refresh cycle to ensure stats card re-renders
             self.load_history()
+            ui.timer(0.05, self.load_balance, once=True)
         else:
             ui.notify('Failed to add operation', color='negative')

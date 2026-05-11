@@ -26,20 +26,29 @@ def report_trial_balance_hierarchical(fd, td):
 REPORTS = {
     'tb_flat': ('Trial Balance (Flat)', report_trial_balance_flat),
     'tb_hier': ('Trial Balance (Hierarchical)', report_trial_balance_hierarchical),
-    'tb_ui': ('Trial Hierarchy (Detailed UI)', lambda f, t: ui.navigate.to('/trial-hierarchy')),
+    'tb_ui': ('Trial Hierarchy (Detailed UI)', lambda f, t, a: ui.navigate.to('/trial-hierarchy')),
+    'view_tx': ('View Transactions', lambda f, t, a: accounting_helpers.show_transactions_dialog(account_number=a)),
+    'stmt': ('Statement of Account', lambda f, t, a: accounting_helpers.print_account_statement(a, from_date=f, to_date=t)),
 }
 
 DESCRIPTIONS = {
     'tb_flat': 'Standard flat trial balance showing all accounts with debit, credit, and balance.',
     'tb_hier': 'Hierarchical trial balance grouped by ledger root accounts (1 to 7).',
     'tb_ui': 'Interactive tree-based trial balance showing Ledger and Auxiliary levels with live balances.',
+    'view_tx': 'View all accounting transactions linked to the selected account within the period.',
+    'stmt': 'Generate a formal Statement of Account PDF for the selected ledger account.',
 }
 
 
-def open_print_special_dialog():
+def open_print_special_dialog(initial_account=None):
     today          = date.today().strftime('%Y-%m-%d')
     first_of_month = date.today().replace(day=1).strftime('%Y-%m-%d')
-    state = {'report_key': 'tb_flat', 'from_date': first_of_month, 'to_date': today}
+    state = {
+        'report_key': 'tb_flat',
+        'from_date': first_of_month,
+        'to_date': today,
+        'account': initial_account or ''
+    }
     btns = {};  refs = {}
 
     def select(key):
@@ -96,11 +105,25 @@ def open_print_special_dialog():
                                .classes('text-white font-bold w-44')\
                                .on_value_change(lambda e: state.update({'to_date': e.value}))
 
+                        with ui.column().classes('gap-1'):
+                            ui.label('ACCOUNT #').classes('text-[9px] font-black text-green-400 uppercase tracking-widest')
+                            ui.input(value=state['account']).props('outlined dense dark color=green')\
+                               .classes('text-white font-bold w-44')\
+                               .on_value_change(lambda e: state.update({'account': e.value}))
+
                         def _run():
-                            k, f, t = state['report_key'], state['from_date'], state['to_date']
+                            k, f, t, a = state['report_key'], state['from_date'], state['to_date'], state['account']
                             if not f or not t: ui.notify('Select dates.', color='warning'); return
                             if f > t: ui.notify('From before To.', color='negative'); return
-                            try: REPORTS[k][1](f, t)
+                            
+                            if k == 'stmt' and not a:
+                                ui.notify('Please enter an account number for this report.', color='warning'); return
+                                
+                            try: 
+                                if k in ['tb_ui', 'view_tx', 'stmt']:
+                                    REPORTS[k][1](f, t, a)
+                                else:
+                                    REPORTS[k][1](f, t)
                             except Exception as ex:
                                 ui.notify(f'Error: {ex}', color='negative')
                                 import traceback; traceback.print_exc()

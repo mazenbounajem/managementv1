@@ -21,6 +21,8 @@ def product_page_route(standalone=False):
             ui.run_javascript('window.location.href = "/login"')
         return
 
+    is_employee = bool((user or {}).get('role_name') == 'Employee')
+
     # Helper and state variables
     input_refs = {}
     initial_values = {}
@@ -286,6 +288,8 @@ def product_page_route(standalone=False):
         update_profit_analysis()
 
     def update_profit_analysis():
+        if not can_profit:
+            return
         try:
             price = float(input_refs['price'].value or 0)
             cost = float(input_refs['cost_price'].value or 0)
@@ -630,6 +634,9 @@ def product_page_route(standalone=False):
             print(f"Auto-load last product error: {ex}")
 
     # Layout Construction
+    user = session_storage.get('user') or {}
+    can_profit = connection.check_page_permission(user.get('role_id'), 'profit-analytics') if user else False
+
     with ModernPageLayout("Product Management", standalone=standalone):
         with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
             
@@ -777,18 +784,23 @@ def product_page_route(standalone=False):
 
                         table.on('cellClicked', on_row_click)
 
-                    with ModernCard().classes('w-full p-6 mt-4'):
-                        ui.label('Profit Analysis').classes('text-lg font-bold mb-4').style(f'color: {MDS.SUCCESS}')
-                        with ui.row().classes('w-full justify-between items-center'):
-                            with ui.column().classes('items-center'):
-                                ui.label('Profit (USD)').classes('text-xs text-gray-500 uppercase font-black')
-                                profit_label = ui.label('$0.00').classes('text-xl font-black text-success')
-                            with ui.column().classes('items-center'):
-                                ui.label('Margin').classes('text-xs text-gray-500 uppercase font-black')
-                                margin_label = ui.label('0.0%').classes('text-xl font-black text-primary')
-                            with ui.column().classes('items-center'):
-                                ui.label('Markup').classes('text-xs text-gray-500 uppercase font-black')
-                                markup_label = ui.label('0.0%').classes('text-xl font-black text-accent')
+                    if can_profit:
+                        with ModernCard().classes('w-full p-6 mt-4'):
+                            ui.label('Profit Analysis').classes('text-lg font-bold mb-4').style(f'color: {MDS.SUCCESS}')
+                            with ui.row().classes('w-full justify-between items-center'):
+                                with ui.column().classes('items-center'):
+                                    ui.label('Profit (USD)').classes('text-xs text-gray-500 uppercase font-black')
+                                    profit_label = ui.label('$0.00').classes('text-xl font-black text-success')
+                                with ui.column().classes('items-center'):
+                                    ui.label('Margin').classes('text-xs text-gray-500 uppercase font-black')
+                                    margin_label = ui.label('0.0%').classes('text-xl font-black text-primary')
+                                with ui.column().classes('items-center'):
+                                    ui.label('Markup').classes('text-xs text-gray-500 uppercase font-black')
+                                    markup_label = ui.label('0.0%').classes('text-xl font-black text-accent')
+                    else:
+                        # Keep layout stable for restricted roles
+                        with ModernCard().classes('w-full p-6 mt-4'):
+                            ui.label('Profit analysis hidden for your role').classes('text-sm text-gray-500')
 
                 # Action Bar Panel (Right Side of Editor)
                 with ui.column().classes('w-80px items-center') as footer_container:

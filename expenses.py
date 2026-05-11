@@ -136,6 +136,8 @@ class ExpensesUI:
             return
 
         try:
+            import accounting_helpers
+
             for row in self.rows:
                 # Insert each item into the expenses table directly
                 sql = """
@@ -154,6 +156,55 @@ class ExpensesUI:
                     notes,
                     row['auxiliary_id']
                 ))
+
+                # Create accounting entry:
+                # Cash expenses: debit cash drawer 5300.000001 and credit the expense auxiliary.
+                # (If your ledger uses different sign convention for cash movement, adjust here.)
+                expense_aux_num_res = []
+                connection.contogetrows(
+                    "SELECT number FROM auxiliary WHERE id = ?",
+                    expense_aux_num_res,
+                    (row['auxiliary_id'],)
+                )
+                expense_aux_num = expense_aux_num_res[0][0] if expense_aux_num_res and expense_aux_num_res[0][0] else None
+
+                # Get inserted expense id (best-effort) using invoice_number
+                expense_id = connection.getid(
+                    "SELECT TOP 1 id FROM expenses WHERE invoice_number = ? ORDER BY id DESC",
+                    [row['invoice_number']]
+                )
+
+                amount = float(row['amount'] or 0)
+
+                if amount > 0 and expense_aux_num:
+                    if row.get('payment_method') == 'Cash':
+                        # Debit cash (5300) on expense
+                        jv_lines = [
+                            {'account': '5300.000001', 'debit': amount, 'credit': 0},
+                            {'account': expense_aux_num, 'debit': 0, 'credit': amount},
+                        ]
+                        accounting_helpers.save_accounting_transaction(
+                            'Expense', str(expense_id), jv_lines,
+                            description=f"Expense #{expense_id} - {row.get('expense_type', '')}"
+                        )
+
+                        # Cash drawer update (if cash drawer integration expects 'Out' for cash out)
+                        user_id = session_storage.get('user', {}).get('user_id')
+                        try:
+                            connection.update_cash_drawer_balance(amount, 'Out', user_id, f"Expense #{expense_id}")
+                        except Exception:
+                            pass
+                    else:
+                        # Non-cash: keep same mapping style but without forcing 5300
+                        # (Uses the payment account logic you currently have in your accounting backend.)
+                        # Fallback: credit expense auxiliary only and do not touch 5300 here.
+                        jv_lines = [
+                            {'account': expense_aux_num, 'debit': amount, 'credit': 0},
+                        ]
+                        # This fallback may be unbalanced depending on your chart; safer to do nothing.
+                        # Comment out the following line if it causes mismatch.
+                        # accounting_helpers.save_accounting_transaction('Expense', str(expense_id), jv_lines, description=f"Expense #{expense_id}")
+                        pass
 
             ui.notify('All expenses saved successfully!', color='positive')
             self.clear_inputs()

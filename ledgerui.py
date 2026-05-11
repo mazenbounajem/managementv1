@@ -140,6 +140,11 @@ class LedgerUI:
         except Exception as e:
             ui.notify(f'Error deleting ledger: {str(e)}', color='negative')
 
+    def print_special_accounting(self):
+        """Open the specialized accounting report center."""
+        from accounting_reports import open_print_special_dialog
+        open_print_special_dialog(initial_account=self.input_refs['account_number'].value)
+
     def refresh_table(self):
         try:
             data = []
@@ -147,6 +152,25 @@ class LedgerUI:
 
             aux_raw = []
             connection.contogetrows("SELECT Id, number, account_name, auxiliary_id FROM auxiliary", aux_raw)
+
+            # Load purchase/sales link auxiliaries so ledger (6011/7010/etc.) can display many invoices as children.
+            purchase_links_raw = []
+            try:
+                connection.contogetrows(
+                    "SELECT purchase_id, purchase_invoice_number, expense_aux_number, discount_aux_number, vat_aux_number FROM purchase_invoice_account_links",
+                    purchase_links_raw
+                )
+            except Exception:
+                purchase_links_raw = []
+
+            sales_links_raw = []
+            try:
+                connection.contogetrows(
+                    "SELECT sale_id, sales_invoice_number, revenue_aux_number, discount_aux_number, vat_aux_number FROM sales_invoice_account_links",
+                    sales_links_raw
+                )
+            except Exception:
+                sales_links_raw = []
 
             self.row_data = []
             for row in data:
@@ -163,7 +187,48 @@ class LedgerUI:
                     'type': 'ledger'
                 })
 
-            self.tree_data = self.build_account_tree(self.row_data, aux_raw)
+            # Convert link rows to auxiliary-like tuples: (aux_id, number, account_name, auxiliary_id)
+            # aux_id is not used for hierarchy; use 0 for virtual nodes.
+            virtual_aux = []
+
+            for r in purchase_links_raw:
+                purchase_invoice_number = r[1]
+                expense_aux_number = r[2]
+                discount_aux_number = r[3]
+                vat_aux_number = r[4]
+
+                if expense_aux_number and '.' in str(expense_aux_number):
+                    base = str(expense_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(expense_aux_number), f"Purchase {purchase_invoice_number}", base))
+
+                if discount_aux_number and '.' in str(discount_aux_number):
+                    base = str(discount_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(discount_aux_number), f"Purchase Discount {purchase_invoice_number}", base))
+
+                if vat_aux_number and '.' in str(vat_aux_number):
+                    base = str(vat_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(vat_aux_number), f"Purchase VAT {purchase_invoice_number}", base))
+
+            for r in sales_links_raw:
+                sales_invoice_number = r[1]
+                revenue_aux_number = r[2]
+                discount_aux_number = r[3]
+                vat_aux_number = r[4]
+
+                if revenue_aux_number and '.' in str(revenue_aux_number):
+                    base = str(revenue_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(revenue_aux_number), f"Sale {sales_invoice_number}", base))
+
+                if discount_aux_number and '.' in str(discount_aux_number):
+                    base = str(discount_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(discount_aux_number), f"Sale Discount {sales_invoice_number}", base))
+
+                if vat_aux_number and '.' in str(vat_aux_number):
+                    base = str(vat_aux_number).split('.')[0]
+                    virtual_aux.append((0, str(vat_aux_number), f"Sale VAT {sales_invoice_number}", base))
+
+            combined_aux = aux_raw + virtual_aux
+            self.tree_data = self.build_account_tree(self.row_data, combined_aux)
             if self.tree:
                 self.tree._props['nodes'] = self.tree_data
                 self.tree.update()
@@ -356,17 +421,12 @@ class LedgerUI:
                         on_undo=self.undo_changes,
                         on_delete=self.delete_ledger,
                         on_refresh=self.refresh_table,
+                        on_print_special=self.print_special_accounting,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         button_class='h-16',
                         target_table=None,
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
-                    
-                    with ModernCard(glass=True).classes('w-full p-4 mt-4'):
-                        ui.label('Reports').classes('text-sm font-bold mb-2 text-white')
-                        ui.button('Full Trial Balance', icon='account_balance', on_click=lambda: accounting_helpers.print_trial_balance()).props('flat full-width color=green')
-                        ui.button('Hierarchical TB', icon='account_tree', on_click=lambda: accounting_helpers.print_hierarchical_trial_balance_pdf(self.input_refs['account_number'].value)).props('flat full-width color=orange')
-                        ui.button('Trial Hierarchy UI', icon='visibility', on_click=lambda: ui.navigate.to('/trial-hierarchy')).props('flat full-width color=blue')
 
             ui.timer(0.1, self.refresh_table, once=True)
         finally:
@@ -444,3 +504,36 @@ class LedgerUI:
     def _collapse_all(self):
         if self.tree:
             self.tree.run_method('collapseAll')
+
+    def _view_account_transactions(self):
+        """View accounting transactions for the currently selected ledger account."""
+        acct = self.input_refs['account_number'].value
+        if not acct:
+            ui.notify('Please select a ledger account from the tree first.', color='warning')
+            return
+        accounting_helpers.show_transactions_dialog(account_number=acct)
+
+    def _print_account_statement(self):
+        """Open date-range dialog, then print statement of account for selected ledger."""
+        acct = self.input_refs['account_number'].value
+        if not acct:
+            ui.notify('Please select a ledger account from the tree first.', color='warning')
+            return
+
+        with ui.dialog() as dlg, ui.card().classes('p-6 w-96'):
+            ui.label(f'Statement of Account: {acct}').classes('text-lg font-bold mb-4')
+            from_input = ui.input('From Date').props('type=date outlined dense')
+            to_input = ui.input('To Date').props('type=date outlined dense')
+
+            def _generate():
+                accounting_helpers.print_account_statement(
+                    acct,
+                    from_date=from_input.value or None,
+                    to_date=to_input.value or None
+                )
+                dlg.close()
+
+            with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                ui.button('Cancel', on_click=dlg.close).props('flat')
+                ui.button('Generate PDF', icon='print', on_click=_generate).props('color=teal')
+        dlg.open()

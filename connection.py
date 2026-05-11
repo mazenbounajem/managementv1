@@ -166,7 +166,7 @@ class connection:
                         'customerreceipt', 'expenses', 'expensestype', 'accounting', 'roles', 'backup',
                         'appointments', 'timespend', 'stockoperations', 'statistical-reports',
                         'currencies', 'cash-drawer', 'company', 'services', 'ledger', 'auxiliary',
-                        'journal_voucher', 'voucher_subtype', 'sales-returns', 'purchase-returns'
+                        'journal_voucher', 'voucher_subtype', 'sales-returns', 'purchase-returns', 'vat-close'
                     ]
 
                     for page in pages:
@@ -845,3 +845,83 @@ class connection:
                     )
         except Exception as ex:
             print(f"Error ensuring business-track permission: {str(ex)}")
+
+    @staticmethod
+    def ensure_accounting_transactions_permission():
+        """Ensure all roles have accounting-transactions permission"""
+        try:
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+                existing = db_manager.execute_scalar(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'accounting-transactions'",
+                    role_id
+                )
+                if not existing:
+                    db_manager.execute_update(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (role_id, 'accounting-transactions', 1)
+                    )
+        except Exception as ex:
+            print(f"Error ensuring accounting-transactions permission: {str(ex)}")
+
+    @staticmethod
+    def ensure_profit_analytics_permission():
+        """Ensure all roles have profit-analytics permission"""
+        try:
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+                existing = db_manager.execute_scalar(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'profit-analytics'",
+                    role_id
+                )
+                if not existing:
+                    db_manager.execute_update(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (role_id, 'profit-analytics', 1)
+                    )
+        except Exception as ex:
+            print(f"Error ensuring profit-analytics permission: {str(ex)}")
+
+    @staticmethod
+    def ensure_vat_close_permission():
+        """
+        Ensure vat-close permission exists only for roles that already have
+        accounting capabilities (option B).
+        Strategy: enable 'vat-close' for roles that already have 'accounting-transactions'
+        or 'journal_voucher'.
+        """
+        try:
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+
+                already_allowed = db_manager.execute_scalar(
+                    """
+                    SELECT COUNT(*)
+                    FROM role_permissions
+                    WHERE role_id = ?
+                      AND page_name IN ('accounting-transactions', 'journal_voucher')
+                      AND can_access = 1
+                    """,
+                    (role_id,)
+                )
+
+                if already_allowed:
+                    existing = db_manager.execute_scalar(
+                        "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'vat-close'",
+                        role_id
+                    )
+                    if not existing:
+                        db_manager.execute_update(
+                            "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, 1)",
+                            (role_id, 'vat-close')
+                        )
+                    else:
+                        db_manager.execute_update(
+                            "UPDATE role_permissions SET can_access = 1 WHERE role_id = ? AND page_name = 'vat-close'",
+                            (role_id,)
+                        )
+        except Exception as ex:
+            print(f"Error ensuring vat-close permission: {str(ex)}")

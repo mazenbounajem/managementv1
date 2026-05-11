@@ -305,10 +305,13 @@ class SupplierPaymentUI:
                 payment_date = self.date_input.value or datetime.now().strftime('%Y-%m-%d')
                 user_id = session_storage.get('user')['user_id']
 
-                # Fetch auxiliary number
-                supp_aux_res = []
-                connection.contogetrows("SELECT auxiliary_number FROM suppliers WHERE id = ?", supp_aux_res, (self.selected_supplier['id'],))
-                supp_aux = supp_aux_res[0][0] if supp_aux_res and supp_aux_res[0][0] else '4011.000001'
+                # Fetch/ensure auxiliary number
+                import accounting_helpers
+                supp_aux = accounting_helpers.ensure_supplier_auxiliary(
+                    self.selected_supplier['id'],
+                    supplier_name=self.selected_supplier.get('name'),
+                    fallback_account_number='4011'
+                )
 
                 # Standardized INSERT with auxiliary, user, currency, and balance column info
                 sql_payment = """
@@ -351,13 +354,32 @@ class SupplierPaymentUI:
                     # Use actual L.L. amount for L.L. balance column
                     connection.insertingtodatabase("UPDATE suppliers SET balance = balance - ? WHERE id = ?", (pay_amount, self.selected_supplier['id']))
 
-                import business_track_settings
-                payment_aux = business_track_settings.get_payment_account(self.method_select.value)
-                # Accounting - Use normalized amounts for the ledger (base currency)
-                accounting_helpers.save_accounting_transaction('Payment', str(payment_id), [
-                    {'account': supp_aux, 'debit': normalized_amount, 'credit': 0},
-                    {'account': payment_aux, 'debit': 0, 'credit': normalized_amount},
-                ], description=f"Supplier {self.method_select.value} Payment #{payment_id} - {self.selected_supplier['name']}")
+                # Accounting
+                # Cash payments should affect cash account (5300) with:
+                # - debit 5300.000001 when paying suppliers (cash decreases)
+                # - credit supplier auxiliary when reducing supplier liability
+                if self.method_select.value == 'Cash':
+                    accounting_helpers.save_accounting_transaction(
+                        'Payment',
+                        str(payment_id),
+                        [
+                            {'account': '5300.000001', 'debit': normalized_amount, 'credit': 0},
+                            {'account': supp_aux,       'debit': 0,                 'credit': normalized_amount},
+                        ],
+                        description=f"Supplier Cash Payment #{payment_id} - {self.selected_supplier['name']}"
+                    )
+                else:
+                    import business_track_settings
+                    payment_aux = business_track_settings.get_payment_account(self.method_select.value)
+                    accounting_helpers.save_accounting_transaction(
+                        'Payment',
+                        str(payment_id),
+                        [
+                            {'account': supp_aux,    'debit': normalized_amount, 'credit': 0},
+                            {'account': payment_aux, 'debit': 0,                 'credit': normalized_amount},
+                        ],
+                        description=f"Supplier {self.method_select.value} Payment #{payment_id} - {self.selected_supplier['name']}"
+                    )
                 
                 connection.update_cash_drawer_balance(normalized_amount, 'Out', user_id, f"Payment #{payment_id}")
 

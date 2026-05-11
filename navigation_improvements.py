@@ -82,6 +82,7 @@ class EnhancedNavigation:
                     'cash-drawer':    {'label': 'Cash Drawer',          'path': '/cash-drawer',     'icon': 'account_balance_wallet', 'shortcut': 'Alt+D'},
                     'ledger':         {'label': 'Ledger',               'path': '/ledger',          'icon': 'account_balance',        'shortcut': 'Alt+F'},
                     'auxiliary':      {'label': 'Auxiliary',            'path': '/auxiliary',       'icon': 'account_balance',        'shortcut': 'Alt+Aux'},
+                    'vat-close':      {'label': 'VAT Close',           'path': '/vat-close',       'icon': 'account_balance_wallet','shortcut': 'Alt+Q'},
                     'journal_voucher':{'label': 'Journal Voucher',      'path': '/journal_voucher', 'icon': 'receipt_long',           'shortcut': 'Alt+J'},
                     'voucher_subtype':{'label': 'Voucher Subtype',      'path': '/voucher_subtype', 'icon': 'category',               'shortcut': 'Alt+V'},
                     'accounting-transactions': {'label': 'Acct. Transactions', 'path': '/accounting-transactions', 'icon': 'receipt_long', 'shortcut': 'Alt+Z'},

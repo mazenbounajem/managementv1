@@ -560,7 +560,7 @@ class Reports:
                 ISNULL(SUM(l.credit), 0) as [Total Credit],
                 ISNULL(SUM(l.debit), 0) - ISNULL(SUM(l.credit), 0) as [Net Balance]
             FROM accounting_transaction_lines l
-            LEFT JOIN auxiliary a ON l.auxiliary_id = a.number
+            LEFT JOIN auxiliary a ON l.auxiliary_id = a.id
         """
         params = []
         if from_date or to_date:
@@ -724,9 +724,13 @@ class Reports:
                ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
                COUNT(DISTINCT atl.jv_id) as txn_count
         FROM account_tree at
-        LEFT JOIN accounting_transaction_lines atl ON (
+        LEFT JOIN (
+            SELECT atl2.*, ax.number as aux_num
+            FROM accounting_transaction_lines atl2
+            LEFT JOIN auxiliary ax ON atl2.auxiliary_id = ax.id
+        ) atl ON (
             atl.account_number = at.code 
-            OR atl.auxiliary_id LIKE at.code + '.%'
+            OR atl.aux_num LIKE at.code + '.%'
         )
         LEFT JOIN accounting_transactions atxn ON atl.jv_id = atxn.jv_id
         """
@@ -754,7 +758,7 @@ class Reports:
                    ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
                    COUNT(DISTINCT atl.jv_id) as txn_count
             FROM auxiliary a
-            LEFT JOIN accounting_transaction_lines atl ON atl.auxiliary_id = a.number
+            LEFT JOIN accounting_transaction_lines atl ON atl.auxiliary_id = a.id
             LEFT JOIN accounting_transactions atxn ON atl.jv_id = atxn.jv_id
             WHERE 1=1
         """
@@ -843,7 +847,8 @@ class Reports:
                 ) as Balance
             FROM accounting_transactions t
             JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
-            WHERE l.account_number = ? OR l.auxiliary_id LIKE ? + '.%'
+            LEFT JOIN auxiliary ax ON l.auxiliary_id = ax.id
+            WHERE l.account_number = ? OR ax.number LIKE ? + '.%'
         """
         if from_date:
             sql += " AND CAST(t.transaction_date AS DATE) >= ?"
