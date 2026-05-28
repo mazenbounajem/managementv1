@@ -38,6 +38,7 @@ class RolesUI:
             'sales-returns', 'purchase-returns', 'hide-history',
             'business-track', 'accounting-transactions',
             'profit-analytics',
+            'year-transition',
             'dashboard-kpis'
         ]
         self.create_ui()

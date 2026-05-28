@@ -1,0 +1,10 @@
+barcode_generator==0.1rc15
+fastapi==0.136.1
+matplotlib==3.10.9
+nicegui==3.11.1
+pandas==3.0.2
+plotly==6.3.0
+pyodbc==5.2.0
+python_bcrypt==0.3.2
+reportlab==4.4.3
+pycairo==1.29.0

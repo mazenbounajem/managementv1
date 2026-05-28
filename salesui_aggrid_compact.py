@@ -920,13 +920,11 @@ class SalesUI:
                         
                     connection.deleterow("DELETE FROM sales WHERE id = ?", [sale_id])
 
-                    # Reduce customer balance
-                    if customer_id:
-                        connection.insertingtodatabase(
-                            "UPDATE customers SET balance = balance - ? WHERE id = ?",
-                            (total_amount, customer_id)
-                        )
-                        ui.notify(f'Customer balance reduced by ${total_amount:.2f}')
+                # IMPORTANT:
+                # Deleting a sale must NOT affect customer's balance.
+                # If the sale was Cash, the customer never owed money.
+                # If it was On Account, the customer balance should be managed only by proper accounting flows,
+                # but this delete operation should not touch customers.balance per requirements.
 
                 ui.notify(f'Sale {sale_id} deleted successfully')
                 dialog.close()
@@ -960,11 +958,12 @@ class SalesUI:
             try:
                 raw_sales_data = []
                 connection.contogetrows(
-"SELECT s.id, s.sale_date, c.customer_name, s.total_amount, s.invoice_number, cur.currency_name, s.payment_status, s.currency_id, s.status, u.username "
+                     "SELECT s.id, s.sale_date, c.customer_name, s.total_amount, s.invoice_number, cur.currency_name, s.payment_status, s.currency_id, s.status, u.username "
                      "FROM sales s "
                      "INNER JOIN customers c ON c.id = s.customer_id "
                      "LEFT JOIN currencies cur ON cur.id = s.currency_id "
                      "LEFT JOIN users u ON u.id = s.user_id "
+                     "WHERE s.status = 'Sale' "
                      "ORDER BY s.id DESC",
                      raw_sales_data
                  )
@@ -1252,12 +1251,23 @@ class SalesUI:
                     if payment_method != 'On Account':
                         import business_track_settings
                         payment_aux = business_track_settings.get_payment_account(payment_method)
-                        payment_jv = [
-                            {'account': payment_aux,    'debit': normalized_total, 'credit': 0},
-                            {'account': customer_account, 'debit': 0, 'credit': normalized_total},
-                        ]
+
+                        # Ensure cash/GL base lines are linked with the same auxiliary_id shown in auxiliaryui.py (5300.*)
+                        payment_lines = []
+                        if str(payment_aux).strip() == '5300':
+                            aux_id, _full_num = accounting_helpers._get_auxiliary_id_and_full_number_for_ledger_base('5300')
+                            payment_lines = [
+                                {'account': '5300', 'auxiliary_id': aux_id, 'debit': normalized_total, 'credit': 0},
+                                {'account': customer_account, 'debit': 0, 'credit': normalized_total},
+                            ]
+                        else:
+                            payment_lines = [
+                                {'account': payment_aux, 'debit': normalized_total, 'credit': 0},
+                                {'account': customer_account, 'debit': 0, 'credit': normalized_total},
+                            ]
+
                         accounting_helpers.save_accounting_transaction(
-                            'Sale Receipt', self.current_sale_id, payment_jv, description=f"{payment_method} Receipt for Sale {self.invoicenumber}"
+                            'Sale Receipt', self.current_sale_id, payment_lines, description=f"{payment_method} Receipt for Sale {self.invoicenumber}"
                         )
                     else:
                         # Clean up any potential 'Sale Receipt' if payment changed to On Account
@@ -1541,7 +1551,7 @@ class SalesUI:
                         with ui.column().classes('flex-1 h-full p-2 gap-2 relative overflow-hidden'):
                             # --- TOP BAR: HEADER ---
                             # --- MIDDLE SECTION: DUAL PANEL ---
-                            with ui.row().classes('w-full flex-1 gap-3 overflow-hidden'):
+                            with ui.row().classes('w-full gap-3 overflow-hidden').style('height: 600px;'):
                         
                                 # LEFT PANEL: Sales History (35%)
                                 self.history_panel = ui.column().classes('w-[35%] h-full gap-4')
@@ -1576,7 +1586,7 @@ class SalesUI:
                                             'rowData': [],
                                             'rowSelection': 'single',
                                             'domLayout': 'normal',
-                                        }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 100%;')
+                                        }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 490px;')
                                 
                                         self.sales_aggrid.on('cellClicked', self.handle_sales_aggrid_click_wrapper)
                          
@@ -1662,90 +1672,87 @@ class SalesUI:
                                             'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
                                             'rowSelection': 'single',
                                             'domLayout': 'normal',
-                                        }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; flex-grow: 1;')
-                                        self.aggrid.on('cellClicked', self.handle_aggrid_click_wrapper)
+                                        }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 490px;')
 
-                               
-                            
+                                        self.aggrid.on('cellClicked', self.handle_aggrid_click_wrapper)
+                                        
                                     # Action Bar Panel (Right Side of Editor)
-                                    with ui.column().classes('w-80px items-center'):
+                                    with ui.column().classes('w-60px items-center shrink-0'):
                                         from modern_ui_components import ModernActionBar
-                                        ModernActionBar(
+                                        self.action_bar = ModernActionBar(
                                             on_new=self.clear_inputs,
                                             on_save=self.save_sale,
                                             on_undo=self.show_undo_confirmation,
                                             on_delete=self.delete_sale,
                                             on_print=self.print_sale_invoice,
                                             on_print_special=self.print_special_invoice,
-                                            on_order=lambda: self.save_sale(is_order=True),
                                             on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                                            on_view_transaction=self.view_sale_transactions,
                                             on_refresh=self.refresh_sales_table,
-                                            button_class='h-12',
-                                            classes=' '
-                                        ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
-            
-                            # --- FOOTER: Consolidated High-Visibility Row ---
-                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-4 items-center justify-between mt-auto shadow-2xl'):
+                                            on_view_transaction=self.view_sale_transactions,
+                                            button_class='h-10',
+                                            classes=' '                        
+                                        ).style('position: static; width: 60px; border-radius: 12px; margin-top: 0;')
+
+                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-2 items-center justify-between shadow-2xl flex-nowrap'):
                                 # 1. Operational Metrics
-                                with ui.row().classes('items-center gap-6'):
-                                    with ui.row().classes('items-center gap-3 bg-purple-500/10 px-4 py-2 rounded-xl border border-purple-500/20'):
-                                        ui.icon('analytics', size='1.2rem').classes('text-purple-400')
+                                with ui.row().classes('items-center gap-3 shrink-0'):
+                                    with ui.row().classes('items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-xl border border-purple-500/20'):
+                                        ui.icon('analytics', size='1rem').classes('text-purple-400')
                                         with ui.column().classes('gap-0'):
-                                            ui.label('Inventory Pipeline').classes('text-[10px] font-black text-purple-400 uppercase tracking-widest')
+                                            ui.label('Commerce Pipeline').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest')
                                             if self.can_view_profit_analytics:
                                                 ui.button('PROFIT', on_click=self.show_profit_dialog, icon='insights').props('flat dense size=sm').classes('text-purple-400 text-[9px] h-3 p-0 min-h-0')
                                     
-                                    with ui.row().classes('items-center gap-4 bg-white/5 py-1 px-4 rounded-xl border border-white/10'):
+                                    with ui.row().classes('items-center gap-3 bg-white/5 py-1 px-3 rounded-xl border border-white/10'):
                                         with ui.column().classes('items-center gap-0'):
-                                            ui.label('Balance').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
-                                            self.summary_label = ui.label('0 items').classes('text-sm font-black text-white')
-                                        ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                            ui.label('Items').classes('text-[8px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.summary_label = ui.label('0 items').classes('text-xs font-black text-white')
+                                        ui.element('div').classes('w-[1px] h-6 bg-white/10')
                                         with ui.column().classes('items-center gap-0'):
-                                            ui.label('Velocity').classes('text-[9px] text-gray-500 font-bold uppercase tracking-tighter')
-                                            self.quantity_total_label = ui.label('Total Qty: 0').classes('text-sm font-black text-white')
+                                            ui.label('Quantity').classes('text-[8px] text-gray-500 font-bold uppercase tracking-tighter')
+                                            self.quantity_total_label = ui.label('Total Qty: 0').classes('text-xs font-black text-white')
 
                                 # 2. Session Info (Operator & Terminal)
-                                with ui.row().classes('items-center gap-6 px-6 py-2 bg-white/5 border border-white/10 rounded-2xl shadow-inner mx-4'):
+                                with ui.row().classes('items-center gap-4 px-4 py-1.5 bg-white/5 border border-white/10 rounded-2xl shadow-inner mx-2 shrink-0'):
                                     with ui.column().classes('items-center gap-0'):
-                                        ui.label('Active Operator').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
-                                        ui.label(user.get('username', 'Guest')).classes('text-sm font-black text-[#08CB00] uppercase tracking-wider')
+                                        ui.label('Operator').classes('text-[8px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(user.get('username', 'Guest')).classes('text-xs font-black text-[#08CB00] uppercase tracking-wider')
                                     
-                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
-                                    
-                                    with ui.column().classes('items-center gap-0'):
-                                        ui.label('Organization').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
-                                        ui.label(company_name).classes('text-sm font-black text-white uppercase tracking-wider')
-                                    
-                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
+                                    ui.element('div').classes('w-[1px] h-6 bg-white/10')
                                     
                                     with ui.column().classes('items-center gap-0'):
-                                        ui.label('Terminal Time').classes('text-[9px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label('Organization').classes('text-[8px] text-gray-500 font-bold uppercase tracking-widest')
+                                        ui.label(company_name).classes('text-xs font-black text-white uppercase tracking-wider')
+                                    
+                                    ui.element('div').classes('w-[1px] h-6 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Terminal Time').classes('text-[8px] text-gray-500 font-bold uppercase tracking-widest')
                                         def update_footer_time():
                                             now_time = datetime.now().strftime('%H:%M:%S')
                                             footer_time_label.text = now_time
                                         footer_time_label = ui.label()
                                         update_footer_time()
                                         ui.timer(1.0, update_footer_time)
-                                        footer_time_label.classes('text-sm font-black text-[#08CB00] tracking-widest')
+                                        footer_time_label.classes('text-xs font-black text-[#08CB00] tracking-widest')
 
                                 # 3. Financial Summary
-                                with ui.row().classes('items-center gap-6 bg-purple-500/5 px-6 py-2 rounded-2xl border border-purple-500/20 shadow-inner ml-auto'):
+                                with ui.row().classes('items-center gap-3 bg-purple-500/5 px-4 py-1.5 rounded-2xl border border-purple-500/20 shadow-inner ml-auto shrink-0'):
                                     with ui.column().classes('items-center gap-0'):
-                                        ui.label('Total HT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
-                                        self.subtotal_label = ui.label('$0.00').classes('text-base font-black text-white')
+                                        ui.label('Total HT').classes('text-[9px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.subtotal_label = ui.label('$0.00').classes('text-sm font-black text-white')
                                     
-                                    ui.element('div').classes('w-[1px] h-10 bg-white/10')
-                                    
-                                    with ui.column().classes('items-center gap-0'):
-                                        ui.label('Total VAT').classes('text-[10px] text-gray-400 font-bold uppercase tracking-widest')
-                                        self.vat_label = ui.label('$0.00').classes('text-base font-black text-purple-400')
-                                    
-                                    ui.element('div').classes('w-[1px] h-14 bg-purple-500/20 mx-2')
+                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
                                     
                                     with ui.column().classes('items-center gap-0'):
-                                        ui.label('Total TTC').classes('text-[11px] text-purple-300 font-black uppercase tracking-[.25em]')
-                                        self.total_label = ui.label('$0.00').classes('text-4xl font-black text-white leading-none tracking-tight')
+                                        ui.label('Total VAT').classes('text-[9px] text-gray-400 font-bold uppercase tracking-widest')
+                                        self.vat_label = ui.label('$0.00').classes('text-sm font-black text-purple-400')
+                                    
+                                    ui.element('div').classes('w-[1px] h-8 bg-purple-500/20 mx-1')
+                                    
+                                    with ui.column().classes('items-center gap-0'):
+                                        ui.label('Total TTC').classes('text-[10px] text-purple-300 font-black uppercase tracking-[.25em]')
+                                        self.total_label = ui.label('$0.00').classes('text-2xl font-black text-white leading-none tracking-tight')
 
                                 # Functional Hidden Inputs
                                 with ui.element('div').classes('hidden'):
@@ -1800,6 +1807,13 @@ class SalesUI:
                     self.update_totals()
                     self.invoicenumber = selected_row["invoice_number"]
                     self.currency_select.value = selected_row.get('currency_id', self.default_currency_id)
+
+                    # Sync payment method radio with sale payment_status
+                    # save_sale logic:
+                    # - Cash => payment_status = 'completed'
+                    # - On Account / Order => payment_status = 'pending'
+                    payment_status = str(selected_row.get('payment_status', '')).lower()
+                    self.payment_method.value = 'Cash' if payment_status == 'completed' else 'On Account'
                     
                     ui.notify(f'Loaded {len(self.rows)} items from sale {sale_id}', color='positive')
             except Exception as ex:

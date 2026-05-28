@@ -110,6 +110,7 @@ class EnhancedNavigation:
                 'icon': 'settings',
                 'items': {
                     'backup': {'label': 'Database Backup', 'path': '/settings-backup', 'icon': 'backup', 'shortcut': 'Alt+Z'},
+                    'year-transition': {'label': 'Year Transition', 'path': '/year-transition', 'icon': 'event_repeat'},
                 }
             }
         }
@@ -286,9 +287,9 @@ class EnhancedNavigation:
             with ui.row().classes('items-center gap-4'):
                 with ui.element('div').classes('w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#08CB00]/10 group-hover:text-[#08CB00] border border-gray-100 group-hover:border-[#08CB00]/20 transition-colors'):
                     ui.icon(icon, size='1.2rem').classes('text-gray-500 group-hover:text-[#08CB00] transition-colors')
-                with ui.column().classes('gap-0'):
+                with ui.row().classes('items-baseline gap-2'):
                     ui.label(label).classes('font-bold text-gray-800 text-sm')
-                    ui.label(category).classes('text-[10px] text-gray-400 uppercase tracking-wider mt-0.5')
+                    ui.label(category).classes('text-[9px] text-gray-400 uppercase tracking-wider')
             
             with ui.row().classes('items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'):
                 ui.label('Open in Tab').classes('text-xs font-bold text-[#08CB00]')
@@ -380,9 +381,9 @@ class EnhancedNavigation:
                 with ui.row().classes('drawer-button w-full items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer animate-fade-in mb-1')\
                     .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
                     ui.icon(page_data['icon']).classes('drawer-button-icon')
-                    with ui.column().classes('gap-0 flex-1'):
-                        ui.label(page_data['label']).classes('drawer-button-label text-white leading-none')
-                        ui.label(category).classes('text-[8px] text-gray-500 uppercase tracking-tighter mt-1')
+                    with ui.row().classes('items-baseline gap-2 flex-1'):
+                        ui.label(page_data['label']).classes('drawer-button-label text-white')
+                        ui.label(f"({category})").classes('text-[8px] text-gray-500 uppercase tracking-tighter')
                     ui.icon('add_circle', size='xs').classes('text-[#08CB00]/30 hover:text-[#08CB00]')
         
         # 2. Matching Open Tabs (Currently running instances)
@@ -416,13 +417,13 @@ class EnhancedNavigation:
                     # Customize expansion header styling via CSS or props
                     # Note: We styling the expansion component in modern_design_system or global CSS
                     
-                    with ui.column().classes('w-full gap-1 pl-4 pb-2'):
+                    with ui.column().classes('w-full gap-0'):
                         for page_key, page_data in category_items:
                             is_active = (page_data['path'] == self.active_path)
                             btn_classes = 'drawer-button w-full ' + ('active ' if is_active else '')
                             
                             with ui.row().classes(btn_classes):
-                                with ui.row().classes('flex-1 items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer')\
+                                with ui.row().classes('flex-1 items-center gap-3 hover:cursor-pointer')\
                                     .on('click', lambda p=page_key: self.navigate_to_page(p, new_instance=True)):
                                     ui.icon(page_data['icon']).classes('drawer-button-icon')
                                     ui.label(page_data['label']).classes('drawer-button-label flex-1')

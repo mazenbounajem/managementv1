@@ -22,6 +22,8 @@ class CustomerReceiptUI:
             ui.navigate.to('/login')
             return
 
+        self._ensure_customer_receipt_details_table()
+
         # Permissions
         permissions = connection.get_user_permissions(user['role_id'])
         if show_navigation:
@@ -67,9 +69,14 @@ class CustomerReceiptUI:
     def on_currency_change(self):
         # Typically receipt is in base currency, but if we want to support conversion:
         if self.previous_currency_id != self.currency_select.value:
-            # For now just update labels or recalculate if needed
             self.previous_currency_id = self.currency_select.value
             ui.notify('Currency changed. Amounts shown are normalized.')
+        # Update currency label if it exists
+        if hasattr(self, 'customer_currency_label'):
+            try:
+                self.customer_currency_label.text = self.get_current_currency_symbol() + ' ' + str(self.currency_select.value)
+            except Exception:
+                pass
 
     def get_current_currency_symbol(self):
         selected_currency_id = self.currency_select.value
@@ -134,64 +141,121 @@ class CustomerReceiptUI:
         self.history_overlay.set_visibility(False)
         self.history_grid.classes(remove='dimmed')
 
+    def _ensure_customer_receipt_details_table(self):
+        # Persist per-allocation information so:
+        # - delete_receipt can reliably revert in BASE currency
+        # - transaction view can display amounts exactly as entered (DISPLAY currency)
+        try:
+            connection.insertingtodatabase(
+                """
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.tables WHERE name = 'customer_receipt_details'
+                )
+                CREATE TABLE customer_receipt_details (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    payment_id INT NOT NULL,
+                    source_type NVARCHAR(20) NOT NULL,
+                    source_id INT NOT NULL,
+                    settlement_amount DECIMAL(18, 2) NOT NULL, -- BASE currency
+                    settlement_amount_display DECIMAL(18, 2) NULL -- display currency
+                )
+                """
+            )
+
+            # Add missing columns safely (for existing DBs)
+            connection.insertingtodatabase(
+                """
+                IF COL_LENGTH('customer_receipt_details','settlement_amount_display') IS NULL
+                BEGIN
+                    ALTER TABLE customer_receipt_details
+                    ADD settlement_amount_display DECIMAL(18,2) NULL;
+                END
+                """
+            )
+        except Exception as e:
+            ui.notify(f'Error ensuring customer_receipt_details table: {e}', color='negative')
+
     def allocate_receipt_to_invoices(self, selected_rows, pay_amount):
         allocations = []
         remaining = round(pay_amount, 2)
-        # Order by date, then ID
-        ordered_rows = sorted(selected_rows, key=lambda row: (str(row.get('date') or ''), row.get('id') or 0))
-        
-        for row in ordered_rows:
+
+        # Prioritize Returns (Credits) to increase settlement capacity (same strategy as supplier payments)
+        ordered_rows = sorted(
+            selected_rows,
+            key=lambda row: (0 if row.get('type') == 'Return' else 1, str(row.get('date') or ''), row.get('id') or 0)
+        )
+
+        for idx, row in enumerate(ordered_rows):
             is_return = row.get('type') == 'Return'
-            invoice_due = self.to_float(row.get('amount'))
-            
-            if is_return:
-                # Returns are credits (negative in our UI), so they reduce the debt but increase the "remaining" to pay others
-                # Actually, if we settle a return of $20, it's like we "used" the credit.
-                # Let's say we have $100 invoice and $20 return. pay_amount is $80.
-                # 1. Invoice $100: we pay $100? No, we pay min(100, 80 + 20) = 100.
-                # It's better to think as: Credits items are "Negative Payment".
-                pass
-            
-            if invoice_due == 0: continue
-            
-            # For simplicity in this logic: handle everything as a target to settle.
-            # If amount is negative (Return), we settle it fully (which adds to our "remaining" capacity)
+            invoice_due = self.to_float(row.get('amount'))  # Sale: +, Return: -
+
+            if invoice_due == 0:
+                continue
+
+            # For Return credits: settle fully (invoice_due is negative), which increases remaining capacity.
             settlement_amount = invoice_due if is_return else min(invoice_due, remaining)
-            
+
             if abs(settlement_amount) > 0 or is_return:
                 allocations.append({
                     'id': row['id'],
                     'type': row.get('type', 'Sale'),
-                    'invoice_number': row['invoice_number'],
-                    'date': row['date'],
+                    'invoice_number': row.get('invoice_number'),
+                    'date': row.get('date'),
                     'amount': invoice_due,
                     'settlement_amount': round(settlement_amount, 2),
                 })
-                if not is_return:
-                    remaining = round(remaining - settlement_amount, 2)
-                else:
-                    # Settle the full return credit (which is negative), effectively ADDING to capacity
-                    remaining = round(remaining - settlement_amount, 2) 
 
-            if remaining <= 0 and not any(r.get('type') == 'Return' for r in ordered_rows[ordered_rows.index(row)+1:]):
+                # remaining decreases for positive settlement, increases for negative settlement (returns)
+                remaining = round(remaining - settlement_amount, 2)
+
+            # Stop if we ran out of payable capacity AND there are no more returns that could add capacity.
+            if remaining <= 0 and not any(r.get('type') == 'Return' for r in ordered_rows[idx + 1:]):
                 break
+
         return allocations
 
     def select_customer(self):
         with ui.dialog() as d, ModernCard().classes('w-full max-w-2xl p-6'):
             ui.label('Select Customer').classes('text-xl font-black mb-4 text-white')
+
             c_data = []
-            connection.contogetrows("SELECT id, customer_name, balance FROM customers ORDER BY customer_name", c_data)
-            c_rows = [{'id': r[0], 'name': r[1], 'balance': self.to_float(r[2])} for r in c_data]
+            connection.contogetrows(
+                "SELECT id, customer_name, phone, balance FROM customers ORDER BY customer_name",
+                c_data
+            )
+            all_customer_rows = [
+                {'id': r[0], 'name': r[1], 'phone': r[2], 'balance': self.to_float(r[3])}
+                for r in c_data
+            ]
+
+            search_query_input = ui.input('Search Account (name/phone/id)').props('clearable autofocus').classes('w-full mb-3 text-white')
+            
             grid = ui.aggrid({
                 'columnDefs': [
                     {'headerName': 'Name', 'field': 'name', 'flex': 1, 'filter': 'agTextColumnFilter', 'headerClass': 'blue-header'},
-                    {'headerName': 'Balance', 'field': 'balance', 'width': 150, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()', 'headerClass': 'blue-header'},
+                    {'headerName': 'Phone', 'field': 'phone', 'width': 140, 'filter': 'agTextColumnFilter', 'headerClass': 'blue-header'},
+                    {'headerName': 'Balance', 'field': 'balance', 'width': 130, 'filter': 'agNumberColumnFilter', 'headerClass': 'blue-header'},
                 ],
-                'rowData': c_rows,
+                'rowData': all_customer_rows,
                 'rowSelection': 'single',
+                'suppressRowClickSelection': False,
                 'defaultColDef': MDS.get_ag_grid_default_def(),
             }).classes('w-full h-80 ag-theme-quartz-dark')
+
+            def apply_search(e=None):
+                q = str(search_query_input.value or '').strip().lower()
+                if not q:
+                    grid.options['rowData'] = all_customer_rows
+                else:
+                    grid.options['rowData'] = [
+                        r for r in all_customer_rows
+                        if q in str(r.get('name', '')).lower()
+                        or q in str(r.get('phone', '')).lower()
+                        or q in str(r.get('id', '')).lower()
+                    ]
+                grid.update()
+
+            search_query_input.on_value_change(apply_search)
 
             async def confirm():
                 row = await grid.get_selected_row()
@@ -204,6 +268,19 @@ class CustomerReceiptUI:
                     self.selected_invoices = []
                     self.draft_amount = 0.0
                     self.total_display_input.value = '0.00'
+
+                    # Update customer details labels (date + currency)
+                    if hasattr(self, 'customer_date_label'):
+                        try:
+                            self.customer_date_label.text = str(self.date_input.value or datetime.now().strftime('%Y-%m-%d'))
+                        except Exception:
+                            pass
+                    if hasattr(self, 'customer_currency_label'):
+                        try:
+                            self.customer_currency_label.text = self.get_current_currency_symbol() + ' ' + str(self.currency_select.value)
+                        except Exception:
+                            pass
+
                     d.close()
                     ui.notify('Customer selected', color='positive')
 
@@ -304,8 +381,9 @@ class CustomerReceiptUI:
         async with loading_indicator.show_loading('save_receipt', 'Saving receipt...', overlay=True):
             try:
                 pay_amount = self.to_float(self.amount_input.value)
-                if pay_amount <= 0 or not self.selected_invoices:
-                    return ui.notify('Amount > 0 + Select invoices', color='warning')
+                # Allow net-zero settlements when Return offsets Sale exactly.
+                if pay_amount < 0 or not self.selected_invoices:
+                    return ui.notify('Amount must be >= 0 + Select invoices', color='warning')
 
                 # Normalization
                 selected_currency_id = self.currency_select.value
@@ -337,38 +415,55 @@ class CustomerReceiptUI:
                 self.draft_receipt_id = receipt_id
 
                 for alloc in self.selected_invoices:
+                    # alloc['settlement_amount'] is in DISPLAY currency (same currency as pay_amount input)
+                    settlement_display = round(float(alloc['settlement_amount']), 2)
+                    settlement_base = round(settlement_display / exchange_rate, 2)
+
                     # Invoices/Returns in DB are normalized (base currency)
-                    norm_settlement = round(alloc['settlement_amount'] / exchange_rate, 2)
-                    new_total = round(alloc['amount'] - norm_settlement, 2)
-                    status = 'completed' if new_total == 0 else ('pending' if new_total > 0 else 'credit')
+                    new_total_base = round(float(alloc['amount']) - settlement_base, 2)
+
+                    status = 'completed' if new_total_base == 0 else ('pending' if new_total_base > 0 else 'credit')
 
                     if alloc['type'] == 'Return':
-                        # Settlement for a return credit Note
                         connection.insertingtodatabase(
                             "UPDATE sales_returns SET total_amount = ?, payment_status = ? WHERE id = ?",
-                            (abs(new_total), status, alloc['id'])
+                            (abs(new_total_base), status, alloc['id'])
                         )
                     else:
                         connection.insertingtodatabase(
                             "UPDATE sales SET total_amount = ?, payment_status = ? WHERE id = ?",
-                            (new_total, status, alloc['id'])
+                            (new_total_base, status, alloc['id'])
                         )
 
-                # customer_receipt_details table does not exist in current schema (db_schema.json),
-                # so we cannot persist per-invoice allocations for full undo.
-                connection.insertingtodatabase("UPDATE customers SET balance = balance - ? WHERE id = ?", (normalized_amount, self.selected_customer['id']))
+                    # Persist allocation:
+                    # - settlement_amount: BASE currency (for delete revert)
+                    # - settlement_amount_display: DISPLAY currency (for UI history display)
+                    connection.insertingtodatabase(
+                        """
+                        INSERT INTO customer_receipt_details
+                        (payment_id, source_type, source_id, settlement_amount, settlement_amount_display)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (receipt_id, alloc['type'], alloc['id'], settlement_base, settlement_display)
+                    )
+
+                # Update customer balance (normalized base currency)
+                connection.insertingtodatabase(
+                    "UPDATE customers SET balance = balance - ? WHERE id = ?",
+                    (normalized_amount, self.selected_customer['id'])
+                )
 
                 import business_track_settings
                 # For customer receipts (settling customer invoices):
-                # Debit customer account (4111.xxxxx) and Credit 5300.000001
-                # Note: VAT is not mentioned for customer receipt in your instructions.
-                payment_credit_account = '5300.000001'
+                # Customer should be CREDITed and caisse/cash account should be DEBITed.
+                # (This reverses the debit/credit directions compared to the previous implementation.)
+                payment_cash_account = '5300.000001'
                 accounting_helpers.save_accounting_transaction(
                     'Receipt',
                     str(receipt_id),
                     [
-                        {'account': cust_aux, 'debit': normalized_amount, 'credit': 0},
-                        {'account': payment_credit_account, 'debit': 0, 'credit': normalized_amount},
+                        {'account': cust_aux, 'debit': 0, 'credit': normalized_amount},
+                        {'account': payment_cash_account, 'debit': normalized_amount, 'credit': 0},
                     ],
                     description=f"Customer {self.method_select.value} Receipt #{receipt_id} - {self.selected_customer['name']}"
                 )
@@ -406,12 +501,33 @@ class CustomerReceiptUI:
                                 if not res: return ui.notify('Receipt record not found')
                                 cust_id, norm_amount = res[0]
 
-                                # 2. Revert Customer Balance only.
-                                # The allocations/details table used for reverting invoice totals is not present in current schema,
-                                # therefore we cannot reliably revert which sales/sales_returns rows were affected.
-                                ui.notify('Receipt deleted and customer balance/cash updated. Invoice settlements cannot be auto-reverted in this build.', color='warning')
+                                # 2. Revert invoice/return settlements using saved allocation rows
+                                settlements = []
+                                connection.contogetrows(
+                                    "SELECT source_type, source_id, settlement_amount FROM customer_receipt_details WHERE payment_id = ?",
+                                    settlements,
+                                    (self.draft_receipt_id,)
+                                )
 
-                                connection.insertingtodatabase("UPDATE customers SET balance = balance + ? WHERE id = ?", (norm_amount, cust_id))
+                                for s_type, s_id, s_amt in settlements:
+                                    # s_amt is BASE currency (stored in settlement_amount)
+                                    s_amt = self.to_float(s_amt)
+                                    if s_type == 'Return':
+                                        connection.insertingtodatabase(
+                                            "UPDATE sales_returns SET total_amount = total_amount + ?, payment_status = 'pending' WHERE id = ?",
+                                            (abs(s_amt), s_id)
+                                        )
+                                    else:
+                                        connection.insertingtodatabase(
+                                            "UPDATE sales SET total_amount = total_amount + ?, payment_status = 'pending' WHERE id = ?",
+                                            (s_amt, s_id)
+                                        )
+
+                                # 3. Revert Customer Balance
+                                connection.insertingtodatabase(
+                                    "UPDATE customers SET balance = balance + ? WHERE id = ?",
+                                    (norm_amount, cust_id)
+                                )
 
                                 # 4. Reverse Cash Drawer
                                 user_id = session_storage.get('user')['user_id']
@@ -421,6 +537,10 @@ class CustomerReceiptUI:
                                 accounting_helpers.save_accounting_transaction('Receipt', str(self.draft_receipt_id), [])
 
                                 # 6. Clean up records
+                                connection.insertingtodatabase(
+                                    "DELETE FROM customer_receipt_details WHERE payment_id = ?",
+                                    (self.draft_receipt_id,)
+                                )
                                 connection.insertingtodatabase("DELETE FROM customer_receipt WHERE id = ?", (self.draft_receipt_id,))
 
                                 ui.notify(f'Receipt #{self.draft_receipt_id} deleted successfully', color='positive')
@@ -438,12 +558,70 @@ class CustomerReceiptUI:
 
     async def perform_load_row(self, row_data):
         self.exit_new_mode()
+        self.draft_receipt_id = row_data['id']
         self.selected_customer = {'id': row_data['customer_id'], 'name': row_data['customer']}
         self.customer_input.value = row_data['customer']
         self.amount_input.value = f'{row_data["amount"]:.2f}'
         self.method_select.value = row_data['method']
         self.total_display_input.value = f'{row_data["amount"]:.2f}'
         self.balance_input.value = self.calculate_customer_pending(row_data['customer_id'])
+
+    def on_receipt_amount_click(self):
+        if self.new_mode:
+            return self.open_settlement_dialog()
+        if not self.draft_receipt_id:
+            return ui.notify('No receipt selected', color='warning')
+        return self.show_receipt_allocation_history(self.draft_receipt_id)
+
+    def show_receipt_allocation_history(self, receipt_id):
+        try:
+            allocations = []
+            sql = """
+                SELECT
+                    d.source_type,
+                    d.source_id,
+                    d.settlement_amount_display,
+                    s.invoice_number AS sales_invoice_number,
+                    r.invoice_number AS return_invoice_number
+                FROM customer_receipt_details d
+                LEFT JOIN sales s
+                    ON d.source_type = 'Sale' AND s.id = d.source_id
+                LEFT JOIN sales_returns r
+                    ON d.source_type = 'Return' AND r.id = d.source_id
+                WHERE d.payment_id = ?
+                ORDER BY d.id ASC
+            """
+            connection.contogetrows(sql, allocations, (receipt_id,))
+
+            rows = []
+            for src_type, src_id, settlement_display, sales_inv, ret_inv in allocations:
+                inv = sales_inv if src_type == 'Sale' else ret_inv
+                rows.append({
+                    'Type': src_type,
+                    'SourceID': src_id,
+                    'Invoice': inv,
+                    'AppliedAmount': float(settlement_display or 0),
+                })
+
+            with ui.dialog() as dialog, ModernCard().classes('w-full max-w-5xl p-6'):
+                ui.label(f'Receipt Allocation History - Receipt #{receipt_id}').classes('text-xl font-black mb-4')
+                if not rows:
+                    ui.label('No allocation details found for this receipt.').classes('text-gray-500')
+                else:
+                    ui.table(
+                        columns=[
+                            {'name': 'Type', 'label': 'Type', 'field': 'Type'},
+                            {'name': 'SourceID', 'label': 'Source ID', 'field': 'SourceID'},
+                            {'name': 'Invoice', 'label': 'Invoice #', 'field': 'Invoice'},
+                            {'name': 'AppliedAmount', 'label': 'Applied Amount (Entered)', 'field': 'AppliedAmount', 'align': 'right'},
+                        ],
+                        rows=rows,
+                        pagination=20
+                    ).classes('w-full')
+                ui.button('Close', on_click=dialog.close).classes('mt-4').props('flat')
+            dialog.open()
+        except Exception as e:
+            ui.notify(f'Error loading receipt allocations: {e}', color='negative')
 
     def filter_history_table(self, query):
         target_query = str(query or "").lower()
@@ -460,17 +638,8 @@ class CustomerReceiptUI:
             with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
                 # MAIN CONTENT
                 with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
-                    # HEADER
-                    with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
-                        with ui.column().classes('gap-1'):
-                            ui.label('Commerce Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
-                            ui.label('Customer Receipt').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                        
-                        with ui.row().classes('gap-6 items-center'):
-                            with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
-                                ui.icon('event', size='1rem').classes('text-gray-400')
-                                self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
-                            self.currency_select = ui.select({r[0]: f"{r[2]} {r[1]}" for r in self.currency_rows}, value=self.default_currency_id).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
+                    # HEADER (Empty or minimal as elements moved)
+                    ui.element('div').classes('h-2') # Just a spacer
 
                     # DUAL PANEL
                     with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
@@ -505,14 +674,32 @@ class CustomerReceiptUI:
                         # RIGHT: Editor
                         with ui.column().classes('flex-1 h-full gap-4'):
                             with ModernCard(glass=True).classes('w-full p-8 rounded-3xl border border-white/10'):
-                                ui.label('COLLECTION DETAILS').classes('text-[10px] font-black text-purple-400 tracking-widest mb-6 opacity-60')
+                                # BRANDING & TITLE (MOVED FROM HEADER)
+                                with ui.row().classes('w-full justify-between items-start mb-8'):
+                                    with ui.column().classes('gap-1'):
+                                        ui.label('Commerce Engine').classes('text-[10px] font-black uppercase tracking-[0.2em] text-purple-400')
+                                        ui.label('Customer Receipt').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+                                    
+                                    with ui.column().classes('items-end gap-2'):
+                                        with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10'):
+                                            ui.icon('event', size='0.9rem').classes('text-purple-400')
+                                            self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-[11px] font-bold w-24 px-1')
+                                        
+                                        self.currency_select = ui.select({r[0]: f"{r[2]} {r[1]}" for r in self.currency_rows}, value=self.default_currency_id).props('borderless dense').classes('bg-white/5 px-3 py-1 rounded-xl text-white text-[11px] font-bold w-36 border border-white/10').on('change', self.on_currency_change)
+
+                                ui.label('COLLECTION DETAILS').classes('text-[9px] font-black text-purple-400 tracking-widest mb-6 opacity-40')
                                 with ui.column().classes('w-full gap-6'):
                                     with ui.column().classes('w-full gap-1'):
                                         ui.label('Customer Account').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                        with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
+                                    with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
                                             ui.icon('person', size='1.5rem').classes('text-purple-400')
                                             self.customer_input = ui.input(placeholder='Select Customer Account...').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.select_customer)
-                                    
+
+                                    with ui.row().classes('w-full gap-4 mt-2'):
+                                        with ui.column().classes('flex-1 gap-1'):
+                                            # Redundant labels removed as actual widgets are now in the card
+                                            pass
+
                                     with ui.row().classes('w-full gap-4'):
                                         with ui.column().classes('flex-1 gap-1'):
                                             ui.label('Pending Balance').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
@@ -524,8 +711,8 @@ class CustomerReceiptUI:
                                             ui.label('Receipt Amount').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
                                             with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer'):
                                                 ui.icon('payments', size='1.5rem').classes('text-green-400')
-                                                self.amount_input = ui.input(value='0.00').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.open_settlement_dialog)
-                                                ui.button(icon='open_in_new', on_click=self.open_settlement_dialog).props('flat round color=purple')
+                                                self.amount_input = ui.input(value='0.00').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.on_receipt_amount_click)
+                                                ui.button(icon='open_in_new', on_click=self.on_receipt_amount_click).props('flat round color=purple')
                                     
                                     with ui.row().classes('w-full gap-4'):
                                         with ui.column().classes('flex-1 gap-1'):

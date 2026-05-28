@@ -21,6 +21,7 @@ def stock_operations_page(standalone=False):
     input_refs = {}
     history_data = []
     current_operation_items = []
+    cost_diff_state = {'selected_operation_cost_diff': None}
 
     def refresh_history():
         data = []
@@ -297,6 +298,10 @@ def stock_operations_page(standalone=False):
                     }).classes('w-full h-[280px] ag-theme-quartz-dark shadow-inner')
                     items_grid.on('cellClicked', handle_item_click)
 
+                    # Cost difference after inventory for currently shown operation items
+                    cost_diff_label = ui.label('Cost diff after inventory: —').classes(
+                        'mt-3 text-sm font-bold text-white/80')
+
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Operations Registry (History)').classes('text-sm font-black mb-4 text-white/50 uppercase tracking-widest')
                     
@@ -315,14 +320,105 @@ def stock_operations_page(standalone=False):
                         'rowSelection': 'single',
                     }).classes('w-full h-[300px] ag-theme-quartz-dark shadow-inner')
 
+                    def load_history_operation(row):
+                        """Load selected history operation items into current grid and compute cost diff."""
+                        try:
+                            op_id = row.get('id')
+                            if op_id is None:
+                                return
+                            # Pull items with cost price + valuation math
+                            item_rows = []
+                            sql = """
+                                SELECT
+                                    soi.product_id,
+                                    soi.product_name,
+                                    soi.barcode,
+                                    CAST(soi.adjusted_quantity AS float) AS adjusted_quantity,
+                                    CAST(soi.previous_quantity AS float) AS previous_quantity,
+                                    ISNULL(p.cost_price, 0) AS cost_price,
+                                    ISNULL(soi.reason, '') AS reason,
+                                    ISNULL(soi.operation_type, '') AS operation_type
+                                FROM stock_operation_items soi
+                                LEFT JOIN products p ON p.id = soi.product_id
+                                WHERE soi.operation_id = ?
+                                ORDER BY soi.id
+                            """
+                            connection.contogetrows(sql, item_rows, [op_id])
+
+                            current_operation_items.clear()
+                            for r in item_rows:
+                                p_id, p_name, p_barcode, adj_qty, prev_qty, cost_price, reason, operation_type = r
+                                current_operation_items.append({
+                                    'product_id': p_id,
+                                    'product_name': p_name,
+                                    'barcode': p_barcode,
+                                    # In the UI items_grid expects 'quantity'
+                                    'quantity': adj_qty,
+                                    'reason': reason
+                                })
+                            items_grid.options['rowData'] = current_operation_items
+                            items_grid.update()
+
+                            # Cost diff after inventory (option A):
+                            # after_value - before_value = (prev_qty + adj_qty)*cost - prev_qty*cost
+                            # = adj_qty * cost, but computed using prev_qty as requested.
+                            total_diff = 0.0
+                            for r in item_rows:
+                                adj_qty = float(r[3] or 0)
+                                prev_qty = float(r[4] or 0)
+                                cost_price = float(r[5] or 0)
+                                before_value = prev_qty * cost_price
+                                after_value = (prev_qty + adj_qty) * cost_price
+                                total_diff += (after_value - before_value)
+
+                            cost_diff_state['selected_operation_cost_diff'] = total_diff
+                            sign_color = 'text-green-300' if total_diff >= 0 else 'text-red-300'
+                            cost_diff_label.set_text(
+                                f"Cost diff after inventory: {total_diff:+,.2f} (qty*cost)"
+                            )
+                            cost_diff_label.classes('mt-3 text-sm font-bold ' + sign_color)
+
+                        except Exception as ex:
+                            print(f"Error loading operation history: {ex}")
+                            ui.notify(f"Load failed: {ex}", color='negative')
+
+                    def handle_history_click(e):
+                        row = e.args.get('data')
+                        if not row:
+                            return
+                        load_history_operation(row)
+
+                    history_grid.on('cellClicked', handle_history_click)
+
             # Right Column: Action Bar
             with ui.column().classes('w-80px items-center'):
+
+                def _open_stock_print_special():
+                    try:
+                        from stock_reports import open_print_current_and_grouped_dialog
+
+                        operation_date_val = input_refs.get('date').value if input_refs.get('date') else None
+                        date_only = (str(operation_date_val).split('T')[0] if operation_date_val else None)
+
+                        # Defer opening to next tick to avoid immediate UI close/minimize effects.
+                        def _do_open():
+                            open_print_current_and_grouped_dialog(
+                                current_items=current_operation_items,
+                                operation_date=date_only,
+                                reference_number=(input_refs['ref'].value if 'ref' in input_refs else None),
+                                from_date=date_only,
+                                to_date=date_only
+                            )
+                        ui.timer(0, _do_open, once=True)
+                    except Exception as e:
+                        ui.notify(f'Print Special failed: {e}', color='negative')
+
                 ModernActionBar(
                     on_new=clear_form,
                     on_save=save_operation,
                     on_undo=lambda: ui.notify('Undo not applicable here', color='warning'),
                     on_refresh=refresh_history,
-                    on_print_special=lambda: __import__('stock_reports').open_print_special_dialog(),
+                    on_print_special=_open_stock_print_special,
                     on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     button_class='h-16',
                     classes=' '

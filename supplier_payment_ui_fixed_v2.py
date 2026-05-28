@@ -172,6 +172,8 @@ class SupplierPaymentUI:
             s_data = []
             connection.contogetrows("SELECT id, name, balance, balance_usd FROM suppliers ORDER BY name", s_data)
             s_rows = [{'id': r[0], 'name': r[1], 'balance_ll': self.to_float(r[2]), 'balance_usd': self.to_float(r[3])} for r in s_data]
+            search_query_input = ui.input('Search Supplier (name/id)').props('clearable autofocus').classes('w-full mb-3 text-white')
+
             grid = ui.aggrid({
                 'columnDefs': [
                     {'headerName': 'Name', 'field': 'name', 'flex': 1, 'filter': 'agTextColumnFilter', 'headerClass': 'orange-header'},
@@ -182,6 +184,20 @@ class SupplierPaymentUI:
                 'rowSelection': 'single',
                 'defaultColDef': MDS.get_ag_grid_default_def(),
             }).classes('w-full h-80 ag-theme-quartz-dark')
+
+            def apply_search(e=None):
+                q = str(search_query_input.value or '').strip().lower()
+                if not q:
+                    grid.options['rowData'] = s_rows
+                else:
+                    grid.options['rowData'] = [
+                        r for r in s_rows
+                        if q in str(r.get('name', '')).lower()
+                        or q in str(r.get('id', '')).lower()
+                    ]
+                grid.update()
+
+            search_query_input.on_value_change(apply_search)
 
             async def confirm():
                 row = await grid.get_selected_row()
@@ -294,8 +310,9 @@ class SupplierPaymentUI:
         async with loading_indicator.show_loading('save_payment', 'Saving payment...', overlay=True):
             try:
                 pay_amount = self.to_float(self.amount_input.value)
-                if pay_amount <= 0 or not self.selected_invoices:
-                    return ui.notify('Amount > 0 + Select invoices', color='warning')
+                # Allow net-zero settlements when Return offsets Purchase exactly.
+                if pay_amount < 0 or not self.selected_invoices:
+                    return ui.notify('Amount must be >= 0 + Select invoices', color='warning')
 
                 # Normalization for shared records (base currency)
                 selected_currency_id = self.currency_select.value
@@ -356,17 +373,27 @@ class SupplierPaymentUI:
 
                 # Accounting
                 # Cash payments should affect cash account (5300) with:
-                # - debit 5300.000001 when paying suppliers (cash decreases)
+                # - debit caisse (5300) for cash decrease
                 # - credit supplier auxiliary when reducing supplier liability
                 if self.method_select.value == 'Cash':
+                    # Resolve caisse auxiliary_id from auxiliary table
+                    caisse_rows = []
+                    connection.contogetrows(
+                        "SELECT TOP 1 id FROM auxiliary WHERE number = ?",
+                        caisse_rows,
+                        params=['5300.000001']
+                    )
+                    caisse_aux_id = caisse_rows[0][0] if caisse_rows else None
+
                     accounting_helpers.save_accounting_transaction(
                         'Payment',
                         str(payment_id),
                         [
-                            {'account': '5300.000001', 'debit': normalized_amount, 'credit': 0},
-                            {'account': supp_aux,       'debit': 0,                 'credit': normalized_amount},
+                            # Supplier is DEBITed, caisse/cash is CREDITed
+                            {'account': supp_aux, 'debit': normalized_amount, 'credit': 0},
+                            {'account': '5300', 'auxiliary_id': caisse_aux_id, 'debit': 0, 'credit': normalized_amount},
                         ],
-                        description=f"Supplier Cash Payment #{payment_id} - {self.selected_supplier['name']}"
+                        description=f"Supplier Cash Payment (Caisse) #{payment_id} - {self.selected_supplier['name']}"
                     )
                 else:
                     import business_track_settings
@@ -453,6 +480,7 @@ class SupplierPaymentUI:
 
     async def perform_load_row(self, row_data):
         self.exit_new_mode()
+        self.draft_payment_id = row_data['id']
         self.selected_supplier = {'id': row_data['supplier_id'], 'name': row_data['supplier']}
         self.supplier_input.value = row_data['supplier']
         self.amount_input.value = f'{row_data["amount"]:.2f}'
@@ -466,6 +494,63 @@ class SupplierPaymentUI:
              self.selected_supplier = {'id': s_res[0][0], 'name': s_res[0][1], 'balance_ll': s_res[0][2], 'balance_usd': s_res[0][3]}
              self.balance_usd_input.value = s_res[0][3]
              self.balance_ll_input.value = s_res[0][2]
+
+    def on_payment_amount_click(self):
+        if self.new_mode:
+            return self.open_settlement_dialog()
+        if not self.draft_payment_id:
+            return ui.notify('No payment selected', color='warning')
+        return self.show_payment_allocation_history(self.draft_payment_id)
+
+    def show_payment_allocation_history(self, payment_id):
+        try:
+            allocations = []
+            sql = """
+                SELECT
+                    d.source_type,
+                    d.source_id,
+                    d.settlement_amount,
+                    p.invoice_number AS purchases_invoice_number,
+                    r.invoice_number AS return_invoice_number
+                FROM supplier_payment_details d
+                LEFT JOIN purchases p
+                    ON d.source_type = 'Purchase' AND p.id = d.source_id
+                LEFT JOIN purchase_returns r
+                    ON d.source_type = 'Return' AND r.id = d.source_id
+                WHERE d.payment_id = ?
+                ORDER BY d.id ASC
+            """
+            connection.contogetrows(sql, allocations, (payment_id,))
+
+            rows = []
+            for src_type, src_id, settlement_base, pur_inv, ret_inv in allocations:
+                inv = pur_inv if src_type == 'Purchase' else ret_inv
+                rows.append({
+                    'Type': src_type,
+                    'SourceID': src_id,
+                    'Invoice': inv,
+                    'AppliedAmount': float(settlement_base or 0),
+                })
+
+            with ui.dialog() as dialog, ModernCard().classes('w-full max-w-5xl p-6'):
+                ui.label(f'Payment Allocation History - Payment #{payment_id}').classes('text-xl font-black mb-4')
+                if not rows:
+                    ui.label('No allocation details found for this payment.').classes('text-gray-500')
+                else:
+                    ui.table(
+                        columns=[
+                            {'name': 'Type', 'label': 'Type', 'field': 'Type'},
+                            {'name': 'SourceID', 'label': 'Source ID', 'field': 'SourceID'},
+                            {'name': 'Invoice', 'label': 'Invoice #', 'field': 'Invoice'},
+                            {'name': 'AppliedAmount', 'label': 'Applied Settlement (Base)', 'field': 'AppliedAmount', 'align': 'right'},
+                        ],
+                        rows=rows,
+                        pagination=20
+                    ).classes('w-full')
+                ui.button('Close', on_click=dialog.close).classes('mt-4').props('flat')
+            dialog.open()
+        except Exception as e:
+            ui.notify(f'Error loading payment allocations: {e}', color='negative')
 
     def filter_history_table(self, query):
         target_query = str(query or "").lower()
@@ -481,17 +566,8 @@ class SupplierPaymentUI:
         with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
             with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
                 with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
-                    # HEADER
-                    with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10 mb-2'):
-                        with ui.column().classes('gap-1'):
-                            ui.label('Procurement Engine').classes('text-xs font-black uppercase tracking-[0.2em] text-orange-400')
-                            ui.label('Supplier Payment').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                        
-                        with ui.row().classes('gap-6 items-center'):
-                            with ui.row().classes('items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10'):
-                                ui.icon('event', size='1rem').classes('text-gray-400')
-                                self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
-                            self.currency_select = ui.select({r[0]: f"{r[2]} {r[1]}" for r in self.currency_rows}, value=self.default_currency_id).props('borderless dense').classes('glass px-4 py-2 rounded-xl text-white text-xs font-bold w-40').on('change', self.on_currency_change)
+                    # HEADER (Empty as elements moved)
+                    ui.element('div').classes('h-2')
 
                     # DUAL PANEL
                     with ui.row().classes('w-full flex-1 gap-6 overflow-hidden'):
@@ -526,7 +602,20 @@ class SupplierPaymentUI:
                         # RIGHT: Editor
                         with ui.column().classes('flex-1 h-full gap-4'):
                             with ModernCard(glass=True).classes('w-full p-8 rounded-3xl border border-white/10'):
-                                ui.label('DISBURSEMENT DETAILS').classes('text-[10px] font-black text-orange-400 tracking-widest mb-6 opacity-60')
+                                # BRANDING & TITLE (MOVED FROM HEADER)
+                                with ui.row().classes('w-full justify-between items-start mb-8'):
+                                    with ui.column().classes('gap-1'):
+                                        ui.label('Procurement Engine').classes('text-[10px] font-black uppercase tracking-[0.2em] text-orange-400')
+                                        ui.label('Supplier Payment').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
+                                    
+                                    with ui.column().classes('items-end gap-2'):
+                                        with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10'):
+                                            ui.icon('event', size='0.9rem').classes('text-orange-400')
+                                            self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-[11px] font-bold w-24 px-1')
+                                        
+                                        self.currency_select = ui.select({r[0]: f"{r[2]} {r[1]}" for r in self.currency_rows}, value=self.default_currency_id).props('borderless dense').classes('bg-white/5 px-3 py-1 rounded-xl text-white text-[11px] font-bold w-36 border border-white/10').on('change', self.on_currency_change)
+
+                                ui.label('DISBURSEMENT DETAILS').classes('text-[9px] font-black text-orange-400 tracking-widest mb-6 opacity-40')
                                 with ui.column().classes('w-full gap-6'):
                                     with ui.column().classes('w-full gap-1'):
                                         ui.label('Supplier Entity').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4')
@@ -552,8 +641,8 @@ class SupplierPaymentUI:
                                             ui.label('Disbursement Amount').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4')
                                             with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer'):
                                                 ui.icon('payments', size='1.5rem').classes('text-red-400')
-                                                self.amount_input = ui.input(value='0.00').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.open_settlement_dialog)
-                                                ui.button(icon='open_in_new', on_click=self.open_settlement_dialog).props('flat round color=orange')
+                                                self.amount_input = ui.input(value='0.00').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.on_payment_amount_click)
+                                                ui.button(icon='open_in_new', on_click=self.on_payment_amount_click).props('flat round color=orange')
                                         
                                         with ui.column().classes('flex-1 gap-1'):
                                             ui.label('Payment Method').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4')
@@ -581,7 +670,7 @@ class SupplierPaymentUI:
                         on_delete=self.delete_payment,
                         on_refresh=self.refresh_history,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                        on_view_transaction=lambda: accounting_helpers.show_transactions_dialog('Payment', self.draft_payment_id) if self.draft_payment_id else ui.notify('No payment selected'),
+                        on_view_transaction=lambda: accounting_helpers.show_transactions_dialog('Payment', str(self.draft_payment_id)) if self.draft_payment_id else ui.notify('No payment selected'),
                         button_class='h-16',
                     ).style('position: static; width: 80px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);')
 

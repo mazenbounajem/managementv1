@@ -142,17 +142,64 @@ def customer_page(standalone=False):
                 connection.contogetrows("SELECT COUNT(*) FROM customers WHERE customer_name=?", dup_chk, params=[c_data['customer_name']])
                 if dup_chk and dup_chk[0][0] > 0:
                     return ui.notify('A customer with this name already exists', color='negative')
-                    
+
                 import accounting_helpers
-                aux_number = accounting_helpers.get_next_auxiliary('4111')
-                accounting_helpers.register_auxiliary(aux_number, c_data['customer_name'])
-                
+
+                # Compute next sequential suffix from AUXILIARY table for base 4111.
+                # This guarantees uniqueness against auxiliary.number and auxiliary.auxiliary_id.
+                def get_next_4111_aux_number():
+                    max_seq_rows = []
+                    connection.contogetrows(
+                        """
+                        SELECT MAX(
+                            TRY_CAST(
+                                SUBSTRING(number, CHARINDEX('.', number) + 1, 50) AS INT
+                            )
+                        )
+                        FROM auxiliary
+                        WHERE auxiliary_id = '4111' AND number LIKE '4111.%'
+                        """,
+                        max_seq_rows
+                    )
+                    max_seq = max_seq_rows[0][0] if max_seq_rows and max_seq_rows[0][0] is not None else 0
+                    candidate_seq = int(max_seq) + 1
+
+                    # If candidate already exists (legacy data), increment until free.
+                    while True:
+                        candidate_aux = f"4111.{candidate_seq}"
+                        exists = []
+                        connection.contogetrows(
+                            "SELECT COUNT(*) FROM auxiliary WHERE number = ?",
+                            exists,
+                            params=[candidate_aux]
+                        )
+                        if exists and exists[0][0] == 0:
+                            return candidate_aux
+                        candidate_seq += 1
+
+                # If Cash Client already exists, reuse its existing auxiliary_number to avoid duplicating the same customer.
+                if c_data['customer_name'] == 'Cash Client':
+                    existing_cash = []
+                    connection.contogetrows(
+                        "SELECT auxiliary_number FROM customers WHERE customer_name = ?",
+                        existing_cash,
+                        params=['Cash Client']
+                    )
+                    if existing_cash and existing_cash[0][0]:
+                        aux_number = str(existing_cash[0][0]).strip()
+                    else:
+                        aux_number = get_next_4111_aux_number()
+                        accounting_helpers.register_auxiliary(aux_number, 'Cash Client')
+                else:
+                    aux_number = get_next_4111_aux_number()
+                    accounting_helpers.register_auxiliary(aux_number, c_data['customer_name'])
+
                 sql = """INSERT INTO customers (customer_name, email, phone, address, city, balance, 
                          created_at, is_active, photo, instagram, facebook, twitter, tiktok, auxiliary_number, is_default) 
                          VALUES (?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?, ?, ?, ?)"""
                 params = (c_data['customer_name'], c_data['email'], c_data['phone'], c_data['address'],
                           c_data['city'], float(c_data['balance'] or 0), bool(c_data['is_active']),
-                          c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'], 
+                          c_data['photo'], c_data['instagram'], c_data['facebook'], c_data['twitter'], c_data['tiktok'],
                           aux_number, bool(c_data['is_default']))
 
             connection.insertingtodatabase(sql, params)

@@ -3,22 +3,47 @@ from connection import connection
 
 def get_next_auxiliary(account_base):
     """
-    Generates the next sequential auxiliary ID for a given base account.
-    Example: account_base = "4111" returns "4111.000001"
+    Generates the next sequential auxiliary number for a given base ledger code.
+
+    Expected stored formats in auxiliary.number:
+      - "base.suffix" (recommended, e.g. "4011.000001")
+      - Sometimes "base.<int>" (e.g. "4011.1")
+
+    Always returns: "{account_base}.{next_seq}" (suffix increment only).
     """
     try:
         data = []
-        sql = "SELECT number FROM auxiliary WHERE number LIKE ? ORDER BY number DESC"
-        connection.contogetrows_with_params(sql, data, (f"{account_base}.%",))
-        
-        if data and data[0][0]:
-            last_number = data[0][0]
-            parts = last_number.split('.')
-            if len(parts) == 2 and parts[1].isdigit():
-                next_seq = int(parts[1]) + 1
-                return f"{account_base}.{next_seq:06d}"
-        
-        return f"{account_base}.000001"
+
+        # Scope strictly to the requested base so we only increment within that base.
+        sql = """
+            SELECT number
+            FROM auxiliary
+            WHERE number LIKE ?
+        """
+        base_prefix = f"{str(account_base).strip()}."
+        connection.contogetrows_with_params(sql, data, (base_prefix + '%',))
+
+        max_seq = 0
+        base_str = str(account_base).strip()
+
+        for (num,) in data:
+            if num is None:
+                continue
+            s = str(num).strip()
+
+            # Only accept base.suffix rows for this base
+            if '.' not in s:
+                continue
+            b, suffix = s.split('.', 1)
+            if str(b).strip() != base_str:
+                continue
+
+            suffix = str(suffix).strip()
+            if suffix.isdigit():
+                max_seq = max(max_seq, int(suffix))
+
+        next_seq = max_seq + 1
+        return f"{base_str}.{next_seq:06d}"
     except Exception as e:
         print(f"Error generating auxiliary for {account_base}: {e}")
         import time
@@ -70,7 +95,7 @@ def ensure_vat_auxiliary(reference_type, entity_id, entity_name, auxiliary_numbe
             account_name_prefix = "VAT Customer"
 
         # IMPORTANT: always keep the same suffix sequence as the ordinary auxiliary
-        # e.g. auxiliary_number=4111.000001 => vat number=44270.000001
+        # e.g. auxiliary_number=1 => vat number=1
         suffix = str(auxiliary_number).split('.')[-1] if '.' in str(auxiliary_number) else str(auxiliary_number)
         vat_acct = f"{base_ledger}.{suffix}"
 
@@ -218,7 +243,9 @@ def _normalize_lines(lines):
     Normalize accounting lines to list-of-dicts format.
 
     Accepted formats:
-      1. List of dicts: [{'account': '4111.000001', 'debit': 100, 'credit': 0}, ...]
+      1. List of dicts:
+         - {'account': '4111.000001', 'debit': 100, 'credit': 0}
+         - optionally {'auxiliary_id': <int>} to force auxiliary id
       2. Old tuple format from salesui: [(aux, acct, debit, credit, desc), ...]
          where aux may be None and acct may be None (only one is set).
     """
@@ -338,8 +365,14 @@ def save_accounting_transaction(reference_type, reference_id, lines, description
 
             base_acct = aux_ref_str.split('.')[0] if '.' in aux_ref_str else aux_ref_str
 
-            # Convert auxiliary number -> auxiliary.id (INT) if possible
-            resolved_aux_id = _resolve_auxiliary_id(aux_ref_str)
+            # Allow explicit override: some callers want auxiliary_id from auxiliary table directly
+            # (e.g. cash caisse selection should use auxiliary.id, not a hardcoded suffix).
+            explicit_aux_id = line.get('auxiliary_id', None)
+            if explicit_aux_id is not None:
+                resolved_aux_id = int(explicit_aux_id)
+            else:
+                # Convert auxiliary number -> auxiliary.id (INT) if possible
+                resolved_aux_id = _resolve_auxiliary_id(aux_ref_str)
 
             connection.insertingtodatabase(line_sql, (
                 jv_id,
@@ -356,7 +389,14 @@ def save_accounting_transaction(reference_type, reference_id, lines, description
         raise e
 
 
-def show_transactions_dialog(reference_type=None, reference_id=None, account_number=None, from_date=None, to_date=None):
+def show_transactions_dialog(
+    reference_type=None,
+    reference_id=None,
+    account_number=None,
+    from_date=None,
+    to_date=None,
+    include_jv_journal_voucher_lines: bool = False,
+):
     """
     Opens a dialog showing accounting transactions for a given reference or account,
     including Date, Reference, Account, Remark, Debit, Credit, and Running Balance.
@@ -379,25 +419,22 @@ def show_transactions_dialog(reference_type=None, reference_id=None, account_num
                aux.account_name as auxiliary_name,
                l.debit,
                l.credit,
-               t.description
+               t.description,
+               ldr.Name_en as ledger_name
         FROM accounting_transactions t
         INNER JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
         LEFT JOIN auxiliary aux ON l.auxiliary_id = aux.id
+        LEFT JOIN Ledger ldr ON l.account_number = ldr.AccountNumber
         WHERE 1=1
         """
         params = []
         if reference_type and reference_id:
-            # Include linked cash payment JVs so that caisse/treasury lines appear
-            # in the "Sale" / "Purchase" reference view.
-            if reference_type == "Sale":
-                sql += " AND ( (t.reference_type = ? OR t.reference_type = ?) AND t.reference_id = ? )"
-                params.extend(["Sale", "Sale Receipt", str(reference_id)])
-            elif reference_type == "Purchase":
-                sql += " AND ( (t.reference_type = ? OR t.reference_type = ?) AND t.reference_id = ? )"
-                params.extend(["Purchase", "Purchase Payment", str(reference_id)])
-            else:
-                sql += " AND t.reference_type = ? AND t.reference_id = ?"
-                params.extend([reference_type, str(reference_id)])
+            # Show only the primary JV for this reference.
+            # NOTE: do NOT include linked 'Sale Receipt' / 'Purchase Payment' JVs here —
+            # the primary Sale/Purchase JV already contains the cash (5300) debit line.
+            # Including the receipt/payment JV as well doubles the cash amount in totals.
+            sql += " AND t.reference_type = ? AND t.reference_id = ?"
+            params.extend([reference_type, str(reference_id)])
         elif account_number:
             # Filter by either:
             # - exact auxiliary/ledger account number match
@@ -462,32 +499,131 @@ def show_transactions_dialog(reference_type=None, reference_id=None, account_num
 
         connection.contogetrows_with_params(sql, data, tuple(params))
 
+        # Optional: also include Journal Voucher lines stored in journal_voucher/journal_voucher_items
+        # (used by auxiliaryui view). Default is OFF to avoid duplicates in ledgerui.
+        jv_data = []
+        if include_jv_journal_voucher_lines and account_number:
+            acc_str = str(account_number).strip()
+            resolved_aux_id = _resolve_auxiliary_id(account_number) if '.' in acc_str else None
+
+            jv_sql = """
+                SELECT
+                    v.NumberId as jv_id,
+                    v.[Date] as transaction_date,
+                    v.SubTypeId,
+                    v.Entry as reference_type,
+                    v.ManualReference as reference_id,
+                    l.AccountNumber as account_number,
+                    i.AuxiliaryId as auxiliary_id,
+                    a.number as auxiliary_number,
+                    a.account_name as auxiliary_name,
+                    i.Debit as debit,
+                    i.Credit as credit,
+                    i.Remark as remark,
+                    l.Name_en as ledger_name
+                FROM journal_voucher v
+                INNER JOIN journal_voucher_items i ON v.NumberId = i.VoucherId
+                LEFT JOIN auxiliary a ON a.id = i.AuxiliaryId
+                LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
+                WHERE 1=1
+            """
+            jv_params = []
+            if '.' not in acc_str:
+                # suffix-only: match any auxiliary.number ending with '.<suffix>'
+                suffix = acc_str
+                jv_sql += " AND a.number LIKE '%.' + ?"
+                jv_params.append(suffix)
+            else:
+                # full auxiliary number: strict match by auxiliary.number (preferred)
+                jv_sql += " AND a.number = ?"
+                jv_params.append(acc_str)
+                if resolved_aux_id is not None:
+                    # additionally allow strict auxiliary_id match if available
+                    jv_sql = jv_sql.replace("WHERE 1=1", "WHERE 1=1 AND (i.AuxiliaryId = ? OR a.number = ?)", 1)
+                    jv_params = [resolved_aux_id, acc_str]
+
+            if from_date:
+                jv_sql += " AND CAST(v.[Date] AS DATE) >= ?"
+                jv_params.append(from_date)
+            if to_date:
+                jv_sql += " AND CAST(v.[Date] AS DATE) <= ?"
+                jv_params.append(to_date)
+
+            jv_sql += " ORDER BY v.NumberId ASC, l.AccountNumber ASC, i.Id ASC"
+            connection.contogetrows_with_params(jv_sql, jv_data, tuple(jv_params))
+
         rows = []
         total_debit  = 0.0
         total_credit = 0.0
         running_balance = 0.0
 
-        for r in data:
+        # Combine primary accounting data and optional JV data.
+        # We normalize both to the same index layout used below.
+        combined = []
+        combined.extend(data)
+        combined.extend(jv_data)
+
+        # Note: combined rows should follow the SELECT column order:
+        # accounting_transactions query: debit at [8], credit at [9], aux.number at [6], aux.name at [7], desc at [10], ledger_name at [11].
+        # JV query above returns:
+        # [0]=jv_id, [1]=date, [4]=reference_id, [5]=account_number, [6]=auxiliary_id, [7]=aux.number, [8]=aux.name, [9]=debit, [10]=credit, [11]=remark, [12]=ledger_name
+        # To reuse existing rendering logic, we map JV row to an equivalent tuple.
+        normalized = []
+        normalized.extend(combined)
+
+        if jv_data:
+            # Append normalized JV tuples matching the accounting query shape:
+            # [0]=jv_id, [1]=date, [2]=reference_type, [3]=reference_id, [4]=account_number, [5]=auxiliary_id,
+            # [6]=aux.number, [7]=aux.account_name, [8]=debit, [9]=credit, [10]=description, [11]=ledger_name
+            for jr in jv_data:
+                normalized.append((
+                    jr[0], jr[1], jr[3], jr[4], jr[5], jr[6],
+                    jr[7], jr[8], jr[9], jr[10], jr[11], jr[12]
+                ))
+
+        for r in normalized:
             debit  = float(r[8] or 0)
             credit = float(r[9] or 0)
             total_debit  += debit
             total_credit += credit
             running_balance += debit - credit
 
-            # Account display:
-            # - r[6] is aux.number (auxiliary_number) when l.auxiliary_id resolves to a row in auxiliary
-            # - Sometimes aux.number may be stored as only the suffix (e.g. '000001') without the base ledger prefix.
-            #   In that case, fallback to l.account_number to keep it consistent (e.g. '4111.000001').
-            aux_display = r[6]
-            base_account = str(r[4] or '').strip()
+            # Column mapping:
+            # r[6]  = aux.number        (e.g. "5300.000001" or suffix-only "000001")
+            # r[7]  = aux.account_name  (e.g. "Caisse Cash LBP", may be NULL)
+            # r[10] = t.description
+            # r[11] = ldr.Name_en       (Ledger name for the base account, e.g. "Caisse" for 5300)
+            aux_number = r[6]
+            aux_name   = r[7]
+            ledger_name = r[11]
 
-            # If auxiliary_number is stored as only a suffix (e.g. '0000001'),
-            # combine it with base account_number to display full aux number (e.g. '4111.000001').
-            if aux_display:
-                aux_display = str(aux_display).strip()
-                if '.' not in aux_display and base_account:
-                    aux_display = f"{base_account}.{aux_display}"
-            account_display = str(aux_display or base_account or '')
+            base_account = str(r[4] or '').strip()
+            aux_number_str = ''
+            if aux_number is not None and str(aux_number).strip():
+                aux_number_str = str(aux_number).strip()
+                # If aux.number is suffix-only (no dot), prefix it with the base ledger code
+                if '.' not in aux_number_str and base_account:
+                    aux_number_str = f"{base_account}.{aux_number_str}"
+
+            # Resolve the best display name:
+            # Priority: aux.account_name -> Ledger.Name_en -> bare account number
+            display_name = ''
+            if aux_name and str(aux_name).strip():
+                display_name = str(aux_name).strip()
+            elif ledger_name and str(ledger_name).strip():
+                display_name = str(ledger_name).strip()
+
+            # Format: "Name (auxiliary_number)" or just "Name" / "number"
+            if display_name:
+                if aux_number_str:
+                    account_display = f"{display_name} ({aux_number_str})"
+                elif base_account:
+                    account_display = f"{display_name} ({base_account})"
+                else:
+                    account_display = display_name
+            else:
+                account_display = aux_number_str or base_account or ''
+
             remark = str(r[10] or '')
             rows.append({
                 'jv_id':   r[0],
@@ -527,6 +663,88 @@ def show_transactions_dialog(reference_type=None, reference_id=None, account_num
                     ui.icon('check_circle', color='positive').tooltip('Balanced')
                 else:
                     ui.icon('error', color='negative').tooltip('Unbalanced')
+
+        # Extra: allocation breakdown for document settlements (Sales Return / Purchase Return)
+        # This is what you need to see: which Receipt/Payment IDs were applied and with which values.
+        try:
+            if reference_type == "Sale Return" and reference_id is not None:
+                allocations = []
+                sql = """
+                    SELECT
+                        crd.payment_id,
+                        cr.payment_date,
+                        cr.payment_method,
+                        cr.amount,
+                        COALESCE(crd.settlement_amount_display, crd.settlement_amount)
+                    FROM customer_receipt_details crd
+                    JOIN customer_receipt cr ON cr.id = crd.payment_id
+                    WHERE crd.source_type = 'Return' AND crd.source_id = ?
+                    ORDER BY cr.payment_date ASC, crd.payment_id ASC
+                """
+                connection.contogetrows_with_params(sql, allocations, (int(reference_id),))
+
+                if allocations:
+                    ui.label('--- Allocation Breakdown (Customer Receipts -> This Sale Return) ---').classes('text-lg font-bold mt-6 mb-2')
+                    ui.table(
+                        columns=[
+                            {'name': 'payment_id', 'label': 'Receipt ID', 'field': 'payment_id', 'align': 'left'},
+                            {'name': 'payment_date', 'label': 'Date', 'field': 'payment_date', 'align': 'left'},
+                            {'name': 'payment_method', 'label': 'Method', 'field': 'payment_method', 'align': 'left'},
+                            {'name': 'amount', 'label': 'Receipt Amount', 'field': 'amount', 'align': 'right'},
+                            {'name': 'settlement_amount', 'label': 'Applied Settlement', 'field': 'settlement_amount', 'align': 'right'},
+                        ],
+                        rows=[
+                            {
+                                'payment_id': r[0],
+                                'payment_date': str(r[1]).split(' ')[0] if r[1] else '',
+                                'payment_method': r[2],
+                                'amount': f"{float(r[3]):,.2f}",
+                                'settlement_amount': f"{float(r[4]):,.2f}",
+                            }
+                            for r in allocations
+                        ],
+                        pagination=20,
+                    ).classes('w-full mb-4')
+            elif reference_type == "Purchase Return" and reference_id is not None:
+                allocations = []
+                sql = """
+                    SELECT
+                        spd.payment_id,
+                        sp.payment_date,
+                        sp.payment_method,
+                        sp.amount,
+                        spd.settlement_amount
+                    FROM supplier_payment_details spd
+                    JOIN supplier_payment sp ON sp.id = spd.payment_id
+                    WHERE spd.source_type = 'Return' AND spd.source_id = ?
+                    ORDER BY sp.payment_date ASC, spd.payment_id ASC
+                """
+                connection.contogetrows_with_params(sql, allocations, (int(reference_id),))
+
+                if allocations:
+                    ui.label('--- Allocation Breakdown (Supplier Payments -> This Purchase Return) ---').classes('text-lg font-bold mt-6 mb-2')
+                    ui.table(
+                        columns=[
+                            {'name': 'payment_id', 'label': 'Payment ID', 'field': 'payment_id', 'align': 'left'},
+                            {'name': 'payment_date', 'label': 'Date', 'field': 'payment_date', 'align': 'left'},
+                            {'name': 'payment_method', 'label': 'Method', 'field': 'payment_method', 'align': 'left'},
+                            {'name': 'amount', 'label': 'Payment Amount', 'field': 'amount', 'align': 'right'},
+                            {'name': 'settlement_amount', 'label': 'Applied Settlement', 'field': 'settlement_amount', 'align': 'right'},
+                        ],
+                        rows=[
+                            {
+                                'payment_id': r[0],
+                                'payment_date': str(r[1]).split(' ')[0] if r[1] else '',
+                                'payment_method': r[2],
+                                'amount': f"{float(r[3]):,.2f}",
+                                'settlement_amount': f"{float(r[4]):,.2f}",
+                            }
+                            for r in allocations
+                        ],
+                        pagination=20,
+                    ).classes('w-full mb-4')
+        except Exception as e:
+            ui.notify(f'Allocation breakdown load error: {e}', color='warning')
 
         with ui.row().classes('w-full justify-end mt-4'):
             ui.button('Close', on_click=dialog.close).props('flat')
@@ -924,32 +1142,209 @@ def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=
         print(f"PDF generation error: {e}")
 
 
-def ensure_caisse_auxiliary(auxiliary_number='5300.000001', account_name='Caisse Cash LBP'):
+def format_auxiliary_number_display(full_aux_number: str, ledger_name: str | None = None) -> str:
     """
-    Ensures the given caisse/treasury auxiliary account exists in the auxiliary table.
-    Called lazily before recording cash-related journal entries.
+    Display helper used by UI dropdowns/grids to show:
+      <ledger_name> (<full_aux_number>)
+    Example:
+      "Cash LBP (5300.000001)"
     """
-    try:
-        exists = []
-        connection.contogetrows("SELECT id FROM auxiliary WHERE number = ?", exists, params=[auxiliary_number])
-        if exists:
-            return auxiliary_number
+    full_aux_number = str(full_aux_number or '').strip()
+    ledger_name = (str(ledger_name).strip() if ledger_name else '').strip()
 
-        base_ledger = auxiliary_number.split('.')[0]  # e.g. '5300'
+    if ledger_name:
+        return f"{ledger_name} ({full_aux_number})" if full_aux_number else ledger_name
+    return full_aux_number
+
+
+def _get_auxiliary_id_and_full_number_for_ledger_base(ledger_base: str):
+    """
+    Reuse an existing auxiliary row for a ledger base (e.g. '5300', '7111', '6011').
+
+    Returns: (auxiliary_id_int, full_aux_number_str)
+    Picks TOP 1 from `auxiliary` matching:
+      - auxiliary_id = ledger_base
+      - number LIKE '<ledger_base>.%'
+    Ordered by auxiliary.id DESC (reuse any existing suffix).
+    """
+    base = str(ledger_base).strip()
+    try:
+        rows = []
+        connection.contogetrows(
+            """
+            SELECT TOP 1 a.id, a.number
+            FROM auxiliary a
+            WHERE a.auxiliary_id = ?
+              AND a.number LIKE ? + '.%'
+            ORDER BY a.id DESC
+            """,
+            rows,
+            params=[base, base]
+        )
+        if rows:
+            aux_id = rows[0][0]
+            full_num = rows[0][1]
+            return int(aux_id), str(full_num)
+
+        # If none exists, do NOT guess suffix by incrementing.
+        # Create exactly suffix "1" for this base (e.g. 5300.1), matching the UI suffix format.
+        default_full_number = f"{base}.1"
+
+        # Find ledger exists for this base
         ledger_data = []
         connection.contogetrows(
             "SELECT Id FROM Ledger WHERE AccountNumber = ?",
-            ledger_data, params=[base_ledger]
+            ledger_data,
+            params=[base]
         )
-        ledger_id = ledger_data[0][0] if ledger_data else None
+        if not ledger_data:
+            return None, default_full_number
 
-        # Also try to register an auxiliary_id link to the ledger
         connection.insertingtodatabase(
-            "INSERT INTO auxiliary (auxiliary_id, ledger_id, number, account_name, update_date, status) "
-            "VALUES (?, ?, ?, ?, GETDATE(), 1)",
-            (base_ledger, ledger_id, auxiliary_number, account_name)
+            """
+            INSERT INTO auxiliary (auxiliary_id, number, account_name, update_date, status)
+            VALUES (?, ?, ?, GETDATE(), 1)
+            """,
+            (base, default_full_number, default_full_number)
         )
-        return auxiliary_number
+        # Re-fetch inserted id
+        rows2 = []
+        connection.contogetrows(
+            "SELECT TOP 1 id FROM auxiliary WHERE auxiliary_id = ? AND number = ?",
+            rows2,
+            params=[base, default_full_number]
+        )
+        aux_id = rows2[0][0] if rows2 else None
+        return (int(aux_id), default_full_number) if aux_id is not None else (None, default_full_number)
+    except Exception as e:
+        print(f"Error resolving auxiliary for base {ledger_base}: {e}")
+        return None, f"{base}.000001"
+
+
+def ensure_caisse_auxiliary(auxiliary_number='5300.000001', account_name='Caisse Cash LBP'):
+    """
+    Ensures the caisse/treasury auxiliary exists and returns the *full* auxiliary number.
+
+    IMPORTANT:
+    - For base like '5300' we must reuse existing 5300.* auxiliary rows (any suffix)
+      rather than generating a new one.
+    - If none exists, create exactly '<base>.000001' (no incrementing beyond that).
+    """
+    try:
+        base_ledger = str(auxiliary_number).split('.')[0] if '.' in str(auxiliary_number) else str(auxiliary_number).strip()
+
+        # Reuse existing auxiliary row for this base if any.
+        aux_id, full_num = _get_auxiliary_id_and_full_number_for_ledger_base(base_ledger)
+        if full_num:
+            # If newly created, try to set a nicer account_name (best-effort).
+            if aux_id is not None:
+                try:
+                    connection.insertingtodatabase(
+                        "UPDATE auxiliary SET account_name = ? WHERE id = ?",
+                        (account_name, aux_id)
+                    )
+                except Exception:
+                    pass
+            return full_num
+
+        return str(auxiliary_number)
     except Exception as e:
         print(f"Error ensuring caisse auxiliary {auxiliary_number}: {e}")
         return auxiliary_number
+
+
+def ensure_bank_auxiliary(auxiliary_number='51210.000001', account_name='Banque Cash LBP'):
+    """
+    Ensures the bank auxiliary exists and returns the *full* auxiliary number.
+
+    IMPORTANT:
+    - For base like '51210' we must reuse existing 51210.* auxiliary rows (any suffix)
+      rather than generating a new one.
+    - If none exists, create a default full number via the existing helper:
+      base.1 (or base.000001 fallback on errors).
+    """
+    try:
+        base_ledger = str(auxiliary_number).split('.')[0] if '.' in str(auxiliary_number) else str(auxiliary_number).strip()
+
+        aux_id, full_num = _get_auxiliary_id_and_full_number_for_ledger_base(base_ledger)
+        if full_num:
+            if aux_id is not None:
+                try:
+                    connection.insertingtodatabase(
+                        "UPDATE auxiliary SET account_name = ? WHERE id = ?",
+                        (account_name, aux_id)
+                    )
+                except Exception:
+                    pass
+            return full_num
+
+        return str(auxiliary_number)
+    except Exception as e:
+        print(f"Error ensuring bank auxiliary {auxiliary_number}: {e}")
+        return auxiliary_number
+
+
+def get_full_customer_aux_number(customer_id, customer_name=None, fallback_account_number='4111'):
+    """
+    Returns the full receivable auxiliary number for a customer:
+      4111.<suffix>
+
+    This is the exact number format expected by VAT close logic when it zeroes by auxiliary_id.
+    """
+    return ensure_customer_auxiliary(
+        customer_id,
+        customer_name=customer_name,
+        fallback_account_number=fallback_account_number
+    )
+
+
+def get_full_supplier_aux_number(supplier_id, supplier_name=None, fallback_account_number='4011'):
+    """
+    Returns the full payable auxiliary number for a supplier:
+      4011.<suffix>
+    """
+    return ensure_supplier_auxiliary(
+        supplier_id,
+        supplier_name=supplier_name,
+        fallback_account_number=fallback_account_number
+    )
+
+
+def get_full_vat_customer_aux_number(customer_id, customer_name=None, auxiliary_number=None):
+    """
+    Returns the full VAT collected auxiliary number for a customer:
+      44270.<suffix>
+
+    suffix is derived from the provided customer auxiliary_number (4111.<suffix>)
+    or computed/ensured if auxiliary_number is not given.
+    """
+    if auxiliary_number is None:
+        auxiliary_number = ensure_customer_auxiliary(customer_id, customer_name=customer_name, fallback_account_number='4111')
+    return ensure_vat_auxiliary('Customer', customer_id, customer_name, auxiliary_number)
+
+
+def get_full_vat_supplier_aux_number(supplier_id, supplier_name=None, auxiliary_number=None):
+    """
+    Returns the full VAT deductible auxiliary number for a supplier:
+      44210.<suffix>
+
+    suffix is derived from the provided supplier auxiliary_number (4011.<suffix>)
+    or computed/ensured if auxiliary_number is not given.
+    """
+    if auxiliary_number is None:
+        auxiliary_number = ensure_supplier_auxiliary(supplier_id, supplier_name=supplier_name, fallback_account_number='4011')
+    return ensure_vat_auxiliary('Supplier', supplier_id, supplier_name, auxiliary_number)
+
+
+def get_full_caisse_aux_number(auxiliary_number='5300.000001', account_name='Caisse Cash LBP'):
+    """
+    Returns the full cash (caisse) auxiliary number (base 5300).
+    """
+    return ensure_caisse_auxiliary(auxiliary_number=auxiliary_number, account_name=account_name)
+
+
+def get_full_bank_aux_number(auxiliary_number='51210.000001', account_name='Banque Cash LBP'):
+    """
+    Returns the full bank auxiliary number (base 51210).
+    """
+    return ensure_bank_auxiliary(auxiliary_number=auxiliary_number, account_name=account_name)

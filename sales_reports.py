@@ -524,7 +524,12 @@ DESCRIPTIONS = {
 
 
 def open_print_special_dialog():
-    """Open the full-screen Print Special report center."""
+    """Open the full-screen Print Special report center.
+
+    NOTE: This dialog is used by multiple screens.
+    It supports an optional "View Transaction" action for Sales by
+    reusing the global salesui_aggrid_compact handler when available.
+    """
     today           = date.today().strftime('%Y-%m-%d')
     first_of_month  = date.today().replace(day=1).strftime('%Y-%m-%d')
     state = {
@@ -622,6 +627,25 @@ def open_print_special_dialog():
                             except Exception as ex:
                                 ui.notify(f'Error: {ex}', color='negative')
                                 import traceback; traceback.print_exc()
+
+                        # "View Transaction" (under Print Special)
+                        # Only applicable when a global SalesUI screen exists and a sale is selected.
+                        def _view_transaction():
+                            try:
+                                import inspect, sys
+                                # salesui_aggrid_compact imports `SalesUI` class; we try to call its handler
+                                import salesui_aggrid_compact
+                                sales_ui = getattr(salesui_aggrid_compact, 'sales_ui_instance', None)
+                                if sales_ui is not None and hasattr(sales_ui, 'view_sale_transactions'):
+                                    return sales_ui.view_sale_transactions()
+                            except Exception:
+                                pass
+
+                            ui.notify('Select a sale first (then use View Transaction).', color='warning')
+
+                        ui.button('View Transaction', icon='visibility', on_click=_view_transaction)\
+                          .props('unelevated color=white text-color=purple')\
+                          .classes('px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest shadow-xl')
 
                         ui.button('View Report', icon='visibility', on_click=_run)\
                           .props('unelevated color=purple')\

@@ -12,6 +12,7 @@ Mapping grid layout (12 rows × 2 columns per tab):
 
 import json
 import os
+from connection import connection
 
 SETTINGS_FILE = 'business_track_settings.json'
 
@@ -31,6 +32,53 @@ def _load_mapping():
     return None
 
 
+def _resolve_aux_number(maybe_account: str) -> str:
+    """
+    business_track_settings.json sometimes stores mapping cells as *base ledger codes*
+    like '7111' or '6011' (no suffix). In the accounting system, auxiliary linkage
+    is done using auxiliary.number values like '7111.000001'.
+
+    This resolves:
+      - if input already looks like 'base.suffix' -> return as-is
+      - if input is base only -> SELECT existing auxiliary.number for that base
+        (auxiliary.auxiliary_id = base and auxiliary.number LIKE 'base.%'), ordered by
+        auxiliary.id DESC. Fallback to 'base.000001'.
+    """
+    if maybe_account is None:
+        return maybe_account
+
+    s = str(maybe_account).strip()
+    if not s:
+        return s
+
+    # If already full auxiliary number (e.g., '7111.000001'), keep it.
+    if '.' in s:
+        return s
+
+    base = s
+
+    rows = []
+    try:
+        connection.contogetrows(
+            """
+            SELECT TOP 1 a.number
+            FROM auxiliary a
+            WHERE a.auxiliary_id = ?
+              AND a.number LIKE ? + '.%'
+            ORDER BY a.id DESC
+            """,
+            rows,
+            params=[base, base]
+        )
+        if rows and rows[0][0]:
+            return str(rows[0][0]).strip()
+    except Exception:
+        pass
+
+    # Fallback consistent with get_next_auxiliary()
+    return f"{base}.000001"
+
+
 def _get_account(tab, row, col, default):
     """
     Retrieve a specific account from the mapping grid.
@@ -43,10 +91,12 @@ def _get_account(tab, row, col, default):
         try:
             value = mapping[tab][row][col]
             if value:
-                return value
+                # Resolve base-only codes like '7111' -> '7111.00000x'
+                return _resolve_aux_number(value)
         except (IndexError, KeyError):
             pass
-    return default
+
+    return _resolve_aux_number(default)
 
 
 # ── Sales ────────────────────────────────────────────────────────────────────
@@ -84,25 +134,25 @@ def get_payment_account(method: str) -> str:
     method = method.lower() if method else 'cash'
     if 'cash' in method:
         if 'usd' in method:
-            return '5300.000002'
-        return '5300.000001'
+            return '5300.2'
+        return '5300.1'
     elif 'visa' in method or 'card' in method:
-        return '5121.000001'
+        return '5121.1'
     elif 'transfer' in method:
-        return '5121.000002'
+        return '5121.2'
     elif 'omt' in method:
-        return '5121.000004'
-    return '5300.000001'
+        return '5121.4'
+    return '5300.1'
 
 
 # ── Products (Ledger 3) ──────────────────────────────────────────────────────
 
 def get_product_inventory_account() -> str:
     """Return the default ledger 3 account for stock."""
-    return '3700.000001'
+    return '3700.1'
 
 
 # ── Assets / Capital (Ledger 1/2) ────────────────────────────────────────────
 
 def get_asset_account() -> str:
-    return '1000.000001'
+    return '1000.1'

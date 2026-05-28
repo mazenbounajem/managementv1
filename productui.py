@@ -184,18 +184,45 @@ def product_page_route(standalone=False):
     def delete_product():
         pid = input_refs['id'].value
         if not pid: return ui.notify('Select a product to delete', color='warning')
+        
+        # Check for transactions first to avoid unnecessary confirmation
         tx_chk = []
         connection.contogetrows("SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id=?) + (SELECT COUNT(*) FROM purchase_items WHERE product_id=?)", tx_chk, params=[pid, pid])
         if tx_chk and tx_chk[0][0] > 0:
             return ui.notify('Cannot delete product with existing transactions. Delete them or set to inactive.', color='negative')
             
-        try:
-            connection.deleterow("DELETE FROM products WHERE id=?", [pid])
-            ui.notify('Product deleted', color='positive')
-            clear_input_fields()
-            refresh_table()
-        except Exception as e:
-            ui.notify(f'Delete error: {e}', color='negative')
+        def confirm_and_delete():
+            with ui.dialog() as d, ui.card().classes('p-8 rounded-3xl border border-white/10 shadow-2xl').style('background: rgba(15, 15, 25, 0.95); backdrop-filter: blur(20px); width: 400px;'):
+                with ui.column().classes('w-full items-center gap-6'):
+                    # Warning Icon with Glow
+                    with ui.element('div').classes('p-4 rounded-full bg-red-500/10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]'):
+                        ui.icon('delete_forever', color='red-500').classes('text-5xl')
+                    
+                    with ui.column().classes('items-center gap-1'):
+                        ui.label('Confirm Deletion').classes('text-2xl font-black text-white tracking-tight')
+                        ui.label('This action is permanent').classes('text-[10px] uppercase font-black text-red-500 tracking-[0.2em]')
+                    
+                    product_name = input_refs['product_name'].value or "this item"
+                    ui.label(f'Are you sure you want to delete "{product_name}"? All associated metadata will be removed.').classes('text-gray-400 text-center text-sm leading-relaxed px-2')
+                    
+                    with ui.row().classes('w-full gap-3 mt-2'):
+                        ui.button('Cancel', on_click=d.close).props('flat color=white').classes('flex-1 rounded-2xl h-12 font-bold')
+                        
+                        def perform_deletion():
+                            try:
+                                connection.deleterow("DELETE FROM products WHERE id=?", [pid])
+                                ui.notify(f'Product "{product_name}" deleted', color='positive', icon='check_circle')
+                                clear_input_fields()
+                                refresh_table()
+                                d.close()
+                            except Exception as e:
+                                ui.notify(f'Delete error: {e}', color='negative')
+                                d.close()
+                                
+                        ui.button('Delete Now', on_click=perform_deletion).props('unelevated color=red-600').classes('flex-1 rounded-2xl h-12 font-black shadow-lg shadow-red-600/20')
+            d.open()
+
+        confirm_and_delete()
 
     def print_transactions():
         pid = input_refs['id'].value
@@ -285,6 +312,8 @@ def product_page_route(standalone=False):
             })
         table.options['rowData'] = rows
         table.update()
+        if table:
+            table.classes(remove='dimmed')
         update_profit_analysis()
 
     def update_profit_analysis():
@@ -664,6 +693,7 @@ def product_page_route(standalone=False):
                             input_refs['barcode'] = ModernInput('Barcode', icon='qr_code').classes('flex-1')
                             ui.button(icon='auto_fix_high', on_click=generate_barcode).props('flat round color=accent').tooltip('Generate EAN-13')
                             ui.button(icon='print', on_click=print_barcode).props('flat round color=primary').tooltip('Print Barcode Label')
+                            ui.button(icon='history', on_click=show_price_history).props('flat round color=secondary').tooltip('View Price History')
                         
                         input_refs['sku'] = ModernInput('SKU', icon='tag')
                         input_refs['description'] = ModernInput('Description', placeholder='Short description...', icon='description')

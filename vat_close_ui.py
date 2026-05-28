@@ -85,7 +85,7 @@ class VATCloseUI:
                             # Source VAT accounts (fixed by accounting rules)
                             self._customer_account_select = ui.select(
                                 {},
-                                label='Customer VAT source account (auto: starts with 44270.00000x)',
+                                label='Customer VAT source account (auto: starts with 44270)',
                                 value=None
                             ).props('outlined dense dark searchable readonly').classes('w-full')
 
@@ -122,6 +122,13 @@ class VATCloseUI:
                                 on_click=self.post_vat_close
                             ).classes('flex-1 h-12')
 
+                        with ui.row().classes('w-full gap-3 mt-2'):
+                            ui.button(
+                                'Delete VAT Close',
+                                icon='delete',
+                                on_click=self.delete_vat_close
+                            ).props('outlined color=negative').classes('w-full h-10')
+
                     with ModernCard(glass=True).classes('w-full p-6 mt-0'):
                         ui.label('Totals (selected period)').classes('text-sm font-black text-white/80 mb-3')
 
@@ -145,19 +152,29 @@ class VATCloseUI:
                     with ModernCard(glass=True).classes('w-full p-6'):
                         ui.label('VAT Calculation Details').classes('text-lg font-black text-white mb-2')
                         ui.markdown('''
-- Customer VAT is summed from **sale_items.vat_amount** joined with **sales.sale_date** for `status='Sale'`.
-- Supplier VAT is summed from **purchase_items.vat_amount** joined with **purchases.purchase_date**.
-- Posting is done as journal lines:
-  - **Customer VAT account = CREDIT**
-  - **Supplier VAT account = DEBIT**
+**Posting rules:**
+
+- `44270.*` children  →  **Sales VAT collected** (credit balance)
+- `44210.*` children  →  **Purchase VAT paid** (debit balance)
+
+**Scenario A — Sales VAT > Purchase VAT:**
+  - Zero all children of `44270` and `44210` (reversing entry per child)
+  - Difference → **CREDIT 44250** (VAT payable to tax authority)
+
+**Scenario B — Purchase VAT > Sales VAT:**
+  - Zero all children of `44270` and `44210` (reversing entry per child)
+  - Difference → **DEBIT 44260** (VAT credit receivable from tax authority)
+
+**Delete/Rollback:** removes the JV and all lines, restoring pre-close balances.
                         ''')
 
                         self._preview_grid = ui.aggrid({
                             'columnDefs': [
                                 {'headerName': 'Period', 'field': 'period', 'flex': 1},
-                                {'headerName': 'Customer VAT', 'field': 'customer_vat', 'width': 160},
-                                {'headerName': 'Supplier VAT', 'field': 'supplier_vat', 'width': 160},
+                                {'headerName': 'Sales VAT (44270 Credit)', 'field': 'customer_vat', 'width': 200},
+                                {'headerName': 'Purchase VAT (44210 Debit)', 'field': 'supplier_vat', 'width': 220},
                                 {'headerName': 'Net VAT', 'field': 'net_vat', 'width': 140},
+                                {'headerName': 'Clearing Account', 'field': 'clearing', 'width': 160},
                             ],
                             'rowData': [],
                             'defaultColDef': MDS.get_ag_grid_default_def(),
@@ -184,7 +201,6 @@ class VATCloseUI:
             self._currency_select.update()
             self.currency_code = self._currency_select.value
         except Exception:
-            # fallback
             self._currency_select.options = {'': ''}
             self.currency_code = None
 
@@ -202,17 +218,24 @@ class VATCloseUI:
                 name = str(r[1] or '')
                 all_opts[acct] = f"{acct} - {name}"
 
-            # Auto customer VAT source: startswith 44270
-            customer_source = None
-            for acct, label in all_opts.items():
-                if acct.startswith('44270'):
-                    customer_source = acct
-                    break
+            # Ensure canonical VAT source accounts always exist in options
+            all_opts.setdefault('44270', '44270 - VAT Customer')
+            all_opts.setdefault('44210', '44210 - VAT Supplier')
 
-            # Auto supplier VAT source: 44210
-            supplier_source = '44210' if '44210' in all_opts else None
+            # Auto customer VAT source: prefer exact 44270
+            customer_candidates = sorted(
+                [a for a in all_opts.keys() if str(a) == '44270' or str(a).startswith('44270.')],
+                key=lambda x: (len(x), x)
+            )
+            customer_source = customer_candidates[0] if customer_candidates else '44270'
 
-            # Set options and values for source selects (readonly, but still display)
+            # Auto supplier VAT source: prefer exact 44210
+            supplier_candidates = sorted(
+                [a for a in all_opts.keys() if str(a) == '44210' or str(a).startswith('44210.')],
+                key=lambda x: (len(x), x)
+            )
+            supplier_source = '44210' if '44210' in all_opts else (supplier_candidates[0] if supplier_candidates else '44210')
+
             self._customer_account_select.options = all_opts
             self._supplier_account_select.options = all_opts
             self._customer_account_select.value = customer_source
@@ -222,7 +245,6 @@ class VATCloseUI:
 
             # Auditor destination select: all ledger accounts
             self._transfer_account_select.options = all_opts
-            # leave value empty so auditor selects
             self._transfer_account_select.update()
         except Exception as e:
             ui.notify(f'Error loading ledger accounts: {e}', color='negative')
@@ -249,51 +271,69 @@ class VATCloseUI:
         return f, t
 
     def calculate_totals(self):
+        """
+        Preview: reads VAT from accounting_transaction_lines for accounts under 44210/44270.
+        Also reads from sale_items/purchase_items as a secondary preview.
+        """
         try:
             from_date, to_date = self._parse_dates()
 
-            customer_data = []
-            # Customer VAT from sale_items.vat_amount
+            # -- Live accounting ledger totals (source of truth for posting) --
+            ledger_data = []
             connection.contogetrows(
                 """
                 SELECT
-                    SUM(ISNULL(si.vat_amount, 0))
-                FROM sales s
-                INNER JOIN sale_items si ON si.sales_id = s.id
-                WHERE s.status = 'Sale'
-                  AND CONVERT(date, s.sale_date) >= ?
-                  AND CONVERT(date, s.sale_date) <= ?
+                    CASE
+                        WHEN l.account_number LIKE '44270%' THEN '44270'
+                        WHEN l.account_number LIKE '44210%' THEN '44210'
+                    END AS vat_group,
+                    SUM(l.debit)  AS total_debit,
+                    SUM(l.credit) AS total_credit
+                FROM accounting_transaction_lines l
+                INNER JOIN accounting_transactions t ON t.jv_id = l.jv_id
+                WHERE (l.account_number LIKE '44270%' OR l.account_number LIKE '44210%')
+                  AND CONVERT(date, t.transaction_date) >= ?
+                  AND CONVERT(date, t.transaction_date) <= ?
+                  AND t.description NOT LIKE 'Close VAT Period%'
+                GROUP BY
+                    CASE
+                        WHEN l.account_number LIKE '44270%' THEN '44270'
+                        WHEN l.account_number LIKE '44210%' THEN '44210'
+                    END
                 """,
-                customer_data,
+                ledger_data,
                 (from_date, to_date)
             )
-            self.customer_vat_total = float(customer_data[0][0] or 0) if customer_data else 0.0
 
-            supplier_data = []
-            # Supplier VAT from purchase_items.vat_amount
-            connection.contogetrows(
-                """
-                SELECT
-                    SUM(ISNULL(pi.vat_amount, 0))
-                FROM purchases p
-                INNER JOIN purchase_items pi ON pi.purchase_id = p.id
-                WHERE CONVERT(date, p.purchase_date) >= ?
-                  AND CONVERT(date, p.purchase_date) <= ?
-                """,
-                supplier_data,
-                (from_date, to_date)
-            )
-            self.supplier_vat_total = float(supplier_data[0][0] or 0) if supplier_data else 0.0
+            sales_vat_credit = 0.0   # 44270 credit = Sales VAT collected
+            purchase_vat_debit = 0.0  # 44210 debit = Purchase VAT paid
 
-            self.net_vat = self.customer_vat_total - self.supplier_vat_total
+            for row in ledger_data:
+                group = row[0]
+                total_debit = float(row[1] or 0)
+                total_credit = float(row[2] or 0)
+                if group == '44270':
+                    sales_vat_credit = total_credit
+                elif group == '44210':
+                    purchase_vat_debit = total_debit
 
-            self._customer_total_label.set_text(f'Customer VAT: ${self.customer_vat_total:,.2f}')
-            self._supplier_total_label.set_text(f'Supplier VAT: ${self.supplier_vat_total:,.2f}')
-            self._net_total_label.set_text(f'Net VAT (Customer - Supplier): ${self.net_vat:,.2f}')
+            self.customer_vat_total = sales_vat_credit
+            self.supplier_vat_total = purchase_vat_debit
+            self.net_vat = sales_vat_credit - purchase_vat_debit
+
+            self._customer_total_label.set_text(f'Sales VAT (44270 Credit): ${self.customer_vat_total:,.2f}')
+            self._supplier_total_label.set_text(f'Purchase VAT (44210 Debit): ${self.supplier_vat_total:,.2f}')
+            self._net_total_label.set_text(f'Net VAT (Sales - Purchase): ${self.net_vat:,.2f}')
+
+            if self.net_vat > 0:
+                clearing_info = f'→ CREDIT 44250 with {self.net_vat:,.2f}'
+            elif self.net_vat < 0:
+                clearing_info = f'→ DEBIT 44260 with {abs(self.net_vat):,.2f}'
+            else:
+                clearing_info = '→ Balanced (no clearing line needed)'
 
             self._posting_preview.set_text(
-                f'If posted: Customer VAT CREDIT {self.customer_vat_total:,.2f}, '
-                f'Supplier VAT DEBIT {self.supplier_vat_total:,.2f}.'
+                f'Post will zero all 44210/44270 children. {clearing_info}'
             )
 
             self._preview_grid.options['rowData'] = [{
@@ -301,118 +341,232 @@ class VATCloseUI:
                 'customer_vat': f'${self.customer_vat_total:,.2f}',
                 'supplier_vat': f'${self.supplier_vat_total:,.2f}',
                 'net_vat': f'${self.net_vat:,.2f}',
+                'clearing': '44250' if self.net_vat > 0 else ('44260' if self.net_vat < 0 else 'None'),
             }]
             self._preview_grid.update()
 
         except Exception as e:
             ui.notify(f'Error calculating VAT totals: {e}', color='negative')
 
+    def _period_key(self, from_date, to_date):
+        """Unique reference key for a VAT close period."""
+        return f"{from_date}..{to_date}"
+
     def post_vat_close(self):
+        """
+        Post VAT period close:
+        1. Aggregate all children of 44210 and 44270 from accounting_transaction_lines.
+        2. Post reversing entries (per child auxiliary_id) to zero them out.
+        3. Post difference to 44250 (CREDIT) or 44260 (DEBIT).
+        4. Header description: 'Close VAT Period {period_key}'.
+        """
         try:
             from_date, to_date = self._parse_dates()
+            period_key = self._period_key(from_date, to_date)
+            desc = f"Close VAT Period {period_key}"
 
-            self.customer_vat_account = self._customer_account_select.value
-            self.supplier_vat_account = self._supplier_account_select.value
-            self.transfer_account = self._transfer_account_select.value
-
-            if not self.customer_vat_account or not self.supplier_vat_account:
-                ui.notify('Customer VAT source or Supplier VAT source account not found.', color='warning')
+            # Guard: check if already posted for this period
+            existing = []
+            connection.contogetrows_with_params(
+                "SELECT jv_id FROM accounting_transactions WHERE description = ?",
+                existing, (desc,)
+            )
+            if existing:
+                ui.notify(
+                    f'VAT Close already posted for this period (JV #{existing[0][0]}). Delete it first.',
+                    color='warning'
+                )
                 return
 
-            if not self.transfer_account:
-                ui.notify('Select Transfer (clearing) account.', color='warning')
-                return
-
-            subtype_code = self._subtype_select.value
-            if not subtype_code:
-                ui.notify('Select Journal Subtype.', color='warning')
-                return
-
-            currency = self._currency_select.value
-            currency = currency if currency else None
-
-            voucher_ref = self._voucher_ref_input.value or f'VAT CLOSE {from_date}..{to_date}'
-
-            # Create journal voucher header
-            posting_date = to_date  # convention for close: date = To Date
-            # generate voucher number: simple approach using MAX+1 pattern
-            id_data = []
-            connection.contogetrows("SELECT ISNULL(MAX(id),0) FROM journal_voucher_header", id_data)
-            header_next_id = (id_data[0][0] if id_data and id_data[0] else 0) + 1
-            voucher_number = f'VAT-{header_next_id}'
-
-            header_insert_sql = """
-                INSERT INTO journal_voucher_header (date, voucher_number, subtype_code, manual_reference)
-                VALUES (?, ?, ?, ?)
-            """
-            connection.insertingtodatabase(
-                header_insert_sql,
-                (posting_date, voucher_number, subtype_code, voucher_ref)
+            # ---------------------------------------------------------------
+            # Step 1: Aggregate net balance per auxiliary_id for 44210 and 44270
+            # ---------------------------------------------------------------
+            child_data = []
+            connection.contogetrows(
+                """
+                SELECT
+                    l.account_number,
+                    l.auxiliary_id,
+                    SUM(l.debit)  AS total_debit,
+                    SUM(l.credit) AS total_credit
+                FROM accounting_transaction_lines l
+                INNER JOIN accounting_transactions t ON t.jv_id = l.jv_id
+                WHERE (l.account_number LIKE '44210%' OR l.account_number LIKE '44270%')
+                  AND t.description NOT LIKE 'Close VAT Period%'
+                GROUP BY l.account_number, l.auxiliary_id
+                """,
+                child_data
             )
 
-            # retrieve header_id
-            hid = []
-            connection.contogetrows("SELECT MAX(id) FROM journal_voucher_header", hid)
-            header_id = hid[0][0] if hid else None
-            if not header_id:
-                ui.notify('Could not retrieve created voucher header id.', color='negative')
+            if not child_data:
+                ui.notify('No VAT transaction lines found for 44210/44270. Nothing to close.', color='warning')
                 return
 
-            # VAT close based on your rule:
-            # - Customer VAT is stored as DEBIT -> to empty it, we CREDIT 44270.* by customer_vat_total
-            # - Supplier VAT is stored as CREDIT -> to empty it, we DEBIT 44210 by supplier_vat_total
-            # - Remaining net (customer - supplier) is transferred to auditor-selected clearing account
-            #
-            # Source emptying:
-            if self.customer_vat_total != 0:
-                # Empty customer VAT debit: credit source
+            # ---------------------------------------------------------------
+            # Step 2: Compute totals across all children
+            # ---------------------------------------------------------------
+            sales_vat_credit = 0.0    # 44270.* net credit
+            purchase_vat_debit = 0.0  # 44210.* net debit
+
+            for row in child_data:
+                acct = str(row[0] or '')
+                total_debit = float(row[2] or 0)
+                total_credit = float(row[3] or 0)
+                if acct.startswith('44270'):
+                    sales_vat_credit += total_credit - total_debit
+                elif acct.startswith('44210'):
+                    purchase_vat_debit += total_debit - total_credit
+
+            difference = sales_vat_credit - purchase_vat_debit
+
+            # ---------------------------------------------------------------
+            # Step 3: Create JV header in accounting_transactions
+            # reference_id column is INT in the DB — use 0 as sentinel;
+            # identification is done via the unique description string.
+            # ---------------------------------------------------------------
+            header_sql = """
+                INSERT INTO accounting_transactions (reference_type, reference_id, description, transaction_date)
+                VALUES (?, 0, ?, GETDATE());
+            """
+            connection.insertingtodatabase(
+                header_sql,
+                ('VAT Close', desc)
+            )
+
+            # Retrieve the new jv_id by the unique description
+            id_rows = []
+            connection.contogetrows_with_params(
+                "SELECT MAX(jv_id) FROM accounting_transactions WHERE description = ?",
+                id_rows, (desc,)
+            )
+            jv_id = id_rows[0][0] if id_rows and id_rows[0][0] else None
+            if not jv_id:
+                ui.notify('Failed to create JV header.', color='negative')
+                return
+
+            # ---------------------------------------------------------------
+            # Step 4: Post reversing lines per child (zero each account)
+            # ---------------------------------------------------------------
+            line_sql = """
+                INSERT INTO accounting_transaction_lines
+                    (jv_id, account_number, auxiliary_id, debit, credit)
+                VALUES (?, ?, ?, ?, ?)
+            """
+
+            for row in child_data:
+                acct = str(row[0] or '')
+                aux_id = row[1]
+                total_debit = float(row[2] or 0)
+                total_credit = float(row[3] or 0)
+                net = total_debit - total_credit  # positive means debit-heavy; negative = credit-heavy
+
+                if abs(net) < 0.001:
+                    continue  # already balanced, skip
+
+                # Reversing entry: if net > 0 (debit-heavy) → post CREDIT to zero it
+                #                  if net < 0 (credit-heavy) → post DEBIT to zero it
+                rev_debit = 0.0
+                rev_credit = 0.0
+                if net > 0:
+                    rev_credit = net
+                else:
+                    rev_debit = abs(net)
+
                 connection.insertingtodatabase(
-                    """
-                    INSERT INTO journal_voucher_lines (header_id, account, currency_code, debit, credit, remark)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (header_id, str(self.customer_vat_account), currency, 0.0, self.customer_vat_total,
-                     f'VAT close empty customer {from_date}..{to_date}')
+                    line_sql,
+                    (jv_id, acct, aux_id, rev_debit, rev_credit)
                 )
 
-            if self.supplier_vat_total != 0:
-                # Empty supplier VAT credit: debit source
-                connection.insertingtodatabase(
-                    """
-                    INSERT INTO journal_voucher_lines (header_id, account, currency_code, debit, credit, remark)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (header_id, str(self.supplier_vat_account), currency, self.supplier_vat_total, 0.0,
-                     f'VAT close empty supplier {from_date}..{to_date}')
-                )
+            # ---------------------------------------------------------------
+            # Step 5: Post the difference to clearing account
+            # ---------------------------------------------------------------
+            if abs(difference) >= 0.01:
+                if difference > 0:
+                    # Sales VAT > Purchase VAT → CREDIT 44250 (VAT payable to state)
+                    connection.insertingtodatabase(
+                        line_sql,
+                        (jv_id, '44250', None, 0.0, round(difference, 2))
+                    )
+                    clearing_msg = f'CREDIT 44250 = {difference:,.2f}'
+                else:
+                    # Purchase VAT > Sales VAT → DEBIT 44260 (VAT credit receivable)
+                    connection.insertingtodatabase(
+                        line_sql,
+                        (jv_id, '44260', None, round(abs(difference), 2), 0.0)
+                    )
+                    clearing_msg = f'DEBIT 44260 = {abs(difference):,.2f}'
+            else:
+                clearing_msg = 'Balanced — no clearing line needed'
 
-            # Transfer net to clearing to balance
-            net = float(self.net_vat or 0)
-            if net > 0:
-                # customer debit > supplier credit => credits exceed debits by net => add DEBIT clearing
-                connection.insertingtodatabase(
-                    """
-                    INSERT INTO journal_voucher_lines (header_id, account, currency_code, debit, credit, remark)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (header_id, str(self.transfer_account), currency, net, 0.0,
-                     f'VAT close transfer net (customer - supplier) {from_date}..{to_date}')
-                )
-            elif net < 0:
-                # customer debit < supplier credit => need CREDIT clearing
-                connection.insertingtodatabase(
-                    """
-                    INSERT INTO journal_voucher_lines (header_id, account, currency_code, debit, credit, remark)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (header_id, str(self.transfer_account), currency, 0.0, abs(net),
-                     f'VAT close transfer net (supplier - customer) {from_date}..{to_date}')
-                )
+            ui.notify(
+                f'VAT Close posted (JV #{jv_id}). Children zeroed. {clearing_msg}.',
+                color='positive'
+            )
 
-            ui.notify(f'VAT Close posted successfully. Voucher: {voucher_number}', color='positive')
+            # Refresh preview
+            self.calculate_totals()
 
         except Exception as e:
             ui.notify(f'Error posting VAT close: {e}', color='negative')
+
+    def delete_vat_close(self):
+        """
+        Rollback VAT period close:
+        - Find the accounting_transactions row with description 'Close VAT Period {period_key}'.
+        - Delete all accounting_transaction_lines for that jv_id.
+        - Delete the accounting_transactions header.
+        This restores all 44210/44270 balances to pre-close state.
+        """
+        try:
+            from_date, to_date = self._parse_dates()
+            period_key = self._period_key(from_date, to_date)
+            desc = f"Close VAT Period {period_key}"
+
+            # Find existing JV for this period
+            existing = []
+            connection.contogetrows_with_params(
+                "SELECT jv_id FROM accounting_transactions WHERE description = ?",
+                existing, (desc,)
+            )
+
+            if not existing:
+                ui.notify('No VAT Close JV found for this period.', color='warning')
+                return
+
+            with ui.dialog() as confirm_dlg, ui.card().classes('p-6 w-96'):
+                ui.label(f'Delete VAT Close: {period_key}?').classes('text-lg font-bold mb-2')
+                ui.label('This will remove the closing JV and restore all 44210/44270 balances.').classes('text-sm text-gray-500 mb-4')
+
+                jv_ids_to_delete = [row[0] for row in existing]
+
+                def _confirm_delete():
+                    try:
+                        for jv_id in jv_ids_to_delete:
+                            connection.deleterow(
+                                "DELETE FROM accounting_transaction_lines WHERE jv_id = ?",
+                                (jv_id,)
+                            )
+                            connection.deleterow(
+                                "DELETE FROM accounting_transactions WHERE jv_id = ?",
+                                (jv_id,)
+                            )
+                        ui.notify(
+                            f'VAT Close rolled back ({len(jv_ids_to_delete)} JV(s) removed). Balances restored.',
+                            color='positive'
+                        )
+                        confirm_dlg.close()
+                        self.calculate_totals()
+                    except Exception as ex:
+                        ui.notify(f'Error rolling back VAT close: {ex}', color='negative')
+
+                with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                    ui.button('Cancel', on_click=confirm_dlg.close).props('flat')
+                    ui.button('Delete & Rollback', icon='delete', on_click=_confirm_delete).props('color=negative')
+
+            confirm_dlg.open()
+
+        except Exception as e:
+            ui.notify(f'Error: {e}', color='negative')
 
 
 __all__ = ['vat_close_content']

@@ -743,6 +743,179 @@ def report_return_purchase_and_vat(fd, td, aux_num=None):
     elements.append(t)
     _show(_build(elements), "Return Purchase and VAT")
 
+
+def _vat_sum_components_sales(fd, td, aux_num=None):
+    """
+    Sales VAT components:
+      non_taxable_base = SUM(total_price where vat_percentage=0)
+      taxable_base     = SUM(total_price where vat_percentage>0)
+      vat_total        = SUM(vat_amount)
+    """
+    if not aux_num:
+        aux_num = _get_selected_aux()
+
+    sql = """
+        SELECT
+            SUM(CASE WHEN ISNULL(si.vat_percentage,0) = 0 THEN ISNULL(si.total_price,0) ELSE 0 END) AS non_tax_base,
+            SUM(CASE WHEN ISNULL(si.vat_percentage,0) > 0 THEN ISNULL(si.total_price,0) ELSE 0 END) AS tax_base,
+            SUM(ISNULL(si.vat_amount,0)) AS vat_total
+        FROM sales s
+        INNER JOIN customers c ON c.id = s.customer_id
+        INNER JOIN sale_items si ON si.sales_id = s.id
+        WHERE s.status = 'Sale'
+          AND (c.auxiliary_number = ? OR ? IS NULL)
+          AND CONVERT(date, s.sale_date) >= ?
+          AND CONVERT(date, s.sale_date) <= ?
+    """
+    rows = _q(sql, (aux_num, aux_num, fd, td))
+    if not rows:
+        return 0.0, 0.0, 0.0
+    r = rows[0]
+    non_tax = float(r[0] or 0)
+    tax = float(r[1] or 0)
+    vat = float(r[2] or 0)
+    return non_tax, tax, vat
+
+
+def _vat_sum_components_sales_returns(fd, td, aux_num=None):
+    if not aux_num:
+        aux_num = _get_selected_aux()
+
+    sql = """
+        SELECT
+            SUM(CASE WHEN ISNULL(sri.vat_percentage,0) = 0 THEN ISNULL(sri.total_price,0) ELSE 0 END) AS non_tax_base,
+            SUM(CASE WHEN ISNULL(sri.vat_percentage,0) > 0 THEN ISNULL(sri.total_price,0) ELSE 0 END) AS tax_base,
+            SUM(ISNULL(sri.vat_amount,0)) AS vat_total
+        FROM sales_returns sr
+        INNER JOIN customers c ON c.id = sr.customer_id
+        INNER JOIN sales_return_items sri ON sri.sales_return_id = sr.id
+        WHERE (c.auxiliary_number = ? OR ? IS NULL)
+          AND CONVERT(date, sr.return_date) >= ?
+          AND CONVERT(date, sr.return_date) <= ?
+    """
+    rows = _q(sql, (aux_num, aux_num, fd, td))
+    if not rows:
+        return 0.0, 0.0, 0.0
+    r = rows[0]
+    return float(r[0] or 0), float(r[1] or 0), float(r[2] or 0)
+
+
+def _vat_sum_components_purchases(fd, td, aux_num=None):
+    if not aux_num:
+        aux_num = _get_selected_aux()
+
+    sql = """
+        SELECT
+            SUM(CASE WHEN ISNULL(pi.vat_percentage,0) = 0 THEN ISNULL(pi.total_cost,0) ELSE 0 END) AS non_tax_base,
+            SUM(CASE WHEN ISNULL(pi.vat_percentage,0) > 0 THEN ISNULL(pi.total_cost,0) ELSE 0 END) AS tax_base,
+            SUM(ISNULL(pi.vat_amount,0)) AS vat_total
+        FROM purchases p
+        INNER JOIN suppliers s ON s.id = p.supplier_id
+        INNER JOIN purchase_items pi ON pi.purchase_id = p.id
+        WHERE (s.auxiliary_number = ? OR ? IS NULL)
+          AND CONVERT(date, p.purchase_date) >= ?
+          AND CONVERT(date, p.purchase_date) <= ?
+    """
+    rows = _q(sql, (aux_num, aux_num, fd, td))
+    if not rows:
+        return 0.0, 0.0, 0.0
+    r = rows[0]
+    return float(r[0] or 0), float(r[1] or 0), float(r[2] or 0)
+
+
+def _vat_sum_components_purchase_returns(fd, td, aux_num=None):
+    if not aux_num:
+        aux_num = _get_selected_aux()
+
+    sql = """
+        SELECT
+            SUM(CASE WHEN ISNULL(pri.vat_percentage,0) = 0 THEN ISNULL(pri.total_cost,0) ELSE 0 END) AS non_tax_base,
+            SUM(CASE WHEN ISNULL(pri.vat_percentage,0) > 0 THEN ISNULL(pri.total_cost,0) ELSE 0 END) AS tax_base,
+            SUM(ISNULL(pri.vat_amount,0)) AS vat_total
+        FROM purchase_returns pr
+        INNER JOIN suppliers s ON s.id = pr.supplier_id
+        INNER JOIN purchase_return_items pri ON pri.purchase_return_id = pr.id
+        WHERE (s.auxiliary_number = ? OR ? IS NULL)
+          AND CONVERT(date, pr.return_date) >= ?
+          AND CONVERT(date, pr.return_date) <= ?
+    """
+    rows = _q(sql, (aux_num, aux_num, fd, td))
+    if not rows:
+        return 0.0, 0.0, 0.0
+    r = rows[0]
+    return float(r[0] or 0), float(r[1] or 0), float(r[2] or 0)
+
+
+def report_vat_summary_center(fd, td, aux_num=None):
+    """
+    VAT Summary (requested):
+      Line 1: Sales non-tax, tax, total, VAT
+      Line 2: Sales Return non-tax, tax, total, VAT
+      Line 3: Sales - Return non-tax, tax, total, VAT
+      Line 4: Purchase ...
+      Line 5: Purchase Return ...
+      Line 6: Purchase - Return ...
+      Line 7: Sales - Purchase ...
+    """
+    if not aux_num:
+        aux_num = _get_selected_aux()
+
+    s_nt, s_t, s_vat = _vat_sum_components_sales(fd, td, aux_num)
+    sr_nt, sr_t, sr_vat = _vat_sum_components_sales_returns(fd, td, aux_num)
+
+    net_s_nt = s_nt - sr_nt
+    net_s_t = s_t - sr_t
+    net_s_vat = s_vat - sr_vat
+    net_s_total = net_s_nt + net_s_t
+
+    p_nt, p_t, p_vat = _vat_sum_components_purchases(fd, td, aux_num)
+    pr_nt, pr_t, pr_vat = _vat_sum_components_purchase_returns(fd, td, aux_num)
+
+    net_p_nt = p_nt - pr_nt
+    net_p_t = p_t - pr_t
+    net_p_vat = p_vat - pr_vat
+    net_p_total = net_p_nt + net_p_t
+
+    diff_sp_nt = s_nt - p_nt
+    diff_sp_t = s_t - p_t
+    diff_sp_vat = s_vat - p_vat
+    diff_sp_total = diff_sp_nt + diff_sp_t
+
+    elements = _hdr(f"VAT Summary Center — {aux_num}", fd, td, accent="#0ea5e9")
+
+    hdr = ["Section", "Non Taxable Base", "Taxable Base", "Total Base", "VAT"]
+    data = [hdr]
+    ts_obj = _ts(header_color="#0ea5e9")
+
+    def add_row(section, nt, t, vat):
+        data.append([
+            section,
+            f"${nt:.2f}",
+            f"${t:.2f}",
+            f"${(nt + t):.2f}",
+            f"${vat:.2f}",
+        ])
+
+    add_row("1) Sales", s_nt, s_t, s_vat)
+    add_row("2) Sales Return", sr_nt, sr_t, sr_vat)
+    add_row("3) Sales - Return", net_s_nt, net_s_t, net_s_vat)
+
+    add_row("4) Purchase", p_nt, p_t, p_vat)
+    add_row("5) Purchase Return", pr_nt, pr_t, pr_vat)
+    add_row("6) Purchase - Return", net_p_nt, net_p_t, net_p_vat)
+
+    add_row("7) Sales - Purchase", diff_sp_nt, diff_sp_t, diff_sp_vat)
+
+    # Styling: total-like row not required; just highlight header.
+    avail = A4[0] - 30 * mm
+    cw = [avail * 0.30, avail * 0.18, avail * 0.18, avail * 0.18, avail * 0.16]
+    t = Table(data, colWidths=cw, repeatRows=1)
+    t.setStyle(ts_obj)
+    elements.append(t)
+
+    _show(_build(elements), "VAT Summary")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Report Center UI
 # ─────────────────────────────────────────────────────────────────────────────
@@ -758,6 +931,7 @@ def open_print_special_dialog():
         "ret_sale_vat": ("Return Sales and VAT", lambda f, t, a: report_return_sales_and_vat(f, t, a)),
         "pur_vat": ("Purchase and VAT", lambda f, t, a: report_purchase_and_vat(f, t, a)),
         "ret_pur_vat": ("Return Purchase and VAT", lambda f, t, a: report_return_purchase_and_vat(f, t, a)),
+        "vat_summary_center": ("VAT Summary Center", lambda f, t, a: report_vat_summary_center(f, t, a)),
         "auditor": ("Global Balance (Auditor)", lambda f, t, a: report_global_auxiliary_balance(f, t, "auditor")),
         "mof": ("Global Balance (MOF)", lambda f, t, a: report_global_auxiliary_balance(f, t, "mof")),
         "owner": ("Global Balance (Business Owner)", lambda f, t, a: report_global_auxiliary_balance(f, t, "owner")),
@@ -770,6 +944,7 @@ def open_print_special_dialog():
         "ret_sale_vat": "Listing of sales returns with Base HT and VAT breakdown for the selected auxiliary.",
         "pur_vat": "Detailed listing of purchase invoices with Base HT and VAT breakdown for the selected auxiliary.",
         "ret_pur_vat": "Listing of purchase returns with Base HT and VAT breakdown for the selected auxiliary.",
+        "vat_summary_center": "Aggregated VAT summary center: Sales / Sales Returns / Sales-Return, Purchase / Purchase Return / Purchase-Return, then Sales - Purchase totals (Non-taxable base, Taxable base, Total base, VAT).",
         "auditor": "Auditor view: global auxiliary balance scoped by configured auditor auxiliary prefixes.",
         "mof": "Ministry of Finance view: global auxiliary balance scoped by configured MOF auxiliary prefixes.",
         "owner": "Business owner view: global auxiliary balance scoped by configured owner auxiliary prefixes.",

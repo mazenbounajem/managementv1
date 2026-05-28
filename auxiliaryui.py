@@ -1,5 +1,6 @@
 from nicegui import ui
 from connection import connection
+from datetime import date
 from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
@@ -52,12 +53,13 @@ class AuxiliaryUI:
         self.input_refs['id'].value = str(row['id'])
         self.input_refs['aux_code'].value = row['auxiliary_id']
         self.input_refs['account_name'].value = row['account_name'] or ''
-        self.input_refs['number'].value = row['number'] or ''
+        # UI input "number" is suffix-only (last segment).
+        self.input_refs['number'].value = row.get('aux_suffix', '') or ''
         self.input_refs['status'].value = row['status']
         self.initial_values = {
             'aux_code': row['auxiliary_id'],
             'account_name': row['account_name'] or '',
-            'number': row['number'] or '',
+            'number': row.get('aux_suffix', '') or '',
             'status': row['status'],
             'id': str(row['id'])
         }
@@ -67,20 +69,22 @@ class AuxiliaryUI:
     def save_auxiliary(self):
         aux_code = self.input_refs['aux_code'].value
         account_name = self.input_refs['account_name'].value
-        number = self.input_refs['number'].value
+        # UI input "number" is suffix-only (last segment).
+        aux_suffix = self.input_refs['number'].value
         status = self.input_refs['status'].value
         id_value = self.input_refs['id'].value
 
-        if not aux_code or not account_name or not number:
+        if not aux_code or not account_name or not aux_suffix:
             ui.notify('Code, Name and Number are required', color='warning')
             return
 
         try:
-            # Enforce uniqueness: (auxiliary_id, number) must be unique in auxiliary.
-            # "Account (Aux code)" => auxiliary_id
-            # "same auxiliary" => Auxiliary Number => number
+            # Convert suffix-only -> full auxiliary "number" stored in auxiliary.number
+            full_aux_number = f"{aux_code}.{aux_suffix}"
+
+            # Enforce uniqueness: (auxiliary_id, full_aux_number) must be unique in auxiliary.
             dup_check_sql = "SELECT COUNT(*) FROM auxiliary WHERE auxiliary_id=? AND number=?"
-            params = [aux_code, number]
+            params = [aux_code, full_aux_number]
 
             if id_value:
                 dup_check_sql += " AND id<>?"
@@ -89,39 +93,31 @@ class AuxiliaryUI:
             dup_check_data = []
             connection.contogetrows(dup_check_sql, dup_check_data, params)
 
-            # connection.contogetrows may return:
-            # - list of tuples: [(count,)]
-            # - list of pyodbc.Row: [pyodbc.Row(count=?)]
-            # - scalar-like values
             dup_count = 0
             if dup_check_data:
                 first = dup_check_data[0]
-
-                # tuple/list row: [(count,)] or [count]
                 if isinstance(first, (list, tuple)):
                     v = first[0] if first else 0
                 else:
-                    # pyodbc.Row: try index access first
                     try:
                         v = first[0]
                     except Exception:
                         v = first
-
                 try:
                     dup_count = int(getattr(v, 'value', v))
                 except Exception:
                     dup_count = 0
 
             if dup_count > 0:
-                ui.notify('Duplicate not allowed: same Account (Aux Code) and same Auxiliary Number already exists.', color='warning')
+                ui.notify('Duplicate not allowed: same Account (Aux Code) and same Auxiliary suffix already exists.', color='warning')
                 return
 
             if id_value:
                 sql = "UPDATE auxiliary SET auxiliary_id=?, account_name=?, number=?, update_date=GETDATE(), status=? WHERE id=?"
-                values = (aux_code, account_name, number, status, id_value)
+                values = (aux_code, account_name, full_aux_number, status, id_value)
             else:
                 sql = "INSERT INTO auxiliary (auxiliary_id, account_name, number, update_date, status) VALUES (?, ?, ?, GETDATE(), ?)"
-                values = (aux_code, account_name, number, status)
+                values = (aux_code, account_name, full_aux_number, status)
 
             connection.insertingtodatabase(sql, values)
             ui.notify('Saved successfully', color='positive')
@@ -161,83 +157,71 @@ class AuxiliaryUI:
         try:
             data = []
             sql = """
-                SELECT a.id,
-                       a.auxiliary_id,
-                       l.Name_en as ledger_name,
-                       a.account_name,
-                       a.number,
-                       a.update_date,
-                       a.status
+                SELECT
+                    a.id,
+                    a.auxiliary_id,
+                    l.Name_en AS ledger_name,
+                    a.account_name,
+                    a.number,
+                    a.update_date,
+                    a.status,
+                    COALESCE(
+                        (SELECT SUM(atl.debit) - SUM(atl.credit)
+                         FROM accounting_transaction_lines atl
+                         WHERE atl.auxiliary_id = a.id),
+                        0
+                    ) AS net_balance
                 FROM auxiliary a
                 LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber
-
-                UNION ALL
-
-                SELECT
-                       NULL as id,
-                       NULL as auxiliary_id,
-                       l.Name_en as ledger_name,
-                       'Cash/GL Account' as account_name,
-                       atl.account_number as number,
-                       GETDATE() as update_date,
-                       1 as status
-                FROM accounting_transaction_lines atl
-                LEFT JOIN Ledger l ON atl.account_number = l.AccountNumber
-                WHERE atl.account_number LIKE '5300.%'
-
-                ORDER BY id DESC
+                ORDER BY a.id DESC
             """
             connection.contogetrows(sql, data)
 
             new_row_data = []
             seen = set()
             for row in data:
-                # Extract the auxiliary suffix (e.g., '000001' from '4111.000001')
-                full_number = str(row[4]) if row[4] else ''
-                aux_suffix = full_number.split('.')[-1] if '.' in full_number else full_number
-
+                # row: id, auxiliary_id, ledger_name, account_name, number, update_date, status, net_balance
                 auxiliary_id = str(row[1]) if row[1] else ''
                 ledger_name = str(row[2]) if row[2] else 'Unknown'
                 account_name = row[3]
                 status = row[6]
-                # Dedupe key: collapse visual duplicates that represent the same auxiliary account.
-                # Prefer stable identity fields (ignore UNION source differences like NULL id).
-                dedupe_key = (auxiliary_id, full_number, status)
+                net_balance = float(row[7]) if row[7] is not None else 0.0
 
+                stored_number = str(row[4]).strip() if row[4] is not None else ''
+                # Canonicalize: DB stores plain suffix-only like "1" for auxiliary_id=5300.
+                # UI should treat canonical full number as "5300.1" for both display and de-duplication.
+                if stored_number and '.' in stored_number:
+                    full_number_canonical = stored_number
+                    aux_suffix = stored_number.split('.')[-1]
+                elif stored_number:
+                    full_number_canonical = f"{auxiliary_id}.{stored_number}"
+                    aux_suffix = stored_number
+                else:
+                    full_number_canonical = ''
+                    aux_suffix = ''
+
+                dedupe_key = (auxiliary_id, full_number_canonical)
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
 
-                # Hide extended auxiliary suffix nodes in the Auxiliary UI for base ledgers:
-                # purchases: 6011.<suffix>, 6019.<suffix>
-                # sales:      7011.<suffix>, 7090.<suffix>
-                # These should be represented by base accounts + suffix aggregation via ledgerextend/reporting,
-                # not as editable/printable auxiliary entries here.
-                base_prefixes_to_hide = ('6011', '6019', '7011', '7090')
-                is_extended_suffix_node = (
-                    '.' in full_number
-                    and any(full_number.startswith(f'{p}.') for p in base_prefixes_to_hide)
-                )
-
-                if not is_extended_suffix_node:
-                    new_row_data.append({
-                        'id': row[0],
-                        'auxiliary_id': auxiliary_id,
-                        'auxiliary_code_only': auxiliary_id,
-                        'ledger_name': ledger_name,
-                        'account_name': account_name,
-                        'number': full_number,
-                        'aux_suffix': aux_suffix,
-                        'update_date': str(row[5]),
-                        'status': status
-                    })
+                new_row_data.append({
+                    'id': row[0],
+                    'auxiliary_id': auxiliary_id,
+                    'auxiliary_code_only': auxiliary_id,
+                    'ledger_name': f"{ledger_name}({full_number_canonical})" if ledger_name and full_number_canonical else ledger_name,
+                    'account_name': account_name,
+                    'number': aux_suffix,
+                    'aux_suffix': aux_suffix,
+                    'full_number': full_number_canonical,
+                    'update_date': str(row[5]),
+                    'status': status,
+                    'net_balance': round(net_balance, 2),
+                })
 
             self.row_data = new_row_data
             self.update_code_options()
-            # Load last entry into form and undim
             self._load_last_row()
-
-            # Apply current search filter by rebuilding grid (ensures filter works reliably).
             self.filter_rows(self.search_text)
         except Exception as e:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
@@ -254,11 +238,106 @@ class AuxiliaryUI:
             print(f"Error updating codes from ledger: {e}")
 
     def get_selected_aux_number(self):
-        """Return the auxiliary number (e.g. 4111.000001) of the currently loaded account."""
-        number = self.input_refs.get('number', None)
-        if number and number.value:
-            return number.value
+        """
+        Return the full auxiliary number (e.g. '4111.000001') of the currently loaded account.
+
+        UI input "number" is suffix-only, so we rebuild full aux number using aux_code + suffix.
+        """
+        aux_code = self.input_refs.get('aux_code', None)
+        suffix = self.input_refs.get('number', None)
+
+        if aux_code and aux_code.value and suffix and suffix.value:
+            return f"{aux_code.value}.{suffix.value}"
+
         return None
+
+    def view_linked_jv_lines(self):
+        """Show all accounting_transaction_lines linked to the selected auxiliary."""
+        id_value = self.input_refs.get('id', None)
+        aux_db_id = getattr(id_value, 'value', None) if id_value else None
+        if not aux_db_id:
+            ui.notify('Select an auxiliary account first', color='warning')
+            return
+
+        try:
+            aux_db_id_int = int(str(aux_db_id).strip())
+        except (ValueError, TypeError):
+            ui.notify('Invalid auxiliary ID', color='warning')
+            return
+
+        lines_data = []
+        try:
+            sql = """
+                SELECT
+                    COALESCE(jv.Entry, at_.reference_type) AS voucher_number,
+                    CONVERT(VARCHAR(10), at_.transaction_date, 23) AS voucher_date,
+                    at_.reference_type,
+                    atl.account_number,
+                    atl.debit,
+                    atl.credit,
+                    at_.description
+                FROM accounting_transaction_lines atl
+                JOIN accounting_transactions at_ ON atl.jv_id = at_.jv_id
+                LEFT JOIN journal_voucher jv
+                    ON at_.reference_type = 'Journal Voucher'
+                    AND CAST(jv.NumberId AS VARCHAR(50)) = CAST(at_.reference_id AS VARCHAR(50))
+                WHERE atl.auxiliary_id = ?
+                ORDER BY at_.transaction_date DESC
+            """
+            connection.contogetrows(sql, lines_data, (aux_db_id_int,))
+        except Exception as ex:
+            ui.notify(f'Error loading JV lines: {ex}', color='negative')
+            return
+
+        aux_name = getattr(self.input_refs.get('account_name'), 'value', '') or ''
+        aux_code = getattr(self.input_refs.get('aux_code'), 'value', '') or ''
+
+        with ui.dialog() as dlg, ui.card().classes('p-6 w-full max-w-5xl glass-card border border-white/10').style('background:#0f172a;max-height:80vh;overflow:auto;'):
+            ui.label(f'JV Lines — {aux_code} {aux_name}').classes('text-lg font-bold mb-4 text-white')
+
+            rows = []
+            for r in lines_data:
+                rows.append({
+                    'voucher_number': str(r[0] or ''),
+                    'voucher_date': str(r[1] or ''),
+                    'reference_type': str(r[2] or ''),
+                    'account_number': str(r[3] or ''),
+                    'debit': float(r[4] or 0),
+                    'credit': float(r[5] or 0),
+                    'description': str(r[6] or ''),
+                })
+
+            total_debit = sum(x['debit'] for x in rows)
+            total_credit = sum(x['credit'] for x in rows)
+
+            col_defs = [
+                {'headerName': 'Voucher #', 'field': 'voucher_number', 'width': 130},
+                {'headerName': 'Date', 'field': 'voucher_date', 'width': 110},
+                {'headerName': 'Type', 'field': 'reference_type', 'width': 130},
+                {'headerName': 'Account No.', 'field': 'account_number', 'width': 130},
+                {'headerName': 'Debit', 'field': 'debit', 'width': 110,
+                 'valueFormatter': "params.value !== undefined && params.value !== null ? Number(params.value).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'"},
+                {'headerName': 'Credit', 'field': 'credit', 'width': 110,
+                 'valueFormatter': "params.value !== undefined && params.value !== null ? Number(params.value).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'"},
+                {'headerName': 'Description', 'field': 'description', 'flex': 1},
+            ]
+
+            ui.aggrid({
+                'columnDefs': col_defs,
+                'rowData': rows,
+                'defaultColDef': {'resizable': True, 'sortable': True},
+                'domLayout': 'normal',
+            }).classes('w-full h-96 ag-theme-quartz-dark')
+
+            diff = total_debit - total_credit
+            color = '#34d399' if abs(diff) < 0.01 else '#fb7185'
+            ui.label(
+                f'Total Debit: {total_debit:,.2f}  |  Total Credit: {total_credit:,.2f}  |  Net: {diff:,.2f}'
+            ).classes('text-sm font-bold mt-3').style(f'color:{color}')
+
+            with ui.row().classes('w-full justify-end mt-4'):
+                ui.button('Close', on_click=dlg.close).props('flat dark')
+        dlg.open()
 
     def print_statement(self):
         """Open Statement of Account dialog for the selected auxiliary number."""
@@ -318,7 +397,12 @@ class AuxiliaryUI:
         from_d = self.from_date.value if self.from_date and self.from_date.value else None
         to_d = self.to_date.value if self.to_date and self.to_date.value else None
         
-        accounting_helpers.show_transactions_dialog(account_number=aux_number, from_date=from_d, to_date=to_d)
+        accounting_helpers.show_transactions_dialog(
+            account_number=aux_number,
+            from_date=from_d,
+            to_date=to_d,
+            include_jv_journal_voucher_lines=True,
+        )
 
     def create_ui(self):
         # NOTE: Layout responsibility belongs to the caller (route/tabbed-dashboard).
@@ -363,8 +447,11 @@ class AuxiliaryUI:
                             {'headerName': 'Ledger Name', 'field': 'ledger_name', 'width': 130},
                             {'headerName': 'Aux Code', 'field': 'auxiliary_code_only', 'width': 140},
                             {'headerName': 'Name', 'field': 'account_name', 'width': 220, 'flex': 1},
-                            {'headerName': 'Auxiliary', 'field': 'aux_suffix', 'width': 100},
+                            {'headerName': 'Aux Suffix', 'field': 'aux_suffix', 'width': 100},
                             {'headerName': 'Full Number', 'field': 'number', 'width': 130},
+                            {'headerName': 'Net Balance', 'field': 'net_balance', 'width': 130,
+                             'valueFormatter': "x.value !== undefined ? x.value.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'",
+                             'cellStyle': "params => ({ color: params.value < 0 ? '#fb7185' : params.value > 0 ? '#34d399' : '#94a3b8' })"},
                             {'headerName': 'Status', 'field': 'status', 'width': 100, 'cellRenderer': 'params => params.value == 1 ? "Active" : "Inactive"'}
                         ]
 
@@ -389,19 +476,20 @@ class AuxiliaryUI:
                                 selected_id = selected_row.get('id', None)
                                 selected_aux_id = selected_row.get('auxiliary_id', None)
                                 selected_account_name = selected_row.get('account_name', '') or ''
-                                selected_number = selected_row.get('number', '') or ''
+                                # selected_row['number'] is suffix-only now
+                                selected_suffix = selected_row.get('number', '') or ''
                                 selected_status = selected_row.get('status', 1)
 
                                 self.input_refs['id'].value = str(selected_id) if selected_id is not None else ''
                                 self.input_refs['aux_code'].value = str(selected_aux_id) if selected_aux_id else None
                                 self.input_refs['account_name'].value = selected_account_name
-                                self.input_refs['number'].value = str(selected_number)
+                                self.input_refs['number'].value = str(selected_suffix)
                                 self.input_refs['status'].value = selected_status
 
                                 self.initial_values = {
                                     'aux_code': str(selected_aux_id) if selected_aux_id else '',
                                     'account_name': selected_account_name,
-                                    'number': str(selected_number),
+                                    'number': str(selected_suffix),
                                     'status': selected_status,
                                     'id': str(selected_id) if selected_id is not None else ''
                                 }
@@ -428,6 +516,7 @@ class AuxiliaryUI:
                         on_print=self.print_statement,
                         on_print_special=lambda: __import__('auxiliary_reports').open_print_special_dialog(),
                         on_view_transaction=self.view_transactions,
+                        on_view_jv_lines=self.view_linked_jv_lines,
                         target_table=self.table,
                         button_class='h-16',
                         classes=' '

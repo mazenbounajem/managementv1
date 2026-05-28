@@ -24,7 +24,9 @@ class DatabaseManager:
     CONNECTION_CONFIG = {
         "driver": "SQL Server Native Client 11.0",
         "server": "DESKTOP-Q7U1STD\\SQLEXPRESS02",
-        "database": "POSDb1Test",
+        "database": "POSDb_2026",
+        "uid": "sa",
+        "pwd": "nave2026",
         "trusted_connection": "yes"
     }
 
@@ -47,6 +49,29 @@ class DatabaseManager:
             f"Database={self.CONNECTION_CONFIG['database']};"
             f"Trusted_Connection={self.CONNECTION_CONFIG['trusted_connection']};"
         )
+
+    def switch_database(self, database_name):
+        """Switch to a different database and reset the pool"""
+        with self._lock:
+            # Update config
+            self.CONNECTION_CONFIG['database'] = database_name
+            self.connection_string = self._build_connection_string()
+            
+            # Clear the pool
+            while not self._pool.empty():
+                try:
+                    conn_tuple = self._pool.get_nowait()
+                    if isinstance(conn_tuple, tuple):
+                        conn = conn_tuple[0]
+                    else:
+                        conn = conn_tuple
+                    conn.close()
+                except Exception:
+                    pass
+            
+            # Reset counter
+            self._created_count = 0
+            logging.info(f"Switched database to: {database_name}")
 
     def _create_connection(self):
         """Create a new database connection"""
@@ -175,6 +200,25 @@ class DatabaseManager:
         """Non-blocking scalar query — runs in a thread pool"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.execute_scalar, sql, params)
+
+    def execute_non_transactional(self, sql):
+        """Execute commands that cannot run inside a transaction (like BACKUP/RESTORE)"""
+        with self.get_connection() as conn:
+            orig_autocommit = conn.autocommit
+            try:
+                conn.autocommit = True
+                cursor = conn.cursor()
+                cursor.execute(sql)
+                while cursor.nextset(): # Handle multiple result sets if any
+                    pass
+                cursor.close()
+            finally:
+                conn.autocommit = orig_autocommit
+
+    async def execute_non_transactional_async(self, sql):
+        """Non-blocking non-transactional execution — runs in a thread pool"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.execute_non_transactional, sql)
 
     # ── Diagnostics ──────────────────────────────────────────────────
 

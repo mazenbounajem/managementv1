@@ -37,18 +37,32 @@ class BusinessTrackUI:
         self.refresh_data()
 
     def load_accounts(self):
-        """Fetch potential ledger accounts directly from Ledger table based on account prefix"""
+        """Fetch potential ledger accounts directly from Ledger table based on account prefix.
+
+        Notes:
+        - Sales: include 7% ledger accounts.
+        - Purchase: include 6% ledger accounts.
+        - Cash/GL (e.g. 5300): include 5% ledger accounts so Business Track can map them too.
+        """
         # Fetch Sales accounts: all accounts starting with 7 (Revenue)
         sales_data = []
         sql_sales = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '7%' ORDER BY AccountNumber"
         connection.contogetrows(sql_sales, sales_data)
         self.sales_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in sales_data}
-        
+
         # Fetch Purchase accounts: all accounts starting with 6 (Expenses)
         purchase_data = []
         sql_purchase = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '6%' ORDER BY AccountNumber"
         connection.contogetrows(sql_purchase, purchase_data)
-        self.purchase_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in purchase_data}
+
+        # Fetch Cash/GL accounts: all accounts starting with 5 (e.g. 5300)
+        cash_gl_data = []
+        sql_cash_gl = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '5%' ORDER BY AccountNumber"
+        connection.contogetrows(sql_cash_gl, cash_gl_data)
+
+        # Merge 6% + 5% into purchase_accounts so 5300 is selectable.
+        merged = purchase_data + cash_gl_data
+        self.purchase_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in merged}
 
     def load_settings(self):
         if os.path.exists(self.settings_file):
@@ -134,41 +148,106 @@ class BusinessTrackUI:
         for tab in ['sales', 'purchase']:
             for row in self.mapping[tab]:
                 for acc in row:
-                    if acc: all_accounts.append(acc)
-        
+                    if acc:
+                        all_accounts.append(str(acc).strip())
+
+        self.ledger_summary = {'sales': [[0.0, 0.0] for _ in range(12)], 'purchase': [[0.0, 0.0] for _ in range(12)]}
+
         if not all_accounts:
-            self.ledger_summary = {}
-        else:
-            acc_sums = {}
-            # Query in bulk for performance
-            placeholders = ', '.join(['?'] * len(all_accounts))
-            sql = f"""
-                SELECT 
-                    COALESCE(l.auxiliary_id, l.account_number) as acc,
+            self.sales_container.clear()
+            with self.sales_container: self.create_grid_view('sales')
+            self.purchase_container.clear()
+            with self.purchase_container: self.create_grid_view('purchase')
+            return
+
+        # Normalize mapping:
+        # - If mapping contains a dot => treat as exact auxiliary.number (e.g., 44270.1)
+        # - If mapping does not contain a dot => treat as:
+        #     * exact ledger code (e.g., 7111, 6011, 7090, 5300)
+        #     * OR a base auxiliary code meaning ALL auxiliary.number LIKE base+'.%'
+        exact_aux_codes = sorted({a for a in all_accounts if '.' in a})
+        base_aux_codes = sorted({a for a in all_accounts if '.' not in a})
+
+        # Precompute sums keyed by "mapping key" (the same string we store in mapping)
+        acc_sums = {}
+
+        # 1) Exact auxiliary.number sums (e.g. 44270.1)
+        if exact_aux_codes:
+            placeholders = ', '.join(['?'] * len(exact_aux_codes))
+            sql_exact_aux = f"""
+                SELECT
+                    a.number as map_key,
                     SUM(ISNULL(l.credit, 0) - ISNULL(l.debit, 0)) as balance
                 FROM accounting_transaction_lines l
-                WHERE l.auxiliary_id IN ({placeholders}) OR l.account_number IN ({placeholders})
-                GROUP BY COALESCE(l.auxiliary_id, l.account_number)
+                JOIN auxiliary a ON TRY_CAST(l.auxiliary_id AS INT) = a.id
+                WHERE a.number IN ({placeholders})
+                GROUP BY a.number
             """
             data = []
-            connection.contogetrows_with_params(sql, data, tuple(all_accounts + all_accounts))
-            acc_sums = {row[0]: float(row[1]) for row in data}
-            
-            # Map back to structural grid
-            self.ledger_summary = {'sales': [[0.0, 0.0] for _ in range(12)], 'purchase': [[0.0, 0.0] for _ in range(12)]}
-            for tab in ['sales', 'purchase']:
-                for r in range(12):
-                    for c in range(2):
-                        acc = self.mapping[tab][r][c]
-                        # For purchase, negate the balance (we want net debit effect)
-                        val = acc_sums.get(acc, 0.0)
-                        if tab == 'purchase': val = -val
-                        self.ledger_summary[tab][r][c] = val
+            connection.contogetrows_with_params(sql_exact_aux, data, tuple(exact_aux_codes))
+            for row in data:
+                acc_sums[str(row[0])] = float(row[1] or 0.0)
+
+        # 2) Base auxiliary code sums (e.g. 5300 => sum all auxiliary.number LIKE '5300.%')
+        # Heuristic to avoid double-counting:
+        # - For cash/gl series (codes starting with '53'), take from auxiliary base only.
+        # - For other no-dot codes (e.g., 6xxx / 7xxx totals), take from ledger postings only.
+        base_aux_codes_for_cash = sorted([c for c in base_aux_codes if str(c).startswith('53')])
+
+        if base_aux_codes_for_cash:
+            for base_code in base_aux_codes_for_cash:
+                data = []
+                sql = """
+                    SELECT
+                        ? as map_key,
+                        SUM(ISNULL(l.credit, 0) - ISNULL(l.debit, 0)) as balance
+                    FROM accounting_transaction_lines l
+                    JOIN auxiliary a ON TRY_CAST(l.auxiliary_id AS INT) = a.id
+                    WHERE a.number LIKE ? + '.%'
+                """
+                connection.contogetrows_with_params(sql, data, (base_code, base_code))
+                if data:
+                    acc_sums[base_code] = float(data[0][1] or 0.0)
+
+        # 3) Exact ledger code sums (e.g. 7111, 6011, 6019, 7090)
+        # Only for codes that are NOT cash/gl series (to reduce double counting).
+        ledger_codes_for_non_cash = sorted([c for c in base_aux_codes if not str(c).startswith('53')])
+
+        if ledger_codes_for_non_cash:
+            for ledger_code in ledger_codes_for_non_cash:
+                data = []
+                sql = """
+                    SELECT
+                        ? as map_key,
+                        SUM(ISNULL(l.credit, 0) - ISNULL(l.debit, 0)) as balance
+                    FROM accounting_transaction_lines l
+                    WHERE CAST(l.account_number AS VARCHAR(50)) = CAST(? AS VARCHAR(50))
+                """
+                connection.contogetrows_with_params(sql, data, (ledger_code, ledger_code))
+                if data and data[0]:
+                    acc_sums[ledger_code] = float(data[0][1] or 0.0)
+
+        # Map back to structural grid
+        for tab in ['sales', 'purchase']:
+            for r in range(12):
+                for c in range(2):
+                    acc = self.mapping[tab][r][c]
+                    if not acc:
+                        continue
+                    acc = str(acc).strip()
+                    # For purchase, negate the balance (we want net debit effect)
+                    val = float(acc_sums.get(acc, 0.0))
+                    if tab == 'purchase':
+                        val = -val
+                    self.ledger_summary[tab][r][c] = val
 
         self.sales_container.clear()
-        with self.sales_container: self.create_grid_view('sales')
+        with self.sales_container:
+            self.create_grid_view('sales')
+
         self.purchase_container.clear()
-        with self.purchase_container: self.create_grid_view('purchase')
+        with self.purchase_container:
+            self.create_grid_view('purchase')
 
     def create_grid_view(self, tab_type):
         is_sales = tab_type == 'sales'

@@ -426,17 +426,21 @@ class Reports:
                 CAST(t.transaction_date AS DATE) as Date,
                 t.jv_id as JV_ID,
                 t.reference_type + ' #' + ISNULL(CAST(t.reference_id AS VARCHAR), '') as Reference,
-                COALESCE(l.auxiliary_id, l.account_number) as Account_Aux,
+                COALESCE(CAST(ax.number AS VARCHAR(50)), CAST(l.account_number AS VARCHAR(50))) as Account_Aux,
                 ISNULL(l.debit, 0) as Debit,
                 ISNULL(l.credit, 0) as Credit,
                 SUM(ISNULL(l.debit, 0) - ISNULL(l.credit, 0)) OVER (ORDER BY t.transaction_date, t.jv_id, l.line_id ROWS UNBOUNDED PRECEDING) as Balance
             FROM accounting_transactions t
-            JOIN accounting_transaction_lines l ON t.jv_id = l.jv_id
+            JOIN accounting_transaction_lines l ON CAST(t.jv_id AS VARCHAR(50)) = CAST(l.jv_id AS VARCHAR(50))
+            LEFT JOIN auxiliary ax ON (
+                l.auxiliary_id = CAST(ax.number AS VARCHAR(50))
+                OR TRY_CAST(l.auxiliary_id AS INT) = ax.id
+            )
         """
         params = []
         if account_number:
-            sql += " WHERE l.auxiliary_id = ? OR l.account_number = ?"
-            params.extend([account_number, account_number])
+            sql += " WHERE (CAST(l.auxiliary_id AS VARCHAR(50)) = ? OR CAST(l.account_number AS VARCHAR(50)) = ? OR CAST(ax.number AS VARCHAR(50)) = ?)"
+            params.extend([str(account_number), str(account_number), str(account_number)])
         if from_date:
             if 'WHERE' not in sql: sql += " WHERE"
             else: sql += " AND"
@@ -554,13 +558,22 @@ class Reports:
         data = []
         sql = """
             SELECT 
-                COALESCE(a.number, l.account_number) as [Account Number],
-                COALESCE(a.account_name, l.account_number) as [Account Name],
-                ISNULL(SUM(l.debit), 0) as [Total Debit],
-                ISNULL(SUM(l.credit), 0) as [Total Credit],
-                ISNULL(SUM(l.debit), 0) - ISNULL(SUM(l.credit), 0) as [Net Balance]
-            FROM accounting_transaction_lines l
-            LEFT JOIN auxiliary a ON l.auxiliary_id = a.id
+                AccountNum, AccountName,
+                ISNULL(SUM(debit), 0) as [Total Debit],
+                ISNULL(SUM(credit), 0) as [Total Credit],
+                ISNULL(SUM(debit - credit), 0) as [Net Balance]
+            FROM (
+                SELECT 
+                    COALESCE(CAST(a.number AS VARCHAR(50)), CAST(l.account_number AS VARCHAR(50))) as AccountNum,
+                    COALESCE(CAST(a.account_name AS VARCHAR(255)), CAST(led.Name_en AS VARCHAR(255)), CAST(l.account_number AS VARCHAR(50))) as AccountName,
+                    ISNULL(l.debit, 0) as debit,
+                    ISNULL(l.credit, 0) as credit
+                FROM accounting_transaction_lines l
+                LEFT JOIN auxiliary a ON (
+                    l.auxiliary_id = CAST(a.number AS VARCHAR(50))
+                    OR TRY_CAST(l.auxiliary_id AS INT) = a.id
+                )
+                LEFT JOIN Ledger led ON CAST(l.account_number AS VARCHAR(50)) = CAST(led.AccountNumber AS VARCHAR(50))
         """
         params = []
         if from_date or to_date:
@@ -572,10 +585,12 @@ class Reports:
             if to_date:
                 sql += " AND CAST(t.transaction_date AS DATE) <= ?"
                 params.append(to_date)
+        
         sql += """
-            GROUP BY COALESCE(a.number, l.account_number), COALESCE(a.account_name, l.account_number)
-            HAVING ISNULL(SUM(l.debit), 0) <> 0 OR ISNULL(SUM(l.credit), 0) <> 0
-            ORDER BY [Account Number]
+            ) as t
+            GROUP BY AccountNum, AccountName
+            HAVING ISNULL(SUM(debit), 0) <> 0 OR ISNULL(SUM(credit), 0) <> 0
+            ORDER BY AccountNum
         """
         if params:
             connection.contogetrows_with_params(sql, data, tuple(params))
@@ -695,44 +710,59 @@ class Reports:
 
 
     @staticmethod
-    def fetch_hierarchical_trial_balance(ledger_prefix, from_date=None, to_date=None):
+    def fetch_hierarchical_trial_balance(ledger_prefix, from_date=None, to_date=None, exclude_reference=None):
         """
-        Fetch hierarchical trial balance for ledger prefix (recursive tree).
-        Returns nested structure: [{'code': '701', 'name': 'Sales', 'debit': 10000, 'credit': 9000, 
-        'balance': 1000, 'level': 1, 'children': [...], 'transactions': []}]
+        Fetch hierarchical trial balance for ledger prefix (tree based on Ledger.ParentId).
+        Includes an optional exclude_reference filter (e.g. for Pre-Closing view).
         """
         data = []
         params = [ledger_prefix, ledger_prefix]
-        
-        # Build base CTE for ledger hierarchy under prefix
+
         cte_sql = """
         WITH account_tree AS (
-            SELECT AccountNumber as code, Name_en as name, 1 as level, Id
-            FROM Ledger 
-            WHERE AccountNumber = ? OR (? = '' AND LEN(AccountNumber) = 1)
+            SELECT
+                AccountNumber as code,
+                Name_en as name,
+                1 as level,
+                Id,
+                ParentId
+            FROM Ledger
+            WHERE
+                (? <> '' AND AccountNumber = ?)
+                OR
+                (? = '' AND AccountNumber IN ('1','2','3','4','5','6','7'))
             UNION ALL
-            SELECT l.AccountNumber, l.Name_en, at.level + 1, l.Id
+            SELECT
+                l.AccountNumber,
+                l.Name_en,
+                at.level + 1,
+                l.Id,
+                l.ParentId
             FROM account_tree at
-            JOIN Ledger l ON l.AccountNumber LIKE at.code + '%' 
+            JOIN Ledger l ON l.AccountNumber LIKE at.code + '%'
                            AND LEN(l.AccountNumber) = LEN(at.code) + 1
         )
         """
         main_sql = """
-        SELECT at.code, at.name, at.level, 
-               ISNULL(SUM(CASE WHEN atl.debit > 0 THEN atl.debit ELSE 0 END), 0) as total_debit,
-               ISNULL(SUM(CASE WHEN atl.credit > 0 THEN atl.credit ELSE 0 END), 0) as total_credit,
-               ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
-               COUNT(DISTINCT atl.jv_id) as txn_count
+        SELECT
+            at.code,
+            at.name,
+            at.level,
+            at.ParentId,
+            ISNULL(SUM(CASE WHEN atl.debit > 0 THEN atl.debit ELSE 0 END), 0) as total_debit,
+            ISNULL(SUM(CASE WHEN atl.credit > 0 THEN atl.credit ELSE 0 END), 0) as total_credit,
+            ISNULL(SUM(atl.debit - atl.credit), 0) as balance,
+            COUNT(DISTINCT atl.jv_id) as txn_count
         FROM account_tree at
         LEFT JOIN (
             SELECT atl2.*, ax.number as aux_num
             FROM accounting_transaction_lines atl2
-            LEFT JOIN auxiliary ax ON atl2.auxiliary_id = ax.id
+            LEFT JOIN auxiliary ax ON TRY_CAST(atl2.auxiliary_id AS INT) = ax.id
         ) atl ON (
-            atl.account_number = at.code 
-            OR atl.aux_num LIKE at.code + '.%'
+            CAST(atl.account_number AS VARCHAR(50)) = CAST(at.code AS VARCHAR(50))
+            OR CAST(atl.aux_num AS VARCHAR(50)) LIKE CAST(at.code AS VARCHAR(50)) + '.%'
         )
-        LEFT JOIN accounting_transactions atxn ON atl.jv_id = atxn.jv_id
+        LEFT JOIN accounting_transactions atxn ON CAST(atl.jv_id AS VARCHAR(50)) = CAST(atxn.jv_id AS VARCHAR(50))
         """
         
         if from_date:
@@ -741,6 +771,9 @@ class Reports:
         if to_date:
             main_sql += " AND CAST(atxn.transaction_date AS DATE) <= ?"
             params.append(to_date)
+        if exclude_reference:
+            main_sql += " AND atxn.reference_type NOT LIKE ? + '%'"
+            params.append(exclude_reference)
             
         main_sql += """
         GROUP BY at.code, at.name, at.level
@@ -769,62 +802,200 @@ class Reports:
         if to_date:
             aux_sql += " AND CAST(atxn.transaction_date AS DATE) <= ?"
             aux_params.append(to_date)
+        if exclude_reference:
+            aux_sql += " AND atxn.reference_type NOT LIKE ? + '%'"
+            aux_params.append(exclude_reference)
         
         aux_sql += " GROUP BY a.number, a.account_name"
         
         aux_data = []
         connection.contogetrows_with_params(aux_sql, aux_data, tuple(aux_params))
         data.extend(aux_data)
+
+        # Match auxiliaryui.py's special synthesized "Cash/GL Account" rows (5300.*)
+        # so Trial Balance Hierarchy uses the same naming ('Cash/GL Account').
+        cash_gl_sql = """
+            SELECT
+                atl.account_number as code,
+                'Cash/GL Account' as name,
+                99 as level,
+                NULL as parent_id,
+                ISNULL(SUM(atl2.debit), 0) as total_debit,
+                ISNULL(SUM(atl2.credit), 0) as total_credit,
+                ISNULL(SUM(atl2.debit - atl2.credit), 0) as balance,
+                COUNT(DISTINCT atl2.jv_id) as txn_count
+            FROM accounting_transaction_lines atl
+            JOIN accounting_transaction_lines atl2 ON atl2.account_number = atl.account_number
+            LEFT JOIN accounting_transactions t ON atl2.jv_id = t.jv_id
+            WHERE atl.account_number LIKE '5300.%'
+        """
+        cash_gl_params = []
+        if from_date:
+            cash_gl_sql += " AND CAST(t.transaction_date AS DATE) >= ?"
+            cash_gl_params.append(from_date)
+        if to_date:
+            cash_gl_sql += " AND CAST(t.transaction_date AS DATE) <= ?"
+            cash_gl_params.append(to_date)
+        if exclude_reference:
+            cash_gl_sql += " AND t.reference_type NOT LIKE ? + '%'"
+            cash_gl_params.append(exclude_reference)
+
+        cash_gl_sql += """
+            GROUP BY atl.account_number
+        """
+        cash_gl_data = []
+        connection.contogetrows_with_params(cash_gl_sql, cash_gl_data, tuple(cash_gl_params))
+        data.extend(cash_gl_data)
         
         # Build flat dicts first
         tree_nodes = {}
         leaves_with_txns = {}
-        
+
+        # Build nodes (ledger + auxiliary)
         for row in data:
-            code, name, level, debit, credit, balance, txn_count = row
+            # Main ledger query rows now include ParentId.
+            # Expected shape for ledger rows:
+            #   code, name, level, debit, credit, balance, txn_count
+            # Expected shape for auxiliary rows:
+            #   code, name, level(99), debit, credit, balance, txn_count
+            #
+            # Because earlier versions differ, handle both shapes defensively.
+            if len(row) >= 8:
+                code, name, level, parent_id, debit, credit, balance, txn_count = row[:8]
+            else:
+                code, name, level, debit, credit, balance, txn_count = row[:7]
+                parent_id = None
+
+            code = str(code)
+            # Some synthesized accounts may come back with empty name.
+            # Align with what auxiliaryui.py / ledger uses for display.
+            if not name:
+                if code == '5300' or code.startswith('5300.'):
+                    name = 'Caise cash'
+                elif code == '7111' or code.startswith('7111.'):
+                    name = 'Sales manufactured goods'
+
             node = {
-                'code': str(code),
+                'code': code,
                 'name': name or f'Account {code}',
                 'debit': float(debit),
                 'credit': float(credit),
                 'balance': float(balance),
                 'level': int(level),
                 'children': [],
-                'transactions': []
+                'transactions': [],
+                'parent_id': str(parent_id) if parent_id is not None else None,
             }
-            tree_nodes[str(code)] = node
-            
+
+            tree_nodes[code] = node
+            if node['parent_id']:
+                # We'll populate id_to_code based on Id, but we don't have ledger Id in this output.
+                # So this will be filled only when available.
+                pass
+
             # If leaf (has txns), fetch detailed transactions
             if txn_count > 0:
                 txns = Reports._fetch_leaf_transactions(code, from_date, to_date)
                 node['transactions'] = txns
-        
-        # Build hierarchy
+
+        # --------------- IMPORTANT ---------------
+        # Some accounts used by Business Track may not exist in Ledger master/tree
+        # (or may not fit the ParentId chain). To make the hierarchy/audit report
+        # complete, add "ghost" codes directly from accounting_transaction_lines
+        # for the selected ledger_prefix.
+        # -------------------------------------------
+        # We add totals for codes found in transactions where the base matches ledger_prefix.
+        ghost_params = []
+        ghost_sql = """
+            SELECT
+                COALESCE(ax.number, l.account_number) as code,
+                ISNULL(SUM(l.debit), 0) as total_debit,
+                ISNULL(SUM(l.credit), 0) as total_credit
+            FROM accounting_transaction_lines l
+            LEFT JOIN auxiliary ax ON l.auxiliary_id = ax.id
+            LEFT JOIN accounting_transactions t ON l.jv_id = t.jv_id
+            WHERE 1=1
+        """
+
+        if ledger_prefix:
+            ghost_sql += " AND (l.account_number LIKE ? + '%' OR COALESCE(ax.number, l.account_number) LIKE ? + '%')"
+            ghost_params.extend([ledger_prefix, ledger_prefix])
+
+        if from_date:
+            ghost_sql += " AND CAST(t.transaction_date AS DATE) >= ?"
+            ghost_params.append(from_date)
+        if to_date:
+            ghost_sql += " AND CAST(t.transaction_date AS DATE) <= ?"
+            ghost_params.append(to_date)
+        if exclude_reference:
+            ghost_sql += " AND t.reference_type NOT LIKE ? + '%'"
+            ghost_params.append(exclude_reference)
+
+        ghost_sql += """
+            GROUP BY COALESCE(ax.number, l.account_number)
+        """
+
+        ghost_rows = []
+        connection.contogetrows_with_params(ghost_sql, ghost_rows, tuple(ghost_params))
+        for g in ghost_rows:
+            # Ensure tuple shape (code, debit, credit)
+            if not g or len(g) < 3:
+                continue
+            g_code = str(g[0] or '')
+            if not g_code:
+                continue
+
+            if g_code in tree_nodes:
+                continue
+
+            g_debit = float(g[1] or 0.0)
+            g_credit = float(g[2] or 0.0)
+            g_balance = g_debit - g_credit
+
+            base_code = g_code.split('.')[0] if '.' in g_code else g_code
+            # Root logic in this function uses level==1 only for single-digit roots.
+            if len(base_code) == 1 and base_code in ('1','2','3','4','5','6','7'):
+                g_level = 1
+            else:
+                g_level = 2
+
+            tree_nodes[g_code] = {
+                'code': g_code,
+                'name': f'Account {g_code}',
+                'debit': g_debit,
+                'credit': g_credit,
+                'balance': g_balance,
+                'level': int(g_level),
+                'children': [],
+                'transactions': [],
+                'parent_id': None,
+            }
+
+        # Build hierarchy using parent-child based on Ledger.ParentId where possible.
         root_nodes = []
         for code, node in tree_nodes.items():
-            if node['level'] == 1 or code == ledger_prefix:  # Root level
+            # Auxiliaries: attach to derived parent ledger by base code (before dot), fallback to root.
+            if node['level'] == 99:
+                parent_code = code.split('.')[0] if '.' in code else code[:-1]
+                if parent_code in tree_nodes:
+                    tree_nodes[parent_code]['children'].append(node)
+                else:
+                    root_nodes.append(node)
+                continue
+
+            # Ledger: if level==1 or explicitly matches prefix, treat as root.
+            if node['level'] == 1 or (ledger_prefix and code == ledger_prefix):
                 root_nodes.append(node)
                 continue
-            
-            if node['level'] == 99: # Auxiliary
-                parent_code = code.split('.')[0] if '.' in code else code[:-1]
-            else:
-                parent_code = code[:-1]
-                
-            if parent_code in tree_nodes:
+
+            # Without ledger Id in returned rows, we can't reliably map ParentId->code.
+            # Fallback: attach by trimming last digit only if that parent exists; otherwise root.
+            parent_code = code[:-1] if len(code) > 1 else None
+            if parent_code and parent_code in tree_nodes:
                 tree_nodes[parent_code]['children'].append(node)
             else:
-                # If parent not found, try finding any parent that is a prefix
-                found = False
-                p = parent_code
-                while p:
-                    if p in tree_nodes:
-                        tree_nodes[p]['children'].append(node)
-                        found = True
-                        break
-                    p = p[:-1]
-                if not found:
-                    root_nodes.append(node)
+                root_nodes.append(node)
+
         return root_nodes
 
     @staticmethod

@@ -770,7 +770,7 @@ class connection:
                     id INT IDENTITY(1,1) PRIMARY KEY,
                     jv_id INT NOT NULL,
                     account_number VARCHAR(20),
-                    auxiliary_id VARCHAR(20) NOT NULL,
+                    auxiliary_id INT NULL,
                     debit DECIMAL(18,2) DEFAULT 0,
                     credit DECIMAL(18,2) DEFAULT 0,
                     FOREIGN KEY (jv_id) REFERENCES accounting_transactions(id)
@@ -797,9 +797,29 @@ class connection:
                     "INSERT INTO vat_settings (vat_percentage, effective_date) VALUES (?, ?)",
                     (11.0, '2020-01-01')
                 )
-                print("vat_settings table created successfully")
         except Exception as ex:
             print(f"Error ensuring accounting tables: {str(ex)}")
+
+    @staticmethod
+    def ensure_year_transition_permission():
+        """Ensure year-transition permission exists in role_permissions"""
+        try:
+            roles = db_manager.execute_query("SELECT id FROM roles")
+            for role in roles:
+                role_id = role[0]
+                existing = db_manager.execute_scalar(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ? AND page_name = 'year-transition'",
+                    role_id
+                )
+                if not existing:
+                    # Grant to Admin (role_id 1) by default
+                    can_access = 1 if role_id == 1 else 0
+                    db_manager.execute_update(
+                        "INSERT INTO role_permissions (role_id, page_name, can_access) VALUES (?, ?, ?)",
+                        (role_id, 'year-transition', can_access)
+                    )
+        except Exception as e:
+            print(f"Error ensuring year-transition permission: {e}")
 
     @staticmethod
     def ensure_hide_history_permission():

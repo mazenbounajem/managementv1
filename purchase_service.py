@@ -58,13 +58,18 @@ class PurchaseService:
         raw_data = self.repository.get_all_purchases()
         purchases_data = []
         for row in raw_data:
+            payment_status = str(row[5]) if row[5] is not None else ''
+            # Only show pending/open documents in the UI (exclude cash/completed)
+            if payment_status != 'pending':
+                continue
+
             purchases_data.append({
                 'id': row[0],
                 'purchase_date': str(row[1]),
                 'supplier_name': str(row[2]),
                 'total_amount': float(row[3]),
                 'invoice_number': str(row[4]),
-                'payment_status': str(row[5]),
+                'payment_status': payment_status,
                 'account_code': str(row[6]) if row[6] else '',
                 'auxiliary_number': str(row[7]) if row[7] else '',
                 'currency_name': str(row[8]) if row[8] else '',
@@ -582,9 +587,12 @@ class PurchaseService:
                 caisse_account = business_track_settings.get_payment_account(payment_method)
                 accounting_helpers.ensure_caisse_auxiliary(caisse_account)
 
+                # Cash purchase settlement:
+                # Use base 4011 on the supplier/debit side and 5300.* (caisse) on the cash/credit side.
+                # This ensures the debit/credit directions match the required settlement behavior.
                 payment_jv = [
-                    {'account': supplier_account, 'debit': normalized_total, 'credit': 0},
-                    {'account': caisse_account,    'debit': 0,                'credit': normalized_total},
+                    {'account': '4011',        'debit': normalized_total, 'credit': 0},
+                    {'account': caisse_account, 'debit': 0,              'credit': normalized_total},
                 ]
                 accounting_helpers.save_accounting_transaction(
                     'Purchase Payment', purchase_id, payment_jv,

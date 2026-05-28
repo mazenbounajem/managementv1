@@ -36,6 +36,7 @@ from business_track import business_track_content
 import company_ui
 import trial_hierarchy_ui
 import vat_close_ui
+import year_end_closing_ui
 
 # Global registries for tab management
 current_open_tab = None
@@ -140,6 +141,7 @@ def tabbed_dashboard_page():
         'services':               {'label': 'Services', 'func': lambda: services_ui.services_content(standalone=False), 'icon': 'build'},
         'company':                {'label': 'Company', 'func': lambda: company_ui.CompanyUI(show_navigation=False, show_footer=False), 'icon': 'business_center'},
         'trial-hierarchy':        {'label': 'Trial Hierarchy', 'func': lambda: trial_hierarchy_ui.trial_hierarchy_content(standalone=False), 'icon': 'account_tree'},
+        'year-transition':       {'label': 'Year Transition', 'func': lambda: year_end_closing_ui.year_end_closing_content(standalone=False), 'icon': 'event_repeat'},
         'profile':                {'label': 'My Account', 'func': make_iframe('/profile'), 'icon': 'manage_accounts'},
     }
 
@@ -217,7 +219,22 @@ def tabbed_dashboard_page():
         target_tabs = tabs_right if side == 'right' else navigation.tabs_ui
         target_open_tabs = state['right_open_tabs'] if side == 'right' else navigation.open_tabs
 
-        # Determine unique key for this instance
+        # 1. Special case: Dashboard (Home) should always be a single instance
+        if page_key == 'dashboard':
+            new_instance = False
+            
+            # Check if already open on either side
+            if 'dashboard' in navigation.open_tabs:
+                ui.notify('Home is already open.', color='info', icon='home')
+                tab_panels_left.value = navigation.open_tabs['dashboard']
+                return
+            if 'dashboard' in state['right_open_tabs']:
+                ui.notify('Home is already open in the split view.', color='info', icon='home')
+                tab_panels_right.value = state['right_open_tabs']['dashboard']
+                if not state['is_split']: toggle_split_view()
+                return
+
+        # 2. Determine unique key for this instance
         if new_instance:
             instance_count = sum(1 for k in navigation.open_tabs if k.startswith(page_key)) + \
                              sum(1 for k in state['right_open_tabs'] if k.startswith(page_key))
@@ -316,6 +333,37 @@ def tabbed_dashboard_page():
 
     # Open Dashboard by default
     open_tab_callback('dashboard')
+
+    # Year change detection: If current year > DB year or latest transaction year, suggest rollover
+    try:
+        import datetime
+        db_name = session_storage.get('database_name', '')
+        current_year = datetime.datetime.now().year
+        
+        # Check database name for year
+        import re
+        year_match = re.search(r'(\d{4})', db_name)
+        db_year = int(year_match.group(1)) if year_match else None
+        
+        should_rollover = False
+        if db_year and current_year > db_year:
+            should_rollover = True
+        else:
+            # Check latest transaction year in DB
+            rows = []
+            connection.contogetrows("SELECT MAX(YEAR(transaction_date)) FROM accounting_transactions", rows)
+            if rows and rows[0][0]:
+                last_txn_year = int(rows[0][0])
+                if current_year > last_txn_year:
+                    should_rollover = True
+        
+        if should_rollover:
+            ui.notify(f'Fiscal Year {current_year} transition detected! Please perform Year-End Closing.', 
+                      color='warning', icon='event_repeat', duration=0) # Duration 0 keeps it visible
+            open_tab_callback('year-transition')
+            
+    except Exception as e:
+        print(f"Year detection error: {e}")
 
     # Footer with system time, company name, and username
     with ui.footer().classes('flex justify-between items-center p-4 glass bg-white/5 border-t border-white/10 text-white').style('font-size: 1rem;'):

@@ -1,6 +1,9 @@
 from nicegui import ui
 from connection import connection
 import hashlib
+from datetime import datetime
+import re
+from database_manager import db_manager
 from modern_design_system import ModernDesignSystem as MDS
 from modern_ui_components import ModernInput, ModernButton
 
@@ -115,6 +118,17 @@ class LoginPage:
                         self.username_input = ModernInput('Username', placeholder='Enter your username', icon='person').classes('w-full')
                         self.password_input = ModernInput('Password', placeholder='••••••••', input_type='password', icon='lock').classes('w-full')
                         
+                        # Working Year Selection
+                        available_years = self.get_available_years()
+                        current_year = str(datetime.now().year)
+                        default_year = current_year if current_year in available_years else (next(iter(available_years)) if available_years else None)
+                        
+                        self.year_select = ui.select(
+                            available_years,
+                            label='Working Year',
+                            value=default_year
+                        ).props('outlined dense dark').classes('w-full')
+                        
                         with ui.row().classes('w-full justify-between items-center px-1 mb-2'):
                             ui.checkbox('Secure Session').classes('text-xs text-gray-500 font-bold uppercase tracking-tight')
                             ui.link('Trouble signing in?', '#').style(f'color: {MDS.SECONDARY}').classes('text-xs font-bold uppercase tracking-tight hover:opacity-70 transition-opacity')
@@ -126,6 +140,32 @@ class LoginPage:
                             ui.link('Request Access', '/signup').style(f'color: {MDS.SECONDARY}').classes('text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity cursor-pointer')
 
 
+
+    def get_available_years(self):
+        """Fetch available years based on database names"""
+        try:
+            # Query sys.databases to find databases matching our pattern
+            sql = "SELECT name FROM sys.databases WHERE name LIKE 'POSDb%' OR name = 'ManagementV1'"
+            rows = db_manager.execute_query(sql)
+            
+            years = {}
+            for row in rows:
+                db_name = row[0]
+                # Try to extract year from POSDb_2026 or similar
+                match = re.search(r'(\d{4})', db_name)
+                if match:
+                    year = match.group(1)
+                    years[year] = db_name
+                else:
+                    # If it's the main/default DB, call it 'Main' or use its name
+                    years[db_name] = db_name
+            
+            return years
+        except Exception as e:
+            print(f"Error fetching years: {e}")
+            # Fallback to current config
+            default_db = db_manager.CONNECTION_CONFIG['database']
+            return {default_db: default_db}
 
     def login(self):
         username = self.username_input.value
@@ -145,8 +185,16 @@ class LoginPage:
 
         if success and user_data:
             from session_storage import session_storage
-            # Store user info in session storage
+            
+            # Switch database to the selected year
+            selected_year = self.year_select.value
+            db_name = self.get_available_years().get(selected_year, selected_year)
+            db_manager.switch_database(db_name)
+            
+            # Store user info and year in session storage
             session_storage['user'] = user_data
+            session_storage['working_year'] = selected_year
+            session_storage['database_name'] = db_name
 
             # Create user session entry using AuthService
             session_id = AuthService.create_user_session(user_data)

@@ -28,6 +28,18 @@ class LedgerUI:
         self.tree = None
         self.search_input = None
         self.tree_data = []
+
+        # Selected node state (used for "Add Child" flow)
+        self.mode = 'edit'  # 'edit' | 'add_child'
+        self.selected_ledger_db_id = None
+        self.selected_ledger_account_number = None
+
+        # When True, display all detected roots (not only 1..7 subtree roots).
+        self.show_all_roots = False
+        
+        # When True, exclude 'Year-End Closing' transactions (Pre-Closing view)
+        self.pre_closing_only = False
+
         self.create_ui()
 
     def clear_input_fields(self):
@@ -92,6 +104,53 @@ class LedgerUI:
                 return
 
         try:
+            # "Add Child" mode must never modify an existing ledger row.
+            # In add_child mode, we also must create the corresponding auxiliary row
+            # so the Trial Balance tree structure stays in sync with dbo.auxiliary.
+            if self.mode == 'add_child':
+                if not self.selected_ledger_db_id or not self.selected_ledger_account_number:
+                    ui.notify('No parent ledger selected to add a child under', color='warning')
+                    return
+
+                selected_code = str(self.selected_ledger_account_number).strip()  # base (e.g. 4111)
+                new_code = str(account_number).strip()  # full child ledger code (e.g. 41111)
+
+                if not new_code.startswith(selected_code):
+                    ui.notify(
+                        f'Invalid child: new Account Number must start with parent code {selected_code}',
+                        color='negative'
+                    )
+                    return
+
+                if len(new_code) <= len(selected_code):
+                    ui.notify(
+                        'Invalid child: child Account Number must be longer than parent Account Number',
+                        color='negative'
+                    )
+                    return
+
+                # Child suffix is whatever remains after stripping the base (e.g. '1')
+                aux_suffix = new_code[len(selected_code):].strip()
+                if not aux_suffix:
+                    ui.notify('Invalid child: could not derive auxiliary suffix from Account Number', color='negative')
+                    return
+
+                # Force insert under the selected ledger parent
+                parent_id = str(self.selected_ledger_db_id)
+                id_value = ''  # ensure INSERT
+
+                # Prepare auxiliary insert values:
+                # auxiliary.number format must match your choice: '4111.1'
+                auxiliary_id = selected_code
+                auxiliary_number = f"{selected_code}.{aux_suffix}"
+                auxiliary_account_name = name_en or ''
+                auxiliary_status = status
+
+            # Constraint: Only accounts starting with 1-7 are allowed
+            if str(account_number)[0] not in '1234567':
+                ui.notify('Invalid Account: Only root accounts 1-7 and their children are allowed', color='negative')
+                return
+
             if id_value:
                 sql = "UPDATE Ledger SET AccountNumber=?, SubNumber=?, ParentId=?, Name_en=?, Name_fr=?, Name_ar=?, UpdateDate=GETDATE(), Status=? WHERE Id=?"
                 values = (account_number, sub_number, parent_id, name_en, name_fr, name_ar, status, id_value)
@@ -100,15 +159,52 @@ class LedgerUI:
                 values = (account_number, sub_number, parent_id, name_en, name_fr, name_ar, status)
 
             connection.insertingtodatabase(sql, values)
+
+            # If we were adding a child ledger, also insert the corresponding auxiliary row.
+            # (This is what makes it appear under dbo.auxiliary and in the Auxiliary UI.)
+            if self.mode == 'add_child':
+                aux_sql = """
+                    INSERT INTO auxiliary (auxiliary_id, account_name, number, update_date, status)
+                    VALUES (?, ?, ?, GETDATE(), ?)
+                """
+                aux_values = (auxiliary_id, auxiliary_account_name, auxiliary_number, auxiliary_status)
+                connection.insertingtodatabase(aux_sql, aux_values)
+
             ui.notify('Ledger saved successfully', color='positive')
+
+            # Reset mode back to edit after successful insert/update
+            self.mode = 'edit'
+            self.selected_ledger_db_id = None
+            self.selected_ledger_account_number = None
+
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving ledger: {str(e)}', color='negative')
+
+    def start_add_child(self):
+        """Prepare UI to insert a new child ledger under the currently selected ledger node."""
+        if not self.selected_ledger_db_id or not self.selected_ledger_account_number:
+            ui.notify('Select a ledger node in the tree first', color='warning')
+            return
+
+        self.mode = 'add_child'
+        self.clear_input_fields()
+
+        # In add-child mode, parent must be the currently selected ledger node
+        self.input_refs['parent_id'].value = str(self.selected_ledger_db_id)
+        self.input_refs['id'].value = ''  # force insert
+
+        ui.notify(
+            f'Add child under {self.selected_ledger_account_number}. Enter new Account Number and names, then Save.',
+            color='info'
+        )
 
     def undo_changes(self):
         for field in ['account_number', 'sub_number', 'parent_id', 'name_en', 'name_fr', 'name_ar', 'status', 'id']:
             if field in self.initial_values:
                 self.input_refs[field].value = self.initial_values[field]
+        # If user undoes while in add_child mode, go back to normal edit
+        self.mode = 'edit'
         ui.notify('Changes reverted', color='info')
 
     def delete_ledger(self):
@@ -147,11 +243,59 @@ class LedgerUI:
 
     def refresh_table(self):
         try:
+            # 1. Fetch balances to display in tree labels
+            # We use trial_balance logic but with optional filter for Pre-Closing
+            from reports import Reports
+            
+            # Since Reports.fetch_trial_balance doesn't support reference_type filter,
+            # we'll use a local fetch or assume user wants to see what's in the DB.
+            # But wait, if they want "Before Closing", we need to filter out the JV we just made.
+            
+            balance_data = {}
+            sql = """
+                SELECT AccountNum, SUM(debit - credit) as net
+                FROM (
+                    SELECT 
+                        COALESCE(ax.number, l.account_number) as AccountNum,
+                        l.debit, l.credit
+                    FROM accounting_transaction_lines l
+                    INNER JOIN accounting_transactions t ON l.jv_id = t.jv_id
+                    LEFT JOIN auxiliary ax ON
+                        TRY_CAST(l.auxiliary_id AS VARCHAR) = CAST(ax.id AS VARCHAR)
+                        OR l.auxiliary_id = ax.number
+                        OR l.auxiliary_id = ax.auxiliary_id
+            """
+            params = []
+            if self.pre_closing_only:
+                sql += " WHERE t.reference_type NOT LIKE 'Year-End Closing%'"
+            
+            sql += ") t GROUP BY AccountNum"
+            
+            raw_balances = []
+            connection.contogetrows_with_params(sql, raw_balances, tuple(params))
+            for b in raw_balances:
+                balance_data[str(b[0])] = float(b[1] or 0)
+
+            self.balance_data = balance_data
+
             data = []
             connection.contogetrows("SELECT Id, AccountNumber, SubNumber, ParentId, Name_en, Name_fr, Name_ar, UpdateDate, Status FROM Ledger ORDER BY AccountNumber", data)
 
+            # Lookup ledger names for virtual parents (e.g. 6011/7010/7011 may be missing from the strict tree chain).
+            self.ledger_name_by_code = {}
+            for row in data:
+                if row[1]:
+                    self.ledger_name_by_code[str(row[1])] = row[4] or ''
+
             aux_raw = []
-            connection.contogetrows("SELECT Id, number, account_name, auxiliary_id FROM auxiliary", aux_raw)
+            connection.contogetrows(
+                """SELECT a.Id, a.number,
+                          COALESCE(NULLIF(LTRIM(RTRIM(a.account_name)), ''), l.Name_en, a.auxiliary_id) AS account_name,
+                          a.auxiliary_id
+                   FROM auxiliary a
+                   LEFT JOIN Ledger l ON a.auxiliary_id = l.AccountNumber""",
+                aux_raw
+            )
 
             # Load purchase/sales link auxiliaries so ledger (6011/7010/etc.) can display many invoices as children.
             purchase_links_raw = []
@@ -242,6 +386,9 @@ class LedgerUI:
         """Build hierarchical tree from flat account list and auxiliary accounts."""
         sorted_accs = sorted(accounts, key=lambda x: (len(x['AccountNumber']), x['AccountNumber']))
 
+        # Optional: populated by refresh_table
+        ledger_name_by_code = getattr(self, 'ledger_name_by_code', {}) or {}
+
         nodes = {}
         for acc in sorted_accs:
             acc_num = acc['AccountNumber']
@@ -249,7 +396,9 @@ class LedgerUI:
                 continue
 
             status_icon = '🟢' if acc.get('Status') == 1 else '🔴'
-            label = f"{status_icon} {acc_num} - {acc['Name_en'] or ''}"
+            bal = self.balance_data.get(acc_num, 0.0)
+            bal_str = f" [ {bal:+,.2f} ]" if abs(bal) > 0.01 else ""
+            label = f"{status_icon} {acc_num} - {acc['Name_en'] or ''}{bal_str}"
             nodes[acc_num] = {
                 'id': str(acc['Id']),
                 'label': label,
@@ -259,69 +408,114 @@ class LedgerUI:
                 'data': acc
             }
 
-        # Add Auxiliaries as leaf nodes
+        # Helper: ensure a virtual ledger node exists and is connected up the chain
+        def _ensure_virtual_chain(code):
+            """Create virtual parent nodes for `code` all the way up to a root, if missing."""
+            if code in nodes:
+                return
+            virt_name = ledger_name_by_code.get(code, '') or 'Virtual Parent'
+            nodes[code] = {
+                'id': f"V_{code}",
+                'label': f"🏮 {code} - {virt_name}",
+                'account_number': code,
+                'children': [],
+                'type': 'ledger',
+                'data': {
+                    'Id': 0,
+                    'AccountNumber': code,
+                    'Name_en': virt_name,
+                    'type': 'ledger'
+                }
+            }
+
+        # Add Auxiliaries as leaf nodes under their parent ledger
+        # Use a unique key to avoid overwriting real ledger nodes
+        aux_nodes_by_key = {}  # key -> aux_node
         for aux in auxiliaries:
             aux_id, aux_num, aux_name, parent_ledger = aux
             aux_num = str(aux_num)
-            parent_num = str(parent_ledger) if parent_ledger else None
-            
-            # If parent_num is not set, try dot prefix
+
+            # Determine parent ledger code
+            parent_num = str(parent_ledger).strip() if parent_ledger else None
             if not parent_num and '.' in aux_num:
                 parent_num = aux_num.split('.')[0]
-                
-            label = f"🔸 {aux_num} - {aux_name}"
+
+            # Resolve display name:
+            # aux_name is already COALESCE'd from DB (account_name -> Ledger.Name_en -> auxiliary_id).
+            # If still empty (virtual aux nodes from purchase/sales links), fall back to parent code.
+            resolved_name = str(aux_name).strip() if aux_name and str(aux_name).strip() else (
+                ledger_name_by_code.get(parent_num, parent_num or '') if parent_num else ''
+            )
+
+            bal = self.balance_data.get(aux_num, 0.0)
+            bal_str = f" [ {bal:+,.2f} ]" if abs(bal) > 0.01 else ""
+            
+            # Label format: "🔸 5300.000001 - Caisse (5300)"
+            # Show parent ledger code in parentheses when name comes from ledger (helps distinguish
+            # multiple children under the same ledger account).
+            if resolved_name and parent_num and resolved_name == ledger_name_by_code.get(parent_num, None):
+                label = f"🔸 {aux_num} - {resolved_name} ({parent_num}){bal_str}"
+            else:
+                label = f"🔸 {aux_num} - {resolved_name}{bal_str}" if resolved_name else f"🔸 {aux_num}{bal_str}"
+
+            unique_key = f"aux_{aux_id}_{aux_num}"
             aux_node = {
                 'id': f"aux_{aux_id}",
                 'label': label,
                 'account_number': aux_num,
                 'children': [],
                 'type': 'auxiliary',
-                'data': {'Id': aux_id, 'AccountNumber': aux_num, 'Name_en': aux_name, 'type': 'auxiliary'}
+                'data': {'Id': aux_id, 'AccountNumber': aux_num, 'Name_en': resolved_name, 'type': 'auxiliary'}
             }
-            
+            aux_nodes_by_key[unique_key] = (aux_node, parent_num)
+
+        # Attach auxiliaries to their parent nodes (creating virtual parents as needed)
+        for unique_key, (aux_node, parent_num) in aux_nodes_by_key.items():
             if parent_num:
-                if parent_num not in nodes:
-                    # Create virtual parent if missing
-                    nodes[parent_num] = {
-                        'id': f"V_{parent_num}",
-                        'label': f"🏮 {parent_num} - (Parent)",
-                        'account_number': parent_num,
-                        'children': [],
-                        'type': 'ledger',
-                        'data': {'Id': 0, 'AccountNumber': parent_num, 'Name_en': 'Virtual Parent', 'type': 'ledger'}
-                    }
-                nodes[parent_num]['children'].append(aux_node)
-            else:
-                # Top level auxiliary? 
-                nodes[aux_num] = aux_node
+                # Ensure the parent and its ancestors exist in nodes
+                _ensure_virtual_chain(parent_num)
+                children_ids = {c['id'] for c in nodes[parent_num]['children']}
+                if aux_node['id'] not in children_ids:
+                    nodes[parent_num]['children'].append(aux_node)
+            # If no parent could be determined, the aux node will be ignored (no top-level strays)
 
         roots = []
-        # Second pass to build structure between ledger nodes
-        # Keys are all ledger nodes plus any auxiliaries that didn't find parents
-        for code in sorted(nodes.keys(), key=lambda x: len(x)):
+        # Second pass: build parent-child relationships between ledger/virtual nodes.
+        # Process in ascending length order so parents are always placed before children.
+        for code in sorted(nodes.keys(), key=lambda x: (len(x), x)):
             node = nodes[code]
-            if node.get('type') == 'auxiliary' and '.' in code: continue # Already handled if dot notation
-            
-            if len(code) == 1 and code in '1234567':
-                roots.append(node)
+
+            # Skip auxiliary leaf nodes — already attached above
+            if node.get('type') == 'auxiliary':
                 continue
 
-            # Walk up the prefix chain to find a parent
+            # Single-digit roots 1-7 are top-level
+            if len(code) == 1 and code in '1234567':
+                if node not in roots:
+                    roots.append(node)
+                continue
+
+            # Walk up the prefix chain to find the nearest existing parent
             parent_num = code[:-1]
             found_parent = False
             while parent_num:
-                if parent_num in nodes:
-                    if node not in nodes[parent_num]['children']:
+                if parent_num in nodes and nodes[parent_num].get('type') != 'auxiliary':
+                    children_ids = {c['id'] for c in nodes[parent_num]['children']}
+                    if node['id'] not in children_ids:
                         nodes[parent_num]['children'].append(node)
                     found_parent = True
                     break
                 parent_num = parent_num[:-1]
 
             if not found_parent:
-                # Orphan account under 1-7, attach as root-level
-                if code and code[0] in '1234567':
+                # Orphan: attach as root when appropriate
+                if self.show_all_roots:
                     if node not in roots:
                         roots.append(node)
+                else:
+                    if code and code[0] in '1234567':
+                        if node not in roots:
+                            roots.append(node)
 
         return sorted(roots, key=lambda n: n['account_number'])
 
@@ -400,6 +594,22 @@ class LedgerUI:
                                 ui.button(icon='unfold_more', on_click=self._expand_all).props('flat dense color=white').tooltip('Expand All')
                                 ui.button(icon='unfold_less', on_click=self._collapse_all).props('flat dense color=white').tooltip('Collapse All')
 
+                                def _toggle_all_roots(e):
+                                    self.show_all_roots = bool(e.value)
+                                    self.refresh_table()
+                                ui.checkbox('All Roots', value=self.show_all_roots).props('dark').classes('ml-2').on('update:model-value', _toggle_all_roots)
+
+                                with ui.row().classes('items-center gap-2 ml-4 px-3 py-1 rounded-lg bg-white/5 border border-white/10'):
+                                    ui.label('View:').classes('text-[10px] font-bold text-gray-400 uppercase')
+                                    def _toggle_pre_closing(e):
+                                        self.pre_closing_only = bool(e.value)
+                                        self.refresh_table()
+                                    ui.toggle(
+                                        {False: 'Real-time', True: 'Pre-Closing'},
+                                        value=self.pre_closing_only,
+                                        on_change=_toggle_pre_closing
+                                    ).props('dark dense unelevated toggle-color=green-500').classes('text-xs')
+
                         with ui.column().classes('w-full h-[600px] overflow-auto').style(
                             'background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; '
                             'border: 1px solid rgba(255,255,255,0.08);'
@@ -414,6 +624,12 @@ class LedgerUI:
 
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
+                    ui.button(
+                        'Add Child',
+                        icon='add',
+                        on_click=self.start_add_child
+                    ).props('dense flat color=white').classes('w-full')
+
                     from modern_ui_components import ModernActionBar
                     ModernActionBar(
                         on_new=self.clear_input_fields,
@@ -449,25 +665,40 @@ class LedgerUI:
 
             selected_node = find_node(self.tree_data, e.value)
             if selected_node:
-                data = selected_node['data']
-                self.input_refs['id'].value = str(data['Id'])
-                self.input_refs['account_number'].value = data['AccountNumber'] or ''
-                self.input_refs['sub_number'].value = data['SubNumber'] or ''
-                self.input_refs['parent_id'].value = str(data['ParentId']) if data.get('ParentId') else ''
-                self.input_refs['name_en'].value = data['Name_en'] or ''
-                self.input_refs['name_fr'].value = data['Name_fr'] or ''
-                self.input_refs['name_ar'].value = data['Name_ar'] or ''
-                self.input_refs['status'].value = data['Status']
+                data = selected_node.get('data') or {}
+
+                # Ignore auxiliary leaf nodes for ledger add-child purposes.
+                # Also ensure we exit "add_child" mode to prevent stale parent insertion.
+                if selected_node.get('type') == 'auxiliary':
+                    self.mode = 'edit'
+                    self.selected_ledger_db_id = None
+                    self.selected_ledger_account_number = None
+                    # Keep form as-is; auxiliary isn't editable from this screen
+                    ui.notify('Selected an auxiliary node (read-only in this screen).', color='warning')
+                    return
+
+                self.mode = 'edit'
+                self.selected_ledger_db_id = str(data.get('Id')) if data.get('Id') is not None else None
+                self.selected_ledger_account_number = data.get('AccountNumber') or None
+
+                self.input_refs['id'].value = str(data.get('Id') or '')
+                self.input_refs['account_number'].value = data.get('AccountNumber') or ''
+                self.input_refs['sub_number'].value = data.get('SubNumber') or ''
+                self.input_refs['parent_id'].value = str(data.get('ParentId')) if data.get('ParentId') else ''
+                self.input_refs['name_en'].value = data.get('Name_en') or ''
+                self.input_refs['name_fr'].value = data.get('Name_fr') or ''
+                self.input_refs['name_ar'].value = data.get('Name_ar') or ''
+                self.input_refs['status'].value = data.get('Status')
 
                 self.initial_values = {
-                    'account_number': data['AccountNumber'] or '',
-                    'sub_number': data['SubNumber'] or '',
-                    'parent_id': str(data['ParentId']) if data.get('ParentId') else '',
-                    'name_en': data['Name_en'] or '',
-                    'name_fr': data['Name_fr'] or '',
-                    'name_ar': data['Name_ar'] or '',
-                    'status': data['Status'],
-                    'id': str(data['Id'])
+                    'account_number': data.get('AccountNumber') or '',
+                    'sub_number': data.get('SubNumber') or '',
+                    'parent_id': str(data.get('ParentId')) if data.get('ParentId') else '',
+                    'name_en': data.get('Name_en') or '',
+                    'name_fr': data.get('Name_fr') or '',
+                    'name_ar': data.get('Name_ar') or '',
+                    'status': data.get('Status'),
+                    'id': str(data.get('Id') or '')
                 }
                 self.update_parent_options()
         except Exception as e:

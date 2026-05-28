@@ -334,14 +334,14 @@ class ModernDesignSystem:
             .drawer-button {{
                 display: flex;
                 align-items: center;
-                padding: 0.75rem 1rem;
-                margin: 0.25rem 0.5rem;
-                border-radius: 12px;
+                padding: 0 1.25rem;
+                margin: 0;
+                min-height: 48px;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 background: #253900 !important;
                 color: #08CB00 !important;
-                gap: 1rem;
+                gap: 1.25rem;
                 border: 1px solid rgba(8, 203, 0, 0.2);
             }}
 
@@ -471,12 +471,13 @@ class ModernDesignSystem:
                 background: transparent !important;
             }}
             .expansion-nav .q-expansion-item__container {{
-                border-radius: 12px;
-                margin: 2px 4px;
+                border-radius: 0;
+                margin: 0;
                 transition: all 0.3s ease;
             }}
             .expansion-nav .q-item {{
-                border-radius: 12px;
+                border-radius: 0;
+                min-height: 48px;
                 color: rgba(255, 255, 255, 0.6) !important;
             }}
             .expansion-nav .q-item:hover {{
@@ -484,13 +485,16 @@ class ModernDesignSystem:
                 color: #08CB00 !important;
             }}
             .expansion-nav .q-item__label {{
-                font-weight: 800 !important;
+                font-weight: 900 !important;
                 font-size: 0.75rem !important;
                 text-transform: uppercase;
-                letter-spacing: 0.1em;
+                letter-spacing: 0.15em;
             }}
             .expansion-nav .q-expansion-item--expanded {{
-                background: rgba(255, 255, 255, 0.02) !important;
+                background: transparent !important;
+            }}
+            .expansion-nav .q-expansion-item__content {{
+                padding: 0 !important;
             }}
         </style>
         """

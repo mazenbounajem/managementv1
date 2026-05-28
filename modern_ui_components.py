@@ -481,42 +481,55 @@ class ModernActionBar(ui.column):
                  on_refresh: Optional[Callable] = None,
                  on_chatgpt: Optional[Callable] = None,
                  on_view_transaction: Optional[Callable] = None,
+                 on_view_jv_lines: Optional[Callable] = None,
                  on_order: Optional[Callable] = None,
                  target_table: Optional[ui.element] = None,
                  classes: str = 'fixed right-3 top-24',
                  button_class: str = ''):
         super().__init__()
-        self.classes(f'{classes} gap-2 p-2 glass z-[1000] animate-fade-in')
-        self.style('border-radius: 16px; width: 62px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);')
+
+        # Standardized compact vertical sidebar
+        self.classes(f'flex flex-col items-center {classes} gap-1.5 p-2 glass z-[1000] animate-fade-in')
+        self.style('border-radius: 16px; width: 60px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);')
         self.target_table = target_table
+        
+        # Use medium size for buttons in vertical mode to ensure they all fit
+        size = 'md'
         
         with self:
             # New Button - Green
-            self.new_btn = self._create_btn('add_circle', 'New', on_new, 'primary', size='lg', extra_class=button_class)
+            self.new_btn = self._create_btn('add_circle', 'New', on_new, 'primary', size=size, extra_class=button_class)
             self.new_btn.style('background: #08CB00 !important; color: white !important;')
             
             # Save Button - Blue
-            self.save_btn = self._create_btn('save', 'Save', on_save, 'info', size='lg', extra_class=button_class)
+            self.save_btn = self._create_btn('save', 'Save', on_save, 'info', size=size, extra_class=button_class)
             self.save_btn.style('background: #1971C2 !important; color: white !important;')
             
-            # Save as Order Button - Warning (Yellow/Orange)
-            self.order_btn = self._create_btn('assignment', 'Save as Order', on_order, 'warning', size='lg', extra_class=button_class)
+            # Save as Order / View Transaction
+            order_callback = on_order if on_order is not None else on_view_transaction
+            order_label = 'Order' if on_order is not None else 'View Transaction'
+            self.order_btn = self._create_btn('assignment', order_label, order_callback, 'warning', size=size, extra_class=button_class)
             
             # Undo Button - Orange
-            self.undo_btn = self._create_btn('undo', 'Undo', on_undo, 'warning', size='lg', extra_class=button_class)
+            self.undo_btn = self._create_btn('undo', 'Undo', on_undo, 'warning', size=size, extra_class=button_class)
             self.undo_btn.style('background: #FD7E14 !important; color: white !important;')
             
             # Delete Button - Red
-            self.delete_btn = self._create_btn('delete', 'Delete', on_delete, 'error', size='lg', extra_class=button_class)
+            self.delete_btn = self._create_btn('delete', 'Delete', on_delete, 'error', size=size, extra_class=button_class)
             self.delete_btn.style('background: #FA5252 !important; color: white !important;')
             
-            ui.element('div').classes('w-full h-px bg-white/20 my-1')
-            self.print_btn = self._create_btn('print', 'Print', on_print, 'secondary', size='lg', extra_class=button_class)
-            self.print_special_btn = self._create_btn('auto_awesome', 'Special Print', on_print_special, 'accent', size='lg', extra_class=button_class)
-            ui.element('div').classes('w-full h-px bg-white/20 my-1')
-            self.chatgpt_btn = self._create_btn('chat', 'ChatGPT', on_chatgpt, 'info', size='lg', extra_class=button_class)
-            self.view_tx_btn = self._create_btn('receipt_long', 'View Transaction', on_view_transaction, 'accent', size='lg', extra_class=button_class)
-            self.refresh_btn = self._create_btn('refresh', 'Refresh', on_refresh, 'info', size='lg', extra_class=button_class)
+            ui.element('div').classes('w-full h-px bg-white/20 my-0.5')
+            
+            self.print_btn = self._create_btn('print', 'Print', on_print, 'secondary', size=size, extra_class=button_class)
+            self.print_special_btn = self._create_btn('auto_awesome', 'Special Print', on_print_special, 'accent', size=size, extra_class=button_class)
+            
+            ui.element('div').classes('w-full h-px bg-white/20 my-0.5')
+            
+            self.chatgpt_btn = self._create_btn('chat', 'ChatGPT', on_chatgpt, 'info', size=size, extra_class=button_class)
+            self.view_tx_btn = self._create_btn('receipt_long', 'History', on_view_transaction, 'accent', size=size, extra_class=button_class)
+            self.jv_lines_btn = self._create_btn('account_tree', 'JV Lines', on_view_jv_lines, 'accent', size=size, extra_class=button_class)
+            self.refresh_btn = self._create_btn('refresh', 'Refresh', on_refresh, 'info', size=size, extra_class=button_class)
+
 
     def enter_new_mode(self):
         """Standard state when creating a new record"""
@@ -542,7 +555,8 @@ class ModernActionBar(ui.column):
             
         # Normal state for buttons
         for btn in [self.new_btn, self.save_btn, self.undo_btn, self.delete_btn, 
-                    self.print_btn, self.print_special_btn, self.chatgpt_btn, self.view_tx_btn, self.refresh_btn]:
+                    self.print_btn, self.print_special_btn, self.chatgpt_btn,
+                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn]:
              btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
 
     def reset_state(self):
@@ -556,7 +570,8 @@ class ModernActionBar(ui.column):
         self.undo_btn.classes(add='opacity-30 grayscale').props(add='disabled')
         self.delete_btn.classes(add='opacity-30 grayscale').props(add='disabled')
         
-        for btn in [self.print_btn, self.print_special_btn, self.chatgpt_btn, self.view_tx_btn, self.refresh_btn]:
+        for btn in [self.print_btn, self.print_special_btn, self.chatgpt_btn,
+                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn]:
              btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
 
     def _create_btn(self, icon: str, tooltip: str, callback: Optional[Callable], variant: str, size: str = 'lg', extra_class: str = ''):

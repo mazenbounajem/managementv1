@@ -223,11 +223,27 @@ class CategoryUI:
                 # Action Bar Panel (Right Side of Editor)
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
+
+                    def _print_special():
+                        """Match sales-style: simple named handler calling the report center."""
+                        try:
+                            ui.notify('Opening print special...', color='info')
+                            cid_val = self.input_refs['id'].value if 'id' in self.input_refs else None
+                            if not cid_val:
+                                ui.notify('Select a category to print.', color='warning')
+                                return
+
+                            import category_reports
+                            category_reports.open_print_special_dialog(category_id=int(cid_val))
+                        except Exception as e:
+                            ui.notify(f'Print special failed: {e}', color='negative')
+
                     ModernActionBar(
                         on_new=self.clear_inputs,
                         on_save=self.save_category,
                         on_delete=self.delete_category,
                         on_refresh=self.refresh_table,
+                        on_print_special=_print_special,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         button_class='h-16',
                         classes=' '

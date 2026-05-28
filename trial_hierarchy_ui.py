@@ -6,6 +6,8 @@ from modern_ui_components import ModernCard, ModernButton, ModernInput
 from modern_design_system import ModernDesignSystem as MDS
 import datetime
 
+import reports
+
 def trial_hierarchy_content(standalone=False):
     """Content method for Trial Hierarchy that can be used in tabs"""
     if standalone:
@@ -25,174 +27,127 @@ class TrialHierarchyUI:
         self.tree_data = []
         self.from_date = (datetime.date.today().replace(day=1)).strftime('%Y-%m-%d')
         self.to_date = datetime.date.today().strftime('%Y-%m-%d')
+
+        # Trial Balance Hierarchy requirement:
+        # By default show full hierarchy roots (1..7), including auxiliaries.
+        # When ledger_prefix is '' (All), no filtering is applied in the UI.
+        self.ledger_prefix = ''
+        
+        # When True, exclude 'Year-End Closing' transactions
+        self.pre_closing_only = False
+
         self.create_ui()
 
     def fetch_data(self):
+        """
+        Fetch hierarchical trial balance from the backend so that:
+        - debit/credit totals are computed consistently
+        - auxiliaries are attached under the correct ledger prefix (e.g., 6011 under '6')
+        """
         try:
-            # 1. Fetch Ledger Accounts
-            ledger_data = []
-            connection.contogetrows("SELECT Id, AccountNumber, Name_en, ParentId FROM Ledger ORDER BY AccountNumber", ledger_data)
-            
-            # 2. Fetch Auxiliary Accounts
-            aux_data = []
-            connection.contogetrows("""
-                SELECT a.id, a.number, a.account_name, 
-                       COALESCE(l.AccountNumber, a.auxiliary_id) as parent_ledger 
-                FROM auxiliary a
-                LEFT JOIN Ledger l ON a.ledger_id = l.Id
-            """, aux_data)
-            
-            # 3. Fetch Balances (Summed from transaction lines)
-            # We must JOIN with auxiliary to get the 'number' because l.auxiliary_id often stores the internal ID (int).
-            balance_data = []
-            sql_balances = """
-                SELECT 
-                    COALESCE(a.number, l.account_number) as code,
-                    ISNULL(SUM(l.debit), 0) as total_debit,
-                    ISNULL(SUM(l.credit), 0) as total_credit
-                FROM accounting_transaction_lines l
-                LEFT JOIN auxiliary a ON (l.auxiliary_id = CAST(a.id AS NVARCHAR(50)) OR l.auxiliary_id = a.number)
-                INNER JOIN accounting_transactions t ON l.jv_id = t.jv_id
-                WHERE CAST(t.transaction_date AS DATE) BETWEEN ? AND ?
-                GROUP BY COALESCE(a.number, l.account_number)
-            """
-            connection.contogetrows_with_params(sql_balances, balance_data, (self.from_date, self.to_date))
-            
-            balances = {row[0]: {'debit': float(row[1]), 'credit': float(row[2])} for row in balance_data}
-            
-            return ledger_data, aux_data, balances
+            # Backend returns a hierarchical list of nodes with debit/credit and children already attached.
+            return reports.Reports.fetch_hierarchical_trial_balance(
+                ledger_prefix=self.ledger_prefix,
+                from_date=self.from_date,
+                to_date=self.to_date,
+                exclude_reference='Year-End Closing' if self.pre_closing_only else None
+            )
         except Exception as e:
             ui.notify(f"Error fetching data: {str(e)}", color='negative')
-            return [], [], {}
+            return []
 
     def build_tree(self):
-        ledger_raw, aux_raw, balances = self.fetch_data()
-        nodes = {}
-        
-        # 1. Create nodes for all known Ledger accounts
-        for row in ledger_raw:
-            id_val, code, name, parent_id = row
-            code = str(code)
-            nodes[code] = {
-                'id': f"L_{code}",
+        roots = self.fetch_data() or []
+
+        def format_currency(val):
+            return f"{float(val):,.2f}"
+
+        def to_tree_node(node, fallback_parent_code=None):
+            # backend nodes:
+            # {'code','name','debit','credit','balance','level','children',...}
+            code = str(node.get('code', '') or '')
+            name = node.get('name', '') or ''
+
+            debit = float(node.get('debit', 0.0) or 0.0)
+            credit = float(node.get('credit', 0.0) or 0.0)
+            bal = float(node.get('balance', debit - credit) or (debit - credit))
+
+            children_in = node.get('children', None)
+            children = children_in if isinstance(children_in, list) else []
+
+            # stable, collision-resistant id for tree node_key
+            # backend may not provide id; build one deterministically
+            level = node.get('level')
+            level_part = str(level) if level is not None else 'NA'
+            node_id = node.get('id', None)
+            if not node_id:
+                parent_part = str(fallback_parent_code) if fallback_parent_code else 'ROOT'
+                node_id = f"{level_part}:{parent_part}:{code}"
+
+            out = {
+                'id': str(node_id),
+                'label': f"{code} - {name}",
                 'code': code,
                 'name': name,
-                'debit': 0.0,
-                'credit': 0.0,
-                'children': [],
-                'type': 'ledger'
+                'debit': debit,
+                'credit': credit,
+                'balance': bal,
+                'debit_str': format_currency(debit),
+                'credit_str': format_currency(credit),
+                'balance_str': format_currency(bal),
+                'children': [to_tree_node(c, fallback_parent_code=code) for c in children],
             }
+            return out
 
-        # 2. Create nodes for all known Auxiliary accounts
-        for row in aux_raw:
-            id_val, aux_number, name, parent_ledger = row
-            aux_number = str(aux_number)
-            parent_ledger = str(parent_ledger) if parent_ledger else None
-            
-            # Auto-derive parent if missing but has dot
-            if not parent_ledger and '.' in aux_number:
-                parent_ledger = aux_number.split('.')[0]
-                
-            nodes[aux_number] = {
-                'id': f"A_{aux_number}",
-                'code': aux_number,
+        # Optional UI-side filter when ledger_prefix is set to a specific root (e.g., '6').
+        filtered = []
+        for r in roots:
+            rc = str(r.get('code', '') or '')
+            if not rc:
+                continue
+            if self.ledger_prefix and not rc.startswith(self.ledger_prefix) and rc != self.ledger_prefix:
+                continue
+            filtered.append(to_tree_node(r, fallback_parent_code=None))
+
+        return filtered
+
+    def flatten_tree_rows(self, nodes):
+        """
+        Flatten hierarchy into rows for AG Grid tree-table look.
+        Returns list[dict] compatible with aggrid rowData.
+        """
+        rows = []
+
+        def walk(node, level=0):
+            code = str(node.get('code', '') or '')
+            name = str(node.get('name', '') or '')
+            debit = float(node.get('debit', 0.0) or 0.0)
+            credit = float(node.get('credit', 0.0) or 0.0)
+            balance = float(node.get('balance', debit - credit) or (debit - credit))
+
+            rows.append({
+                'level': int(node.get('level', level) or level),
+                'indent': '  ' * int(level),
+                'code': code,
                 'name': name,
-                'debit': 0.0,
-                'credit': 0.0,
-                'children': [],
-                'type': 'auxiliary',
-                'parent_code': parent_ledger
-            }
+                'debit': f"{debit:,.2f}",
+                'credit': f"{credit:,.2f}",
+                'balance': f"{balance:+,.2f}",
+            })
 
-        # 3. Handle ghost accounts (codes in 'balances' that aren't in masters)
-        for code in balances:
-            if code not in nodes:
-                nodes[code] = {
-                    'id': f"M_{code}",
-                    'code': code,
-                    'name': f"Unmapped Account {code}",
-                    'debit': 0.0,
-                    'credit': 0.0,
-                    'children': [],
-                    'type': 'ledger'
-                }
+            for c in node.get('children', []) or []:
+                walk(c, level=level + 1)
 
-        # 4. Build Hierarchy
-        final_roots = {}
-        # Sorting by code ensures we process 1, then 10, then 100... mostly helpful for consistency
-        for code in sorted(nodes.keys()):
-            node = nodes[code]
-            
-            # Determine logic for finding parent
-            p_code = None
-            if node['type'] == 'auxiliary':
-                p_code = node.get('parent_code')
-            elif len(code) > 1:
-                # For ledgers, look for parent by trimming last digit repeatedly
-                temp_p = code[:-1]
-                while temp_p:
-                    if temp_p in nodes:
-                        p_code = temp_p
-                        break
-                    temp_p = temp_p[:-1]
-
-            # Attach to parent if found, otherwise it's a root
-            if p_code and p_code in nodes:
-                if node not in nodes[p_code]['children']:
-                    nodes[p_code]['children'].append(node)
-            else:
-                final_roots[code] = node
-
-        # 5. Recursive aggregation of totals
-        def recursive_aggregate(node):
-            code = node['code']
-            # Start with direct balance posted precisely to this code
-            d = balances.get(code, {}).get('debit', 0.0)
-            c = balances.get(code, {}).get('credit', 0.0)
-            
-            # Add up all children
-            for child in node['children']:
-                cd, cc = recursive_aggregate(child)
-                d += cd
-                c += cc
-            
-            node['debit'] = d
-            node['credit'] = c
-            return d, c
-
-        result_roots = sorted(list(final_roots.values()), key=lambda x: x['code'])
-        for r in result_roots:
-            recursive_aggregate(r)
-            
-        return [self.format_node(r) for r in result_roots]
-
-    def format_node(self, node):
-        def format_currency(val):
-            return f"{val:,.2f}"
-        
-        d = node['debit']
-        c = node['credit']
-        bal = d - c
-        
-        label = f"{node['code']} - {node['name']}"
-        
-        # Add debit/credit to the label for the tree
-        # We can use Q-Tree's slots for better formatting
-        node['label'] = label
-        node['debit_str'] = format_currency(d)
-        node['credit_str'] = format_currency(c)
-        node['balance_str'] = format_currency(bal)
-        
-        if node['children']:
-            node['children'] = [self.format_node(c) for c in node['children']]
-            
-        return node
+        for r in nodes or []:
+            walk(r, level=0)
+        return rows
 
     def refresh_tree(self):
         self.tree_data = self.build_tree()
-        if self.tree:
-            self.tree._props['nodes'] = self.tree_data
-            self.tree.update()
+        if hasattr(self, 'tree_table') and self.tree_table:
+            flat_rows = self.flatten_tree_rows(self.tree_data)
+            self.tree_table.options['rowData'] = flat_rows
+            self.tree_table.update()
 
     def create_ui(self):
         ui.add_head_html('''
@@ -225,39 +180,146 @@ class TrialHierarchyUI:
                         .on_value_change(lambda e: setattr(self, 'from_date', e.value))
                     ui.input('To', value=self.to_date).props('type=date outlined dark dense').classes('w-40')\
                         .on_value_change(lambda e: setattr(self, 'to_date', e.value))
+
+                    # Ledger selector: business track is mostly under 6 (purchase) and 7 (sales).
+                    # Provide an "All" option so we can include every account appearing in Business Track.
+                    self.ledger_select = ui.select(
+                        {'': 'All (1..7)'},
+                        value=self.ledger_prefix if self.ledger_prefix is not None else '',
+                        label='Ledger Root'
+                    ).classes('w-40 glass-input text-white').props('dark rounded outlined')
+
+                    # Extend options with 1..7
+                    for i in range(1, 8):
+                        self.ledger_select.options[str(i)] = f'Ledger {i}'
+
+                    def _on_ledger_change(e):
+                        # NiceGUI select may return empty string for "All"
+                        self.ledger_prefix = '' if self.ledger_select.value in (None, '') else str(self.ledger_select.value)
+                        self.refresh_tree()
+
+                    self.ledger_select.on('update:model-value', _on_ledger_change)
+
                     ui.button(icon='refresh', on_click=self.refresh_tree).props('flat round color=white')
+                    ui.button('Export CSV (Excel)', icon='download', on_click=self.export_csv_hierarchy).props('unelevated color=teal')
                     ui.button('Print', icon='print', on_click=self.print_pdf).props('unelevated color=green')
 
-            # Tree Content
+                    ui.button(
+                        'Close',
+                        icon='close',
+                        on_click=lambda: ui.navigate.to('/tabbed-dashboard')
+                    ).props('unelevated color=grey text-white')
+
+                    with ui.row().classes('items-center gap-2 ml-4 px-3 py-1 rounded-lg bg-white/5 border border-white/10'):
+                        ui.label('View:').classes('text-[10px] font-bold text-gray-400 uppercase')
+                        def _toggle_pre_closing(e):
+                            self.pre_closing_only = bool(e.value)
+                            self.refresh_tree()
+                        ui.toggle(
+                            {False: 'Real-time', True: 'Pre-Closing'},
+                            value=self.pre_closing_only,
+                            on_change=_toggle_pre_closing
+                        ).props('dark dense unelevated toggle-color=green-500').classes('text-xs')
+
+            # Tree-table Content (flattened tree + hierarchy indent)
             with ModernCard(glass=True).classes('w-full p-4 overflow-hidden'):
-                # Custom Header for the Tree "Table"
                 with ui.row().classes('w-full px-4 py-2 border-b border-white/10 mb-2'):
-                    ui.label('Account Hierarchy').classes('flex-1 header-cell')
-                    ui.label('Debit').classes('w-[100px] text-right header-cell')
-                    ui.label('Credit').classes('w-[100px] text-right header-cell')
-                    ui.label('Balance').classes('w-[120px] text-right header-cell')
+                    ui.label('Account Hierarchy (Tree Table)').classes('flex-1 header-cell')
+                    ui.label('Debit').classes('w-[110px] text-right header-cell')
+                    ui.label('Credit').classes('w-[110px] text-right header-cell')
+                    ui.label('Balance').classes('w-[130px] text-right header-cell')
 
                 with ui.column().classes('w-full h-[700px] overflow-y-auto'):
-                    self.tree = ui.tree([], label_key='label', children_key='children', node_key='id')\
-                        .classes('w-full trial-tree text-white').props('dark')
-                    
-                    # Use slots for custom tree node content
-                    self.tree.add_slot('default-header', '''
-                        <div class="flex items-center w-full gap-4">
-                            <span class="text-xs opacity-50 font-mono w-24">{{ props.node.code }}</span>
-                            <span class="flex-1 font-bold">{{ props.node.name }}</span>
-                            <span class="text-green-400 font-mono text-right w-[100px]">{{ props.node.debit_str }}</span>
-                            <span class="text-red-400 font-mono text-right w-[100px]">{{ props.node.credit_str }}</span>
-                            <span class="font-bold font-mono text-right w-[120px]" :class="props.node.debit - props.node.credit >= 0 ? 'text-white' : 'text-orange-400'">
-                                {{ props.node.balance_str }}
-                            </span>
-                        </div>
-                    ''')
+                    # AG Grid "tree table" style using indentation column
+                    self.tree_table = ui.aggrid({
+                        'columnDefs': [
+                            {'headerName': 'Level', 'field': 'level', 'width': 70},
+                            {
+                                'headerName': 'Code',
+                                'field': 'code',
+                                'width': 110,
+                                'cellRenderer': 'params => params.data.indent + params.value'
+                            },
+                            {'headerName': 'Name', 'field': 'name', 'flex': 1},
+                            {'headerName': 'Debit', 'field': 'debit', 'width': 120},
+                            {'headerName': 'Credit', 'field': 'credit', 'width': 120},
+                            {'headerName': 'Balance', 'field': 'balance', 'width': 140, 'cellClass': 'text-right'},
+                        ],
+                        'rowData': [],
+                        'defaultColDef': {
+                            'resizable': True,
+                            'sortable': True,
+                            'filter': True,
+                        }
+                    }).classes('w-full h-full ag-theme-quartz-dark')
 
             ui.timer(0.1, self.refresh_tree, once=True)
 
+    def export_csv_hierarchy(self):
+        """
+        Export the trial balance hierarchy as CSV (Excel-compatible).
+        Uses backend hierarchical data (including auxiliaries) and flattens it row-by-row.
+        """
+        import base64
+        import csv
+        import io
+        from reports import Reports
+
+        try:
+            tree_roots = Reports.fetch_hierarchical_trial_balance(
+                ledger_prefix=self.ledger_prefix or '',
+                from_date=self.from_date,
+                to_date=self.to_date
+            ) or []
+
+            # Export the same "tree table" flattening (hierarchy + indentation)
+            # so CSV matches what user sees.
+            flat_rows = []
+            for r in tree_roots or []:
+                flat_rows.extend(self.flatten_tree_rows([r]))
+
+            out = io.StringIO()
+            writer = csv.writer(out, delimiter=';')
+            writer.writerow(['Level', 'Code', 'Name', 'Debit', 'Credit', 'Balance'])
+
+            for fr in flat_rows:
+                writer.writerow([
+                    fr.get('level', ''),
+                    f"{fr.get('indent','')}{fr.get('code','')}",
+                    fr.get('name', ''),
+                    fr.get('debit', ''),
+                    fr.get('credit', ''),
+                    fr.get('balance', ''),
+                ])
+
+            csv_text = out.getvalue()
+            csv_b64 = base64.b64encode(csv_text.encode('utf-8')).decode('ascii')
+            filename = f"trial_balance_hierarchy_ledger_{self.ledger_prefix}_{self.from_date}_to_{self.to_date}.csv"
+
+            # Trigger download via browser
+            ui.run_javascript(
+                f'''
+                (function(){{
+                    const b64 = "{csv_b64}";
+                    const filename = "{filename}";
+                    const link = document.createElement('a');
+                    link.href = "data:text/csv;charset=utf-8;base64," + b64;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }})();
+                '''
+            )
+        except Exception as e:
+            ui.notify(f"CSV export error: {e}", color='negative')
+
     def print_pdf(self):
-        # We can reuse the existing hierarchical print from accounting_helpers but maybe customize it to show full page if requested
+        # Keep existing behavior (dialog iframe), but now CSV export is available for printing/exporting externally.
         import accounting_helpers
-        accounting_helpers.print_hierarchical_trial_balance_pdf('', from_date=self.from_date, to_date=self.to_date)
+        accounting_helpers.print_hierarchical_trial_balance_pdf(
+            self.ledger_prefix or '',
+            from_date=self.from_date,
+            to_date=self.to_date
+        )
 

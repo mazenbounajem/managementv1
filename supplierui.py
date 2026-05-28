@@ -89,7 +89,37 @@ def supplier_page(standalone=False):
                     return ui.notify('A supplier with this name already exists', color='negative')
                 
                 import accounting_helpers
-                aux_number = accounting_helpers.get_next_auxiliary('4011')
+
+                def get_next_4011_aux_number():
+                    max_seq_rows = []
+                    connection.contogetrows(
+                        """
+                        SELECT MAX(
+                            TRY_CAST(
+                                SUBSTRING(number, CHARINDEX('.', number) + 1, 50) AS INT
+                            )
+                        )
+                        FROM auxiliary
+                        WHERE auxiliary_id = '4011' AND number LIKE '4011.%'
+                        """,
+                        max_seq_rows
+                    )
+                    max_seq = max_seq_rows[0][0] if max_seq_rows and max_seq_rows[0][0] is not None else 0
+                    candidate_seq = int(max_seq) + 1
+
+                    while True:
+                        candidate_aux = f"4011.{candidate_seq}"
+                        exists = []
+                        connection.contogetrows(
+                            "SELECT COUNT(*) FROM auxiliary WHERE number = ?",
+                            exists,
+                            params=[candidate_aux]
+                        )
+                        if exists and exists[0][0] == 0:
+                            return candidate_aux
+                        candidate_seq += 1
+
+                aux_number = get_next_4011_aux_number()
                 accounting_helpers.register_auxiliary(aux_number, s_data['name'])
 
                 sql = """INSERT INTO suppliers (name, contact_person, email, phone, address, city, 

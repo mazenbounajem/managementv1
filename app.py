@@ -872,6 +872,11 @@ if __name__ in {"__main__", "__mp_main__"}:
     # except Exception as e:
     #     print(f"Error ensuring accounting/biztrack/profit permissions: {str(e)}")
 
+    try:
+        connection.ensure_year_transition_permission()
+    except Exception as e:
+        print(f"Error ensuring year-transition permission: {e}")
+
     # # Create returns tables if not exists
     # try:
     #     from migrate_returns import TABLES as _RT
