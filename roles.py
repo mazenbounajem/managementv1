@@ -29,6 +29,8 @@ class RolesUI:
         self.initial_values = {}
         self.row_data = []
         self.table = None
+
+        # Flat list is kept for DB read/write compatibility
         self.available_pages = [
             'dashboard', 'employees', 'products', 'purchase', 'reports', 'sales-reports', 'stock-reports', 'sales',
             'suppliers', 'supplierpayment', 'category', 'consignment', 'customers',
@@ -39,8 +41,61 @@ class RolesUI:
             'business-track', 'accounting-transactions',
             'profit-analytics',
             'year-transition',
+            'database-backup',
+            'statistical-reports',
             'dashboard-kpis'
         ]
+
+        # Group pages in a "permission tree" similar to the navigation grouping.
+        # Keys/values are page routes stored in role_permissions.page_name.
+        self.permission_tree = {
+            'Dashboard': ['dashboard', 'dashboard-kpis'],
+            'Employees & HR': ['employees', 'timespend', 'appointments'],
+            'Customers': ['customers', 'customerreceipt'],
+            'Suppliers': ['suppliers', 'supplierpayment'],
+            'Sales': [
+                'sales', 'sales-reports', 'sales-returns'
+            ],
+            'Purchases': [
+                'purchase', 'purchase-returns'
+            ],
+            'Inventory & Stock': [
+                'products', 'category', 'consignment', 'stockoperations', 'stock-reports'
+            ],
+            'Expenses': [
+                'expenses', 'expensestype'
+            ],
+            'Services & Other Ops': [
+                'services', 'cash-drawer', 'currencies', 'business-track', 'profit-analytics', 'hide-history'
+            ],
+            'Accounting': [
+                'accounting', 'ledger', 'auxiliary', 'journal_voucher', 'voucher_subtype', 'company',
+                'accounting-transactions'
+            ],
+            'Reports': [
+                # General reports routes (keep them grouped even if they map to different underlying pages)
+                'reports', 'statistical-reports'
+            ],
+            'Year Transition': [
+                'year-transition'
+            ],
+            'Database Backup': [
+                'database-backup'
+            ],
+            'Administration': [
+                'roles'
+            ],
+        }
+
+        # Any pages not included above will be appended to an "Other" group.
+        grouped = set()
+        for pages in self.permission_tree.values():
+            grouped.update(pages)
+
+        other_pages = [p for p in self.available_pages if p not in grouped]
+        if other_pages:
+            self.permission_tree['Other'] = other_pages
+
         self.create_ui()
 
     def clear_input_fields(self):
@@ -217,15 +272,20 @@ class RolesUI:
                                 self.input_refs['id'] = ui.input('Reference ID')\
                                     .classes('w-48 glass-input opacity-50').props('dark rounded outlined readonly dense')
 
-                        # Permissions Card
-                        with ModernCard(glass=True).classes('w-[500px] p-6'):
-                            ui.label('Page Permissions').classes('text-xl font-black mb-6 text-white')
-                            with ui.grid(columns=2).classes('w-full gap-x-6 gap-y-3 max-h-[500px] overflow-y-auto pr-4 scroll-slim'):
-                                for page in self.available_pages:
-                                    display = page.replace('-', ' ').title()
-                                    with ui.row().classes('items-center justify-between w-full border-b border-white/5 pb-2'):
-                                        ui.label(display).classes('text-white text-xs font-bold font-mono opacity-80')
-                                        self.input_refs[f'perm_{page}'] = ui.checkbox('').classes('text-white scale-110')
+                # Permissions Card
+                with ModernCard(glass=True).classes('w-[500px] p-6'):
+                    ui.label('Page Permissions').classes('text-xl font-black mb-6 text-white')
+
+                    # Tree-like grouped permissions UI
+                    with ui.column().classes('w-full max-h-[520px] overflow-y-auto pr-4 scroll-slim gap-4'):
+                        for group_name, pages in self.permission_tree.items():
+                            with ui.expansion(group_name, icon='folder_open').classes('w-full border border-white/10 rounded-xl px-3 py-2'):
+                                with ui.column().classes('w-full gap-2'):
+                                    for page in pages:
+                                        display = page.replace('-', ' ').title()
+                                        with ui.row().classes('items-center justify-between w-full border-b border-white/5 pb-1'):
+                                            ui.label(display).classes('text-white text-xs font-bold font-mono opacity-80')
+                                            self.input_refs[f'perm_{page}'] = ui.checkbox('').classes('text-white scale-110')
 
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):

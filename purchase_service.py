@@ -59,9 +59,8 @@ class PurchaseService:
         purchases_data = []
         for row in raw_data:
             payment_status = str(row[5]) if row[5] is not None else ''
-            # Only show pending/open documents in the UI (exclude cash/completed)
-            if payment_status != 'pending':
-                continue
+            # Show both pending (on account) and completed (cash) purchases in history.
+            # If you need a permission-based filter later, apply it here.
 
             purchases_data.append({
                 'id': row[0],

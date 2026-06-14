@@ -214,6 +214,9 @@ class SalesUI:
             self.clear_inputs_inputs()
             self.aggrid.update()
             
+            # Focus back to barcode
+            self.barcode_input.run_method('focus')
+            
         except ValueError as e:
             ui.notify(f'Invalid input: {str(e)}')
         except Exception as e:
@@ -248,6 +251,9 @@ class SalesUI:
         
         self.current_sale_id = None
         self.new_mode=True
+        
+        # Focus back to barcode
+        self.barcode_input.run_method('focus')
         
         #if hasattr(self, 'searchtable'):
         #   self.searchtable.props(remove='readonly')
@@ -302,14 +308,14 @@ class SalesUI:
             ui.notify(f"Error opening edit dialog: {str(ex)}")
 
     def open_product_dialog(self):
-        with ui.dialog() as dialog, ui.card().classes('w-full max-w-6xl glass p-6 border border-white/10').style('background: rgba(15, 15, 25, 0.8); backdrop-filter: blur(20px); border-radius: 2rem;'):
+        with ui.dialog() as dialog, ui.card().classes('w-full max-w-6xl glass p-6 border border-white/10').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px); border-radius: 2rem;'):
             ui.label('Inventory Catalog').classes('text-2xl font-black mb-6 text-white').style('font-family: "Outfit", sans-serif;')
             
             with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-4'):
                 ui.icon('search', size='1.25rem').classes('text-purple-400')
-                search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('flex-1 text-white text-sm').on('keydown.enter', lambda e: self.filter_product_rows(e.sender.value))
-            
-            headers = ['barcode', 'product_name', 'stock_quantity', 'price_ttc', 'cost_price']
+                search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('flex-1 text-white text-sm')
+                search_input.run_method('focus')
+
             data = []
             connection.contogetrows("SELECT barcode, product_name, stock_quantity, price_ttc, cost_price FROM products", data)
             
@@ -336,9 +342,85 @@ class SalesUI:
                 'rowData': self.product_rows,
                 'rowSelection': 'single',
                 'domLayout': 'normal',
+                'suppressCellFocus': False,
+                'headerHeight': 35,
+                'rowHeight': 35,
             }).classes('w-full h-96 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
 
+            # -------------------------------------------------------
+            # Arrow navigation: Python handlers → ui.run_javascript
+            # run_javascript always has getElement() available.
+            # We keep cursor in the search_input and move the grid
+            # selection behind the scenes.
+            # -------------------------------------------------------
+            grid_id = self.product_grid.id
+
+            def nav_down(e=None):
+                """Move grid highlight down one row."""
+                ui.run_javascript(f'''
+                    (() => {{
+                        const el = getElement({grid_id});
+                        const api = el?.gridOptions?.api;
+                        if (!api) return;
+                        const nodes = api.getSelectedNodes();
+                        let idx = nodes.length > 0 ? nodes[0].rowIndex + 1 : 0;
+                        const max = api.getDisplayedRowCount() - 1;
+                        if (idx > max) idx = max;
+                        api.ensureIndexVisible(idx);
+                        const row = api.getDisplayedRowAtIndex(idx);
+                        if (row) row.setSelected(true, false);
+                    }})();
+                ''')
+
+            def nav_up(e=None):
+                """Move grid highlight up one row."""
+                ui.run_javascript(f'''
+                    (() => {{
+                        const el = getElement({grid_id});
+                        const api = el?.gridOptions?.api;
+                        if (!api) return;
+                        const nodes = api.getSelectedNodes();
+                        let idx = nodes.length > 0 ? nodes[0].rowIndex - 1 : 0;
+                        if (idx < 0) idx = 0;
+                        api.ensureIndexVisible(idx);
+                        const row = api.getDisplayedRowAtIndex(idx);
+                        if (row) row.setSelected(true, false);
+                    }})();
+                ''')
+
+            # -------------------------------------------------------
+            # Enter: if a row is highlighted, select it.
+            # Otherwise filter the list using the search text, then
+            # auto-select the first visible result.
+            # -------------------------------------------------------
+            def on_enter(e=None):
+                async def do_it():
+                    selected = await self.product_grid.get_selected_rows()
+                    if selected:
+                        self.handle_product_grid_click({'args': {'data': selected[0]}}, dialog)
+                    else:
+                        # Filter, then auto-pick first row
+                        self.filter_product_rows(search_input.value)
+                        ui.timer(0.15, lambda: ui.run_javascript(f'''
+                            (() => {{
+                                const el = getElement({grid_id});
+                                const api = el?.gridOptions?.api;
+                                if (api && api.getDisplayedRowCount() > 0) {{
+                                    const row = api.getDisplayedRowAtIndex(0);
+                                    if (row) row.setSelected(true, false);
+                                }}
+                            }})();
+                        '''), once=True)
+                ui.timer(0.01, do_it, once=True)
+
+            search_input.on('keydown.enter', on_enter)
+            search_input.on('keydown.arrow_down', nav_down)
+            search_input.on('keydown.arrow_up', nav_up)
+
             self.product_grid.on('cellClicked', lambda e: self.handle_product_grid_click(e, dialog))
+            self.product_grid.on('keydown.enter', on_enter)
+            self.product_grid.on('keydown.arrow_down', nav_down)
+            self.product_grid.on('keydown.arrow_up', nav_up)
 
             with ui.row().classes('w-full justify-end mt-6'):
                 ui.button('Cancel', on_click=dialog.close).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
@@ -559,6 +641,11 @@ class SalesUI:
             
             dialog.close()
             ui.notify(f"Added product: {row['product_name']}")
+            
+            # Focus quantity input after selection
+            self.quantity_input.run_method('focus')
+            ui.timer(0.01, lambda: self.quantity_input.run_method('select'), once=True)
+            
         except Exception as ex:
             ui.notify(f"Selection error: {ex}")
             dialog.close()
@@ -1639,28 +1726,40 @@ class SalesUI:
                                                 ui.label('Barcode').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
                                                 with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
-                                                    self.barcode_input = ui.input(placeholder='Scan or enter...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
+                                                    self.barcode_input = ui.input(placeholder='Scan or enter...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown).on('keydown.enter', lambda: self.product_input.run_method('focus'))
                                     
                                             with ui.column().classes('flex-[3] gap-1'):
                                                 ui.label('Product').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4')
                                                 with ui.row().classes('items-center gap-3 bg-white/5 px-3 py-1 rounded-xl border border-white/10 w-full'):
                                                     ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
-                                                    self.product_input = ui.input(placeholder='Select Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
+                                                    self.product_input = ui.input(placeholder='Select Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog).on('keydown.enter', self.open_product_dialog)
                                     
                                             with ui.column().classes('w-20 gap-1'):
                                                 ui.label('Qty').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center').on(
+                                                        'keydown.enter', 
+                                                        lambda: (
+                                                            self.price_input.run_method('focus'),
+                                                            ui.timer(0.01, lambda: self.price_input.run_method('select'), once=True)
+                                                        )
+                                                    )
                                     
                                             with ui.column().classes('w-28 gap-1'):
                                                 ui.label('Price').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
-
+                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center').on(
+                                                        'keydown.enter', 
+                                                        lambda: (
+                                                            self.discount_input.run_method('focus'),
+                                                            ui.timer(0.01, lambda: self.discount_input.run_method('select'), once=True)
+                                                        )
+                                                    )
+ 
                                             with ui.column().classes('w-20 gap-1'):
                                                 ui.label('Disc %').classes('text-[8px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.discount_input = ui.number(value=0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.discount_input = ui.number(value=0).props('borderless dense dark').classes('w-full text-white font-black text-center').on('keydown.enter', self.add_product)
                                     
                                             ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
 

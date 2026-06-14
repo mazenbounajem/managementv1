@@ -251,6 +251,9 @@ def report_profit_on_purchase(fd, td):
 # ── Report 5: Aging Invoices ─────────────────────────────────────────────────
 
 def report_aging_invoices(fd, td):
+    # NOTE: Aging is already computed from p.purchase_date vs GETDATE().
+    # Filtering by a date range here often hides valid pending invoices
+    # when invoices are older than the dialog's "from_date" (e.g., first of month).
     sql = """
         SELECT s.name, p.invoice_number,
                CONVERT(varchar(10), p.purchase_date, 23),
@@ -258,7 +261,7 @@ def report_aging_invoices(fd, td):
                DATEDIFF(day, p.purchase_date, GETDATE()) AS age_days
         FROM purchases p
         INNER JOIN suppliers s ON s.id = p.supplier_id
-        WHERE p.payment_status IN ('pending', 'Pending')
+        WHERE LOWER(LTRIM(RTRIM(COALESCE(p.payment_status,'')))) = 'pending'
         ORDER BY age_days DESC
     """
     rows = _q(sql)
