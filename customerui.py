@@ -19,6 +19,8 @@ def customer_page(standalone=False):
 
     # State
     input_refs = {}
+    table = None
+    footer_container = None
     # Removed customer_photos cache to keep memory lightweight
 
     def to_float(value):
@@ -47,56 +49,129 @@ def customer_page(standalone=False):
             input_refs['uploader'].reset()
         ui.notify('Photo removed from form')
 
+    # Table state for ui.table (replaces ag-grid)
+    _all_rows = []
+    _selected_row_index = None
+    _selected_row_id = None
+    _filter_status = ''
+    _filter_text = ''
+
     def refresh_table():
+        nonlocal _all_rows, _selected_row_index, _selected_row_id
         data = []
-        # Query metadata and photo existence flag
         sql = """SELECT id, customer_name, email, phone, address, city, balance, is_active, 
                  CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo,
                  instagram, facebook, twitter, tiktok,
-                 COALESCE((SELECT SUM(ISNULL(s.total_amount, 0)) FROM sales s WHERE s.customer_id = c.id AND s.payment_status = 'pending'), 0) as pending_sales,
+                 COALESCE((SELECT SUM(ISNULL(s.total_amount, 0)) FROM sales s WHERE s.customer_id = c.id AND s.payment_status = 'pending'), 0)
+                 - COALESCE((SELECT SUM(ISNULL(r.total_amount, 0)) FROM sales_returns r WHERE r.customer_id = c.id AND r.payment_status = 'pending'), 0) as pending_sales,
                  is_default
                  FROM customers c ORDER BY id DESC"""
         connection.contogetrows(sql, data)
+
         rows = []
-        
         for r in data:
             rows.append({
-                'id': r[0], 'customer_name': r[1], 'email': r[2], 'phone': r[3], 'address': r[4], 
-                'city': r[5], 'balance': r[6], 'is_active': r[7], 'has_photo': bool(r[8]),
-                'instagram': r[9], 'facebook': r[10], 'twitter': r[11], 'tiktok': r[12], 
-                'pending_sales': to_float(r[13]), 'is_default': bool(r[14])
+                'id': r[0],
+                'customer_name': r[1],
+                'email': r[2],
+                'phone': r[3],
+                'address': r[4],
+                'city': r[5],
+                'balance': r[6],
+                'is_active': r[7],
+                'has_photo': bool(r[8]),
+                'instagram': r[9],
+                'facebook': r[10],
+                'twitter': r[11],
+                'tiktok': r[12],
+                'pending_sales': to_float(r[13]),
+                'is_default': bool(r[14]),
             })
-        table.options['rowData'] = rows
-        table.update()
-        _load_last_row()
 
-    def clear_inputs():
-        for k, ref in input_refs.items():
-            if k == 'is_active': ref.set_value(True)
-            elif k == 'is_default': ref.set_value(False)
-            elif k == 'balance': ref.set_value(0)
-            elif k == 'uploader': continue
-            else: ref.set_value('')
-        photo_preview.set_source('https://via.placeholder.com/150')
-        if 'uploader' in input_refs:
-            input_refs['uploader'].reset()
+        _all_rows = rows
+        _selected_row_index = None
+        _selected_row_id = None
+
         if table:
-            table.classes(add='dimmed')
-            table.run_method('deselectAll')
-        if hasattr(footer_container, 'action_bar'):
-            footer_container.action_bar.enter_new_mode()
+            table.rows = rows
+            table.update()
+            _load_last_row()
 
-    def _load_last_row():
-        """Load the most recent customer into the form and undim table"""
-        if not table.options.get('rowData'):
+    def filter_table(query: str = None, status_filter: str = None):
+        nonlocal _all_rows, _selected_row_index, _selected_row_id, _filter_status, _filter_text
+        if query is not None:
+            _filter_text = query
+        if status_filter is not None:
+            _filter_status = status_filter
+        q = (_filter_text if query is None else query or '').strip().lower()
+        st = (_filter_status if status_filter is None else status_filter or '').strip().lower()
+        if not table:
             return
-        row = table.options['rowData'][0]
-        cid = row['id']
+        filtered = []
+        for r in (_all_rows or []):
+            if q and q not in str(r.get('name') or '').lower() and q not in str(r.get('email') or '').lower() and q not in str(r.get('phone') or '').lower() and q not in str(r.get('city') or '').lower():
+                continue
+            if st:
+                is_active = bool(r.get('is_active'))
+                if st == 'active' and not is_active:
+                    continue
+                if st == 'inactive' and is_active:
+                    continue
+            filtered.append(r)
+        table.rows = filtered
+        table.update()
+        table.classes(remove='dimmed')
+        if filtered:
+            _apply_row_from_id(filtered[0].get('id'))
+
+    def _apply_selected_row_color():
+        if _selected_row_index is None:
+            return
+
+        idx = _selected_row_index
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.q-table');
+          if (!root) return;
+
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+
+          const safeIdx = Math.max(0, Math.min({idx}, rows.length - 1));
+
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+
+          const selected = rows[safeIdx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ }}
+        """)
+
+    def _apply_row_from_id(cid):
+        nonlocal _selected_row_index, _selected_row_id
+        if not table:
+            return
+        rows = getattr(table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == cid), None)
+        if target_index is None:
+            return
+
+        _selected_row_index = target_index
+        _selected_row_id = cid
+
+        row = rows[_selected_row_index]
         input_refs['id'].set_value(str(cid))
         for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok', 'is_default']:
-            if k in row: input_refs[k].set_value(row[k])
-        
-        # Fetch photo on-demand
+            if k in row:
+                input_refs[k].set_value(row[k])
+
         photo_data = []
         connection.contogetrows(f"SELECT photo FROM customers WHERE id = {cid}", photo_data)
         full_photo = photo_data[0][0] if photo_data else None
@@ -105,11 +180,63 @@ def customer_page(standalone=False):
             photo_preview.set_source(full_photo)
         else:
             photo_preview.set_source('https://via.placeholder.com/150')
-        
-        if table:
-            table.classes(remove='dimmed')
+
+        table.classes(remove='dimmed')
         if hasattr(footer_container, 'action_bar'):
             footer_container.action_bar.enter_edit_mode()
+        _apply_selected_row_color()
+
+    def _focus_first_row_from_search():
+        try:
+            ui.run_javascript("""
+            try {
+              const root = document.querySelector('.q-table');
+              if (root) { root.tabIndex = 0; root.focus(); }
+            } catch (e) {}
+            """)
+            if table and getattr(table, 'rows', None) and len(table.rows) > 0:
+                first_id = table.rows[0].get('id')
+                if first_id is not None:
+                    _apply_row_from_id(first_id)
+        except:
+            pass
+
+    def clear_inputs():
+        nonlocal _selected_row_index, _selected_row_id
+        _selected_row_index = None
+        _selected_row_id = None
+        for k, ref in input_refs.items():
+            if k == 'is_active':
+                ref.set_value(True)
+            elif k == 'is_default':
+                ref.set_value(False)
+            elif k == 'balance':
+                ref.set_value(0)
+            elif k == 'uploader':
+                continue
+            else:
+                ref.set_value('')
+        photo_preview.set_source('https://via.placeholder.com/150')
+        if 'uploader' in input_refs:
+            input_refs['uploader'].reset()
+        if table:
+            table.classes(add='dimmed')
+            try:
+                table.run_method('deselectAll')
+            except:
+                pass
+        if hasattr(footer_container, 'action_bar'):
+            footer_container.action_bar.enter_new_mode()
+
+    def _load_last_row():
+        """Load the most recent customer into the form and undim table"""
+        if not table or not getattr(table, 'rows', None):
+            return
+        if not table.rows:
+            return
+        row = table.rows[0]
+        cid = row['id']
+        _apply_row_from_id(cid)
 
     def save_customer():
         try:
@@ -226,170 +353,226 @@ def customer_page(standalone=False):
             ui.notify(f'Error: {e}', color='negative')
 
     with ModernPageLayout("Customer Management", standalone=standalone):
-        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
-            
-            with ui.row().classes('w-full gap-6 items-start'):
-                # Form
-                with ui.column().classes('w-[400px] gap-4'):
-                    # Photo Card
-                    with ModernCard().classes('w-full p-6 flex flex-col items-center'):
-                        ui.label('Photo Profile').classes('text-lg font-bold mb-4 w-full text-center')
-                        photo_preview = ui.image('https://via.placeholder.com/150').classes('w-40 h-40 rounded-full border-4 border-accent shadow-xl object-cover mb-4')
-                        
-                        with ui.row().classes('w-full gap-2 mb-2'):
-                            input_refs['photo'] = ui.input().classes('hidden') # State holder
-                            input_refs['uploader'] = ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dense label="Upload Photo" accept=".jpg,.png,.jpeg"').classes('flex-1')
-                            ui.button(icon='delete', on_click=remove_photo).props('flat round color=red').tooltip('Remove photo')
+        with ui.row().classes('w-full gap-6 items-start p-4 animate-fade-in'):
+            with ui.column().classes('flex-1 gap-4'):
+                with ui.splitter(horizontal=True, value=40).classes('w-full h-[850px]') as splitter:
+                    with splitter.before:
+                        with ModernCard(glass=True).classes('w-full p-4'):
+                            with ui.row().classes('w-full justify-between items-center mb-4 ml-2'):
+                                ui.label('Client Repository').classes('text-lg font-bold')
+                                with ui.row().classes('items-center bg-white/10 rounded-full px-3 py-1 shadow-sm border border-gray-300 dark:border-gray-600'):
+                                    ui.icon('search', color='gray').classes('text-lg')
+                                    search_input = ui.input(
+                                        placeholder='Search customers...'
+                                    ).props('borderless dense').classes('ml-2 w-64 text-sm outline-none')
+                                    def make_status_filter():
+                                        s = ui.select(['All', 'Active', 'Inactive'], label='Status', value='All').classes('w-32').props('outlined dense dark stack-label clearable')
+                                        def on_change(e):
+                                            nonlocal _filter_status
+                                            val = e.sender.value if hasattr(e, 'sender') else (e.args if isinstance(e.args, str) else '')
+                                            _filter_status = 'active' if val == 'Active' else ('inactive' if val == 'Inactive' else '')
+                                            filter_table(status_filter=_filter_status)
+                                        s.on('update:model-value', on_change)
+                                    make_status_filter()
 
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Client Details').classes('text-lg font-bold mb-4')
-                        input_refs['id'] = ui.input('ID').props('readonly outlined dense').classes('hidden')
-                        input_refs['customer_name'] = ModernInput('Full Name', icon='person')
-                        input_refs['email'] = ModernInput('Email', icon='email')
-                        input_refs['phone'] = ModernInput('Phone', icon='phone')
+                            def on_search(e):
+                                nonlocal _filter_text
+                                _filter_text = e.sender.value if hasattr(e, 'sender') else (e.args if isinstance(e.args, str) else '')
+                                filter_table(query=_filter_text)
+                            search_input.on('update:model-value', on_search)
 
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Social Accounts').classes('text-lg font-bold mb-4')
-                        input_refs['instagram'] = ModernInput('Instagram', icon='camera_alt', placeholder='@username')
-                        input_refs['facebook'] = ModernInput('Facebook', icon='facebook')
-                        input_refs['twitter'] = ModernInput('X (Twitter)', icon='close')
-                        input_refs['tiktok'] = ModernInput('TikTok', icon='music_note')
+                            def _focus_first_row_from_search():
+                                try:
+                                    ui.run_javascript("""
+                                    try {
+                                      const root = document.querySelector('.q-table');
+                                      if (root) { root.tabIndex = 0; root.focus(); }
+                                    } catch (e) {}
+                                    """)
+                                    if table and getattr(table, 'rows', None) and len(table.rows) > 0:
+                                        first_id = table.rows[0].get('id')
+                                        if first_id is not None:
+                                            _apply_row_from_id(first_id)
+                                except:
+                                    pass
+                            search_input.on('keydown.down', lambda: _focus_first_row_from_search())
 
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Profile Settings').classes('text-lg font-bold mb-4')
-                        input_refs['address'] = ui.input('Address').props('outlined dense').classes('w-full')
-                        input_refs['city'] = ui.input('City').props('outlined dense').classes('w-full mt-2')
-                        input_refs['balance'] = ui.number('Account Balance').props('outlined dense').classes('w-full mt-2')
-                        with ui.row().classes('w-full items-center gap-4 mt-2'):
-                            input_refs['is_active'] = ui.checkbox('Active', value=True)
-                            input_refs['is_default'] = ui.checkbox('Default Sales Customer', value=False)
+                            columns = [
+                                {'name': 'customer_name', 'label': 'Name', 'field': 'customer_name', 'align': 'left', 'sortable': True},
+                                {'name': 'email', 'label': 'Email', 'field': 'email', 'align': 'left', 'sortable': True},
+                                {'name': 'phone', 'label': 'Phone', 'field': 'phone', 'align': 'left', 'sortable': True},
+                                {'name': 'pending_sales', 'label': 'Pending Balance', 'field': 'pending_sales', 'align': 'left', 'sortable': True},
+                                {'name': 'balance', 'label': 'Account Balance', 'field': 'balance', 'align': 'left', 'sortable': True},
+                                {'name': 'is_default', 'label': 'Default', 'field': 'is_default', 'align': 'left', 'sortable': True},
+                                {'name': 'is_active', 'label': 'Status', 'field': 'is_active', 'align': 'left', 'sortable': True},
+                            ]
 
-                # List
-                with ui.column().classes('flex-1'):
-                    with ModernCard().classes('w-full p-4'):
-                        with ui.row().classes('w-full justify-between items-center mb-4 ml-2'):
-                            ui.label('Client Repository').classes('text-lg font-bold')
-                            with ui.row().classes('items-center bg-white/10 rounded-full px-3 py-1 shadow-sm border border-gray-300 dark:border-gray-600'):
-                                ui.icon('search', color='gray').classes('text-lg')
-                                search_input = ui.input(placeholder='Search customers...').props('borderless dense').classes('ml-2 w-64 text-sm outline-none')
-                        
-                        cols = [
-                            {'headerName': 'Photo', 'field': 'photo', 'width': 70, 'cellRenderer': 'img_renderer'}, # Placeholder for custom renderer if needed
-                            {'headerName': 'Name', 'field': 'customer_name', 'flex': 2},
-                            {'headerName': 'Email', 'field': 'email', 'flex': 1.5},
-                            {'headerName': 'Phone', 'field': 'phone', 'width': 130},
-                            {'headerName': 'Pending Sales', 'field': 'pending_sales', 'width': 130, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
-                            {'headerName': 'Account Balance', 'field': 'balance', 'width': 140, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()'},
-                            {'headerName': 'Default', 'field': 'is_default', 'width': 90, 'cellRenderer': 'agCheckboxRenderer'},
-                            {'headerName': 'Status', 'field': 'is_active', 'width': 90, 'cellRenderer': 'agCheckboxRenderer'}
-                        ]
-                        
-                        # Custom renderer script for images in ag-grid if base64
-                        ui.add_body_html('''
-                        <script>
-                        window.img_renderer = (params) => {
-                            if (!params.data.has_photo) return "";
-                            return `<div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                <span style="font-size: 8px; color: white;">P</span>
-                            </div>`;
-                        };
-                        </script>
-                        ''')
+                            table = ui.table(
+                                columns=columns,
+                                rows=[],
+                                row_key='id',
+                                selection='single',
+                                pagination={'rowsPerPage': 10}
+                            ).classes('w-full h-80 overflow-hidden').props('flat bordered dense')
 
-                        table = ui.aggrid({
-                            'columnDefs': cols,
-                            'rowData': [],
-                            'defaultColDef': {'sortable': True, 'filter': True},
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
-                        
-                        search_input.on('update:model-value', lambda e: (
-                            table.options.update({'quickFilterText': e.sender.value}),
-                            table.update()
-                        ))
-
-                        def on_row(e):
-                            try:
-                                # Instant response from click event data
-                                row = e.args.get('data')
-                                if not row: return
-                                
+                            def on_row_click(e):
+                                row = None
+                                try:
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict) and isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                except:
+                                    pass
+                                if not isinstance(row, dict):
+                                    return
                                 cid = row.get('id')
-                                if cid is None: return
-                                
-                                # Update inputs immediately
-                                input_refs['id'].set_value(str(cid))
-                                for k in ['customer_name', 'email', 'phone', 'address', 'city', 'balance', 'is_active', 'instagram', 'facebook', 'twitter', 'tiktok', 'is_default']:
-                                    if k in row: input_refs[k].set_value(row[k])
-                                
-                                # Fetch high-res photo on-demand from database
-                                photo_data = []
-                                connection.contogetrows(f"SELECT photo FROM customers WHERE id = {cid}", photo_data)
-                                full_photo = photo_data[0][0] if photo_data else None
-                                
-                                input_refs['photo'].set_value(full_photo or '')
-                                if full_photo:
-                                    photo_preview.set_source(full_photo)
-                                else:
-                                    photo_preview.set_source('https://via.placeholder.com/150')
-                                
-                                if table:
-                                    table.classes(remove='dimmed')
-                                if hasattr(footer_container, 'action_bar'):
-                                    footer_container.action_bar.enter_edit_mode()
-                            except Exception as ex:
-                                print(f"Customer selection error: {ex}")
-                                ui.notify(f'Display error: {ex}', color='warning')
+                                if cid is None:
+                                    return
+                                _apply_row_from_id(cid)
 
-                        table.on('cellClicked', on_row)
+                            table.on('rowClick', on_row_click)
 
-                # Action Bar Panel (Right Side of Editor)
-                with ui.column().classes('w-80px items-center') as footer_container:
-                    def view_customer_transactions():
-                        import accounting_helpers
-                        cid = input_refs['id'].value
-                        if not cid:
-                            ui.notify('Please select a customer first', color='warning')
-                            return
-                        aux_data = []
-                        connection.contogetrows(f"SELECT auxiliary_number FROM customers WHERE id={cid}", aux_data)
-                        if aux_data and aux_data[0][0]:
-                            accounting_helpers.show_transactions_dialog(account_number=aux_data[0][0])
-                        else:
-                            ui.notify('No accounting transactions found.', color='warning')
+                            ui.run_javascript("""
+                            try {
+                              const root = document.querySelector('.q-table');
+                              if (!root) return;
+                              root.tabIndex = 0;
+                              if (!root.__bb_cust_arrow_nav) {
+                                root.__bb_cust_arrow_nav = true;
+                                root.addEventListener('keydown', (ev) => {
+                                  if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+                                  ev.preventDefault();
+                                  const rows = root.querySelectorAll('tbody tr');
+                                  const visibleRows = Array.from(rows).filter(r => r && r.offsetParent !== null);
+                                  if (!visibleRows.length) return;
+                                  let currentIndex = visibleRows.findIndex(r => r.classList && r.classList.contains('selected-highlight'));
+                                  if (currentIndex < 0) currentIndex = 0;
+                                  const nextIndex = ev.key === 'ArrowDown'
+                                    ? Math.min(currentIndex + 1, visibleRows.length - 1)
+                                    : Math.max(currentIndex - 1, 0);
+                                  const target = visibleRows[nextIndex];
+                                  if (target) target.click();
+                                });
+                              }
+                            } catch (e) {}
+                            """)
 
-                    def delete_customer():
-                        cid = input_refs['id'].value
-                        if not cid: return ui.notify('Select a customer to delete', color='warning')
-                        tx_chk = []
-                        connection.contogetrows("SELECT COUNT(*) FROM sales WHERE customer_id=?", tx_chk, params=[cid])
-                        if tx_chk and tx_chk[0][0] > 0:
-                            return ui.notify('Cannot delete customer with existing transactions.', color='negative')
-                        try:
-                            connection.deleterow("DELETE FROM customers WHERE id=?", [cid])
-                            ui.notify('Customer deleted successfully', color='positive')
-                            clear_inputs()
-                            refresh_table()
-                        except Exception as e:
-                            ui.notify(f'Delete error: {e}', color='negative')
+                    with splitter.after:
+                        with ui.row().classes('w-full gap-4 pt-4'):
+                            with ModernCard(glass=True).classes('w-[280px] p-6 flex flex-col items-center'):
+                                ui.label('Photo Profile').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4 w-full text-center')
+                                photo_preview = ui.image('https://via.placeholder.com/150').classes('w-32 h-32 rounded-full border-4 border-white/10 shadow-xl object-cover mb-4')
+                                with ui.row().classes('w-full gap-2 mb-2'):
+                                    input_refs['photo'] = ui.input().classes('hidden')
+                                    input_refs['uploader'] = ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dark dense label="Upload Photo" accept=".jpg,.png,.jpeg"').classes('flex-1')
+                                    ui.button(icon='delete', on_click=remove_photo).props('flat round color=red').tooltip('Remove photo')
 
-                    from modern_ui_components import ModernActionBar
-                    footer_container.action_bar = ModernActionBar(
-                        on_new=clear_inputs,
-                        on_save=save_customer,
-                        on_undo=lambda: footer_container.action_bar.reset_state(),
-                        on_delete=delete_customer,
-                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                        on_refresh=refresh_table,
-                        on_print_special=lambda: __import__('customer_reports').open_print_special_dialog(),
-                        on_view_transaction=view_customer_transactions,
-                        target_table=table,
-                        button_class='h-16',
-                        classes=' '
-                    )
-                    footer_container.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                            with ModernCard(glass=True).classes('flex-1 p-6'):
+                                ui.label('Client Details').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4')
+                                input_refs['id'] = ui.input('ID').props('readonly outlined dense dark').classes('hidden')
+                                input_refs['customer_name'] = ModernInput('Full Name', icon='person')
+                                input_refs['email'] = ModernInput('Email', icon='email')
+                                input_refs['phone'] = ModernInput('Phone', icon='phone')
 
-    ui.timer(0.1, refresh_table, once=True)
+                            with ModernCard(glass=True).classes('w-[280px] p-6'):
+                                ui.label('Social Accounts').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4')
+                                input_refs['instagram'] = ModernInput('Instagram', icon='camera_alt', placeholder='@username')
+                                input_refs['facebook'] = ModernInput('Facebook', icon='facebook')
+                                input_refs['twitter'] = ModernInput('X (Twitter)', icon='close')
+                                input_refs['tiktok'] = ModernInput('TikTok', icon='music_note')
+
+                            with ModernCard(glass=True).classes('flex-1 p-6'):
+                                ui.label('Profile Settings').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4')
+                                input_refs['address'] = ui.input('Address').props('outlined dense dark').classes('w-full')
+                                input_refs['city'] = ui.input('City').props('outlined dense dark').classes('w-full mt-2')
+                                input_refs['balance'] = ui.number('Account Balance').props('outlined dense dark').classes('w-full mt-2')
+                                with ui.row().classes('w-full items-center gap-4 mt-2'):
+                                    input_refs['is_active'] = ui.checkbox('Active', value=True)
+                                    input_refs['is_default'] = ui.checkbox('Default Sales Customer', value=False)
+
+            with ui.column().classes('w-80px items-center shrink-0') as footer_container:
+                def view_customer_transactions():
+                    import accounting_helpers
+                    cid = input_refs['id'].value
+                    if not cid:
+                        ui.notify('Please select a customer first', color='warning')
+                        return
+                    aux_data = []
+                    connection.contogetrows(f"SELECT auxiliary_number FROM customers WHERE id={cid}", aux_data)
+                    if aux_data and aux_data[0][0]:
+                        accounting_helpers.show_transactions_dialog(account_number=aux_data[0][0])
+                    else:
+                        ui.notify('No accounting transactions found.', color='warning')
+
+                def _show_statement():
+                    cid = input_refs['id'].value
+                    cname = input_refs['customer_name'].value
+                    if not cid:
+                        ui.notify('Please select a customer first', color='warning')
+                        return
+                    today = datetime.now()
+                    default_from = f'{today.year}-01-01'
+                    default_to = today.strftime('%Y-%m-%d')
+                    from customer_reports import report_single_customer_statement
+                    with ui.dialog() as dlg, ui.card().classes(
+                            'w-full max-w-md glass p-6 border border-white/10').style(
+                            'background: rgba(15,15,25,0.95); border-radius: 2rem;'):
+                        ui.label('Statement of Account').classes(
+                            'text-2xl font-black mb-6 text-white')
+                        from_date = ui.input('From Date').classes(
+                            'w-full glass-input').props('dark rounded outlined type=date')
+                        from_date.value = default_from
+                        to_date = ui.input('To Date').classes(
+                            'w-full glass-input mt-3').props('dark rounded outlined type=date')
+                        to_date.value = default_to
+                        def generate():
+                            dlg.close()
+                            report_single_customer_statement(
+                                from_date.value, to_date.value, int(cid), cname)
+                        ui.button('Generate Statement', on_click=generate).classes(
+                            'mt-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl font-bold w-full')
+                    dlg.open()
+
+
+                def delete_customer():
+                    cid = input_refs['id'].value
+                    if not cid: return ui.notify('Select a customer to delete', color='warning')
+                    tx_chk = []
+                    connection.contogetrows("SELECT COUNT(*) FROM sales WHERE customer_id=?", tx_chk, params=[cid])
+                    if tx_chk and tx_chk[0][0] > 0:
+                        return ui.notify('Cannot delete customer with existing transactions.', color='negative')
+                    receipt_chk = []
+                    connection.contogetrows("SELECT COUNT(*) FROM customer_receipt WHERE customer_id=?", receipt_chk, params=[cid])
+                    if receipt_chk and receipt_chk[0][0] > 0:
+                        return ui.notify('Cannot delete customer with existing receipts.', color='negative')
+                    try:
+                        connection.deleterow("DELETE FROM customers WHERE id=?", [cid])
+                        ui.notify('Customer deleted successfully', color='positive')
+                        clear_inputs()
+                        refresh_table()
+                    except Exception as e:
+                        ui.notify(f'Delete error: {e}', color='negative')
+
+                from modern_ui_components import ModernActionBar
+                footer_container.action_bar = ModernActionBar(
+                    on_new=clear_inputs,
+                    on_save=save_customer,
+                    on_undo=lambda: footer_container.action_bar.reset_state(),
+                    on_delete=delete_customer,
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
+                    on_refresh=refresh_table,
+                    on_print=_show_statement,
+                    on_print_special=lambda: __import__('customer_reports').open_print_special_dialog(
+                        customer_id=int(input_refs['id'].value) if input_refs['id'].value else None,
+                        customer_name=input_refs['customer_name'].value
+                    ),
+                    on_view_transaction=view_customer_transactions,
+                    target_table=table,
+                    button_class='h-16',
+                    classes=' '
+                )
+                footer_container.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+    refresh_table()
 
 
 @ui.page('/customers')

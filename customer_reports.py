@@ -69,18 +69,10 @@ def _build(elements, landscape_mode=False):
 
 
 def _show(b64, title):
-    data_url = f"data:application/pdf;base64,{b64}"
-    with ui.dialog() as d:
-        with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-            with ui.row().classes('w-full justify-between items-center p-3'
-                                  ' bg-gray-900 border-b border-white/10'):
-                ui.label(title).classes('text-white font-bold text-lg')
-                ui.button('X Close', on_click=d.close).classes(
-                    'bg-red-600 text-white px-4 py-1 rounded text-sm')
-            ui.html(f'<iframe src="{data_url}" width="100%" height="100%"'
-                    ' style="border:none; min-height:calc(100vh - 56px);"></iframe>'
-                    ).classes('w-full flex-1')
-    d.open()
+    import base64
+    from pdf_viewer_helper import show_pdf_modal
+    pdf_bytes = base64.b64decode(b64.encode('utf-8'))
+    show_pdf_modal(pdf_bytes, filename=f'{title.replace(" ", "_")}.pdf', title=title)
 
 
 def _hdr(name, fd, td, accent='#1a3a6e'):
@@ -255,6 +247,147 @@ def report_global_customer_balance(fd, td):
     elements.append(t);  _show(_build(elements), 'Global Customer Balance')
 
 
+# ── PER‑CUSTOMER STATEMENT ──────────────────────────────────────────────────
+
+def report_single_customer_statement(fd, td, customer_id, customer_name):
+    """Per-customer statement: opening balance + invoices + returns + receipts with running balance.
+
+    Cash sales appear as both debit (Sale) and credit (Cash) — immediate settlement.
+    On-account sales appear as debit only until settled via receipt or return.
+
+    NOTE: customer_receipt_ui applies receipts by reducing sales.total_amount.
+    We add back settled amounts via customer_receipt_details to show original invoice values.
+    """
+    # Check if customer_receipt_details table exists for settlement tracking
+    has_details = False
+    try:
+        r = _q("SELECT COUNT(*) FROM sys.tables WHERE name = 'customer_receipt_details'")
+        has_details = r and r[0][0] > 0
+    except:
+        pass
+
+    # Build the "add back settled amounts" snippet if table exists
+    if has_details:
+        settle_clause = (
+            "+ COALESCE((SELECT SUM(settlement_amount) FROM customer_receipt_details"
+            " WHERE source_type = 'Sale' AND source_id = sales.id), 0)"
+        )
+    else:
+        settle_clause = ""
+
+    # Opening balance (on‑account debits – credits before the period)
+    opening = 0.0
+    if has_details:
+        open_rows = _q("""
+            SELECT
+                ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM sales
+                         WHERE customer_id = ? AND status = 'Sale' AND payment_status = 'pending'
+                           AND CONVERT(date, sale_date) < CONVERT(date, ?)), 0)
+                + COALESCE((SELECT SUM(settlement_amount) FROM customer_receipt_details
+                            WHERE source_type = 'Sale' AND source_id IN (
+                                SELECT id FROM sales WHERE customer_id = ?
+                                AND status = 'Sale' AND payment_status = 'pending'
+                                AND CONVERT(date, sale_date) < CONVERT(date, ?)
+                            )), 0)
+                - ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM sales_returns
+                           WHERE customer_id = ?
+                             AND CONVERT(date, return_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(amount, 0)) FROM customer_receipt
+                           WHERE customer_id = ?
+                             AND CONVERT(date, payment_date) < CONVERT(date, ?)), 0)
+        """, (customer_id, fd, customer_id, fd, customer_id, fd, customer_id, fd))
+    else:
+        open_rows = _q("""
+            SELECT
+                ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM sales
+                         WHERE customer_id = ? AND status = 'Sale' AND payment_status = 'pending'
+                           AND CONVERT(date, sale_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM sales_returns
+                           WHERE customer_id = ?
+                             AND CONVERT(date, return_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(amount, 0)) FROM customer_receipt
+                           WHERE customer_id = ?
+                             AND CONVERT(date, payment_date) < CONVERT(date, ?)), 0)
+        """, (customer_id, fd, customer_id, fd, customer_id, fd))
+    if open_rows:
+        opening = float(open_rows[0][0])
+
+    # All transactions in period sorted by date
+    txns = _q(f"""
+        SELECT tx_date, ref, tx_type, debit, credit FROM (
+            -- All sales are debits — add back settled amounts to show original invoice
+            SELECT CONVERT(date, sale_date) as tx_date, invoice_number as ref,
+                   'Sale' as tx_type, total_amount {settle_clause} as debit, 0 as credit
+            FROM sales WHERE customer_id = ? AND status = 'Sale'
+              AND CONVERT(date, sale_date) >= ? AND CONVERT(date, sale_date) <= ?
+
+            UNION ALL
+
+            -- Cash sales settled immediately → matching credit (restore original amount if receipts were allocated)
+            SELECT CONVERT(date, sale_date), invoice_number,
+                   'Cash', 0, total_amount {settle_clause}
+            FROM sales WHERE customer_id = ? AND status = 'Sale'
+              AND payment_status = 'completed'
+              AND CONVERT(date, sale_date) >= ? AND CONVERT(date, sale_date) <= ?
+
+            UNION ALL
+
+            -- Returns are credits
+            SELECT CONVERT(date, return_date), 'Ret-' + CAST(id AS NVARCHAR(20)),
+                   'Return', 0, total_amount
+            FROM sales_returns WHERE customer_id = ?
+              AND CONVERT(date, return_date) >= ? AND CONVERT(date, return_date) <= ?
+
+            UNION ALL
+
+            -- Receipts are credits
+            SELECT CONVERT(date, payment_date), 'Pay_' + CAST(id AS NVARCHAR(20)),
+                   'Receipt', 0, amount
+            FROM customer_receipt WHERE customer_id = ?
+              AND CONVERT(date, payment_date) >= ? AND CONVERT(date, payment_date) <= ?
+        ) t ORDER BY tx_date, ref,
+          CASE tx_type WHEN 'Sale' THEN 1 WHEN 'Cash' THEN 2 WHEN 'Return' THEN 3 WHEN 'Receipt' THEN 4 END
+    """, (customer_id, fd, td, customer_id, fd, td, customer_id, fd, td, customer_id, fd, td))
+
+    if not txns and abs(opening) < 0.001:
+        ui.notify(f'No transactions found for {customer_name}', color='warning')
+        return
+
+    title = f'Statement of Account — {customer_name}'
+    elements = _hdr(title, fd, td)
+    hdr = ['Date', 'Reference', 'Type', 'Debit', 'Credit', 'Balance']
+    data = [hdr]
+    ts_obj = _ts()
+
+    running = opening
+    data.append([fd, '', 'Opening Balance', '', '', f'${running:.2f}'])
+
+    for r in txns:
+        d = float(r[3] or 0)
+        c = float(r[4] or 0)
+        running = running + d - c
+        idx = len(data)
+        data.append([
+            str(r[0] or ''), str(r[1] or ''), str(r[2] or ''),
+            f'${d:.2f}' if d > 0 else '',
+            f'${c:.2f}' if c > 0 else '',
+            f'${running:.2f}'
+        ])
+        if running > 0:
+            ts_obj.add('TEXTCOLOR', (5, idx), (5, idx), colors.red)
+
+    data.append(['', '', 'CLOSING BALANCE', '', '', f'${running:.2f}'])
+    _totrow(ts_obj, len(data) - 1)
+
+    ps = landscape(A4)
+    avail = ps[0] - 30 * mm
+    cw = [avail * w for w in [.14, .18, .12, .16, .16, .16]]
+    t = Table(data, colWidths=cw, repeatRows=1)
+    t.setStyle(ts_obj)
+    elements.append(t)
+    _show(_build(elements, landscape_mode=True), f'Statement_{customer_name}')
+
+
 # ── CUSTOMER REGISTRY ─────────────────────────────────────────────────────────
 
 REPORTS = {
@@ -272,11 +405,16 @@ DESCRIPTIONS = {
 }
 
 
-def open_print_special_dialog():
+def open_print_special_dialog(customer_id=None, customer_name=None):
     today          = date.today().strftime('%Y-%m-%d')
     first_of_month = date.today().replace(day=1).strftime('%Y-%m-%d')
-    state = {'report_key': 'cust_tx', 'from_date': first_of_month, 'to_date': today}
+    state = {'report_key': 'cust_tx', 'from_date': first_of_month, 'to_date': today,
+             'customer_id': customer_id, 'customer_name': customer_name}
     btns = {};  refs = {}
+    per_customer_key = None
+
+    if customer_id:
+        per_customer_key = f'single_stmt_{customer_id}'
 
     def select(key):
         state['report_key'] = key
@@ -284,8 +422,16 @@ def open_print_special_dialog():
             sty = ('background:rgba(59,130,246,0.25);border:1px solid rgba(59,130,246,0.5);'
                    if k == key else 'background:rgba(255,255,255,0.04);border:none;')
             b.style(sty)
-        if 'n' in refs: refs['n'].text = REPORTS[key][0]
-        if 'd' in refs: refs['d'].text = DESCRIPTIONS.get(key, '')
+        if 'n' in refs:
+            if key == per_customer_key:
+                refs['n'].text = f'Statement of Account — {customer_name}'
+            else:
+                refs['n'].text = REPORTS[key][0]
+        if 'd' in refs:
+            if key == per_customer_key:
+                refs['d'].text = f'All transactions for {customer_name}: invoices, returns, and receipts with running balance.'
+            else:
+                refs['d'].text = DESCRIPTIONS.get(key, '')
 
     with ui.dialog() as dlg:
         dlg.props('maximized persistent')
@@ -307,6 +453,13 @@ def open_print_special_dialog():
                         'border-right:1px solid rgba(255,255,255,0.08);'):
                     ui.label('SELECT REPORT').classes(
                         'text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2')
+                    if per_customer_key:
+                        b = ui.button(f'Statement — {customer_name}',
+                                      on_click=lambda: select(per_customer_key))\
+                               .classes('w-full px-4 py-3 rounded-xl text-sm font-bold text-white')\
+                               .style('background:rgba(59,130,246,0.25);border:1px solid rgba(59,130,246,0.5);'
+                                      ' text-align:left; justify-content:flex-start;')
+                        btns[per_customer_key] = b
                     for k, (lbl, _) in REPORTS.items():
                         b = ui.button(lbl, on_click=lambda k=k: select(k))\
                                .classes('w-full px-4 py-3 rounded-xl text-sm font-bold text-white')\
@@ -315,7 +468,8 @@ def open_print_special_dialog():
                         btns[k] = b
 
                 with ui.column().classes('flex-1 h-full p-6 gap-5 overflow-auto'):
-                    refs['n'] = ui.label(REPORTS['cust_tx'][0])\
+                    default_title = f'Statement of Account — {customer_name}' if per_customer_key else REPORTS['cust_tx'][0]
+                    refs['n'] = ui.label(default_title)\
                         .classes('text-white font-black text-2xl')\
                         .style('font-family:"Outfit",sans-serif;')
 
@@ -336,7 +490,11 @@ def open_print_special_dialog():
                             k, f, t = state['report_key'], state['from_date'], state['to_date']
                             if not f or not t: ui.notify('Select dates.', color='warning'); return
                             if f > t: ui.notify('From before To.', color='negative'); return
-                            try: REPORTS[k][1](f, t)
+                            try:
+                                if per_customer_key and k == per_customer_key:
+                                    report_single_customer_statement(f, t, state['customer_id'], state['customer_name'])
+                                else:
+                                    REPORTS[k][1](f, t)
                             except Exception as ex:
                                 ui.notify(f'Error: {ex}', color='negative')
                                 import traceback; traceback.print_exc()
@@ -347,8 +505,13 @@ def open_print_special_dialog():
 
                     with ui.column().classes('w-full glass p-5 rounded-2xl border border-white/10 gap-2'):
                         ui.label('DESCRIPTION').classes('text-[9px] font-black text-blue-400 uppercase tracking-widest')
-                        refs['d'] = ui.label(DESCRIPTIONS.get('cust_tx', ''))\
+                        default_desc = (f'All transactions for {customer_name}: invoices, returns, and receipts with running balance.'
+                                        if per_customer_key else DESCRIPTIONS.get('cust_tx', ''))
+                        refs['d'] = ui.label(default_desc)\
                             .classes('text-sm text-gray-300 font-medium leading-relaxed')
 
-        select('cust_tx')
+        if per_customer_key:
+            select(per_customer_key)
+        else:
+            select('cust_tx')
     dlg.open()

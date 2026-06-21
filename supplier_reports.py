@@ -66,18 +66,10 @@ def _build(elements, landscape_mode=False):
 
 
 def _show(b64, title):
-    data_url = f"data:application/pdf;base64,{b64}"
-    with ui.dialog() as d:
-        with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-            with ui.row().classes('w-full justify-between items-center p-3'
-                                  ' bg-gray-900 border-b border-white/10'):
-                ui.label(title).classes('text-white font-bold text-lg')
-                ui.button('X Close', on_click=d.close).classes(
-                    'bg-red-600 text-white px-4 py-1 rounded text-sm')
-            ui.html(f'<iframe src="{data_url}" width="100%" height="100%"'
-                    ' style="border:none; min-height:calc(100vh - 56px);"></iframe>'
-                    ).classes('w-full flex-1')
-    d.open()
+    import base64
+    from pdf_viewer_helper import show_pdf_modal
+    pdf_bytes = base64.b64decode(b64.encode("utf-8"))
+    show_pdf_modal(pdf_bytes, filename=f'{title.replace(" ", "_")}.pdf', title=title)
 
 
 def _hdr(name, fd, td):
@@ -247,6 +239,145 @@ def report_global_supplier_balance(fd, td):
     elements.append(t);  _show(_build(elements, landscape_mode=True), 'Global Supplier Balance')
 
 
+# ── PER‑SUPPLIER STATEMENT ─────────────────────────────────────────────────
+
+def report_single_supplier_statement(fd, td, supplier_id, supplier_name):
+    """Per-supplier statement: opening balance + purchases + returns + payments with running balance.
+
+    Cash purchases appear as both debit (Purchase) and credit (Cash) — immediate settlement.
+    On-account purchases appear as debit only until settled via return or payment.
+
+    Supplier payments are allocated via supplier_payment_details, which reduces
+    purchases.total_amount. We add back settled amounts to show original invoice values.
+    """
+    has_details = False
+    try:
+        r = _q("SELECT TOP 1 1 FROM supplier_payment_details")
+        has_details = bool(r)
+    except:
+        pass
+
+    if has_details:
+        settle_clause = (
+            "+ COALESCE((SELECT SUM(settlement_amount) FROM supplier_payment_details"
+            " WHERE source_type = 'Purchase' AND source_id = purchases.id), 0)"
+        )
+    else:
+        settle_clause = ""
+
+    opening = 0.0
+    if has_details:
+        open_rows = _q("""
+            SELECT
+                ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM purchases
+                         WHERE supplier_id = ? AND payment_status = 'pending'
+                           AND CONVERT(date, purchase_date) < CONVERT(date, ?)), 0)
+                + COALESCE((SELECT SUM(settlement_amount) FROM supplier_payment_details
+                            WHERE source_type = 'Purchase' AND source_id IN (
+                                SELECT id FROM purchases WHERE supplier_id = ?
+                                AND payment_status = 'pending'
+                                AND CONVERT(date, purchase_date) < CONVERT(date, ?)
+                            )), 0)
+                - ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM purchase_returns
+                           WHERE supplier_id = ?
+                             AND CONVERT(date, purchase_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(amount, 0)) FROM supplier_payment
+                           WHERE supplier_id = ?
+                             AND CONVERT(date, payment_date) < CONVERT(date, ?)), 0)
+        """, (supplier_id, fd, supplier_id, fd, supplier_id, fd, supplier_id, fd))
+    else:
+        open_rows = _q("""
+            SELECT
+                ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM purchases
+                         WHERE supplier_id = ? AND payment_status = 'pending'
+                           AND CONVERT(date, purchase_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(total_amount, 0)) FROM purchase_returns
+                           WHERE supplier_id = ?
+                             AND CONVERT(date, purchase_date) < CONVERT(date, ?)), 0)
+                - ISNULL((SELECT SUM(ISNULL(amount, 0)) FROM supplier_payment
+                           WHERE supplier_id = ?
+                             AND CONVERT(date, payment_date) < CONVERT(date, ?)), 0)
+        """, (supplier_id, fd, supplier_id, fd, supplier_id, fd))
+    if open_rows:
+        opening = float(open_rows[0][0])
+
+    txns = _q(f"""
+        SELECT tx_date, ref, tx_type, debit, credit FROM (
+            -- All purchases are debits — add back settled amounts to show original invoice
+            SELECT CONVERT(date, purchase_date) as tx_date, invoice_number as ref,
+                   'Purchase' as tx_type, total_amount {settle_clause} as debit, 0 as credit
+            FROM purchases WHERE supplier_id = ?
+              AND CONVERT(date, purchase_date) >= ? AND CONVERT(date, purchase_date) <= ?
+
+            UNION ALL
+
+            -- Cash purchases settled immediately → matching credit
+            SELECT CONVERT(date, purchase_date), invoice_number,
+                   'Cash', 0, total_amount {settle_clause}
+            FROM purchases WHERE supplier_id = ? AND payment_status = 'completed'
+              AND payment_method = 'Cash'
+              AND CONVERT(date, purchase_date) >= ? AND CONVERT(date, purchase_date) <= ?
+
+            UNION ALL
+
+            -- Returns are credits
+            SELECT CONVERT(date, purchase_date), 'Ret-' + CAST(id AS NVARCHAR(20)),
+                   'Return', 0, total_amount
+            FROM purchase_returns WHERE supplier_id = ?
+              AND CONVERT(date, purchase_date) >= ? AND CONVERT(date, purchase_date) <= ?
+
+            UNION ALL
+
+            -- Payments are credits
+            SELECT CONVERT(date, payment_date), 'Pay_' + CAST(id AS NVARCHAR(20)),
+                   'Payment', 0, amount
+            FROM supplier_payment WHERE supplier_id = ?
+              AND CONVERT(date, payment_date) >= ? AND CONVERT(date, payment_date) <= ?
+        ) t ORDER BY tx_date, ref,
+          CASE tx_type WHEN 'Purchase' THEN 1 WHEN 'Cash' THEN 2 WHEN 'Return' THEN 3 WHEN 'Payment' THEN 4 END
+    """, (supplier_id, fd, td, supplier_id, fd, td, supplier_id, fd, td, supplier_id, fd, td))
+
+    if not txns and abs(opening) < 0.001:
+        ui.notify(f'No transactions found for {supplier_name}', color='warning')
+        return
+
+    title = f'Statement of Account — {supplier_name}'
+    elements = _hdr(title, fd, td)
+    hdr = ['Date', 'Reference', 'Type', 'Debit', 'Credit', 'Balance']
+    data = [hdr]
+    ts_obj = _ts()
+
+    running = opening
+    data.append([fd, '', 'Opening Balance', '', '', f'${running:.2f}'])
+
+    for r in txns:
+        d = float(r[3] or 0)
+        c = float(r[4] or 0)
+        running = running + d - c
+        idx = len(data)
+        data.append([
+            str(r[0] or ''), str(r[1] or ''), str(r[2] or ''),
+            f'${d:.2f}' if d > 0 else '',
+            f'${c:.2f}' if c > 0 else '',
+            f'${running:.2f}'
+        ])
+        if running > 0:
+            ts_obj.add('TEXTCOLOR', (5, idx), (5, idx), colors.red)
+
+    data.append(['', '', 'CLOSING BALANCE', '', '', f'${running:.2f}'])
+    _totrow(ts_obj, len(data) - 1)
+
+    ps = landscape(A4)
+    avail = ps[0] - 30 * mm
+    cw = [avail * w for w in [.14, .18, .12, .16, .16, .16]]
+    t = Table(data, colWidths=cw, repeatRows=1)
+    t.setStyle(ts_obj)
+    elements.append(t)
+    _show(_build(elements, landscape_mode=True), f'Statement_{supplier_name}')
+
+
+# ── SUPPLIER REGISTRY ─────────────────────────────────────────────────────────
+
 REPORTS = {
     'sup_tx':      ('Supplier Transactions',       report_supplier_transactions),
     'sup_stmt':    ('Statement of Account',        report_supplier_statement),
@@ -262,11 +393,16 @@ DESCRIPTIONS = {
 }
 
 
-def open_print_special_dialog():
+def open_print_special_dialog(supplier_id=None, supplier_name=None):
     today          = date.today().strftime('%Y-%m-%d')
     first_of_month = date.today().replace(day=1).strftime('%Y-%m-%d')
-    state = {'report_key': 'sup_tx', 'from_date': first_of_month, 'to_date': today}
+    state = {'report_key': 'sup_tx', 'from_date': first_of_month, 'to_date': today,
+             'supplier_id': supplier_id, 'supplier_name': supplier_name}
     btns = {};  refs = {}
+    per_supplier_key = None
+
+    if supplier_id:
+        per_supplier_key = f'single_stmt_{supplier_id}'
 
     def select(key):
         state['report_key'] = key
@@ -274,8 +410,16 @@ def open_print_special_dialog():
             sty = ('background:rgba(168,85,247,0.25);border:1px solid rgba(168,85,247,0.5);'
                    if k == key else 'background:rgba(255,255,255,0.04);border:none;')
             b.style(sty)
-        if 'n' in refs: refs['n'].text = REPORTS[key][0]
-        if 'd' in refs: refs['d'].text = DESCRIPTIONS.get(key, '')
+        if 'n' in refs:
+            if key == per_supplier_key:
+                refs['n'].text = f'Statement of Account — {supplier_name}'
+            else:
+                refs['n'].text = REPORTS[key][0]
+        if 'd' in refs:
+            if key == per_supplier_key:
+                refs['d'].text = f'All transactions for {supplier_name}: purchases, returns, and payments with running balance.'
+            else:
+                refs['d'].text = DESCRIPTIONS.get(key, '')
 
     with ui.dialog() as dlg:
         dlg.props('maximized persistent')
@@ -297,6 +441,13 @@ def open_print_special_dialog():
                         'border-right:1px solid rgba(255,255,255,0.08);'):
                     ui.label('SELECT REPORT').classes(
                         'text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2')
+                    if per_supplier_key:
+                        b = ui.button(f'Statement — {supplier_name}',
+                                      on_click=lambda: select(per_supplier_key))\
+                               .classes('w-full px-4 py-3 rounded-xl text-sm font-bold text-white')\
+                               .style('background:rgba(168,85,247,0.25);border:1px solid rgba(168,85,247,0.5);'
+                                      ' text-align:left; justify-content:flex-start;')
+                        btns[per_supplier_key] = b
                     for k, (lbl, _) in REPORTS.items():
                         b = ui.button(lbl, on_click=lambda k=k: select(k))\
                                .classes('w-full px-4 py-3 rounded-xl text-sm font-bold text-white')\
@@ -305,7 +456,8 @@ def open_print_special_dialog():
                         btns[k] = b
 
                 with ui.column().classes('flex-1 h-full p-6 gap-5 overflow-auto'):
-                    refs['n'] = ui.label(REPORTS['sup_tx'][0])\
+                    default_title = f'Statement of Account — {supplier_name}' if per_supplier_key else REPORTS['sup_tx'][0]
+                    refs['n'] = ui.label(default_title)\
                         .classes('text-white font-black text-2xl')\
                         .style('font-family:"Outfit",sans-serif;')
 
@@ -326,7 +478,11 @@ def open_print_special_dialog():
                             k, f, t = state['report_key'], state['from_date'], state['to_date']
                             if not f or not t: ui.notify('Select dates.', color='warning'); return
                             if f > t: ui.notify('From before To.', color='negative'); return
-                            try: REPORTS[k][1](f, t)
+                            try:
+                                if per_supplier_key and k == per_supplier_key:
+                                    report_single_supplier_statement(f, t, state['supplier_id'], state['supplier_name'])
+                                else:
+                                    REPORTS[k][1](f, t)
                             except Exception as ex:
                                 ui.notify(f'Error: {ex}', color='negative')
                                 import traceback; traceback.print_exc()
@@ -337,8 +493,13 @@ def open_print_special_dialog():
 
                     with ui.column().classes('w-full glass p-5 rounded-2xl border border-white/10 gap-2'):
                         ui.label('DESCRIPTION').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest')
-                        refs['d'] = ui.label(DESCRIPTIONS.get('sup_tx', ''))\
+                        default_desc = (f'All transactions for {supplier_name}: purchases, returns, and payments with running balance.'
+                                        if per_supplier_key else DESCRIPTIONS.get('sup_tx', ''))
+                        refs['d'] = ui.label(default_desc)\
                             .classes('text-sm text-gray-300 font-medium leading-relaxed')
 
-        select('sup_tx')
+        if per_supplier_key:
+            select(per_supplier_key)
+        else:
+            select('sup_tx')
     dlg.open()

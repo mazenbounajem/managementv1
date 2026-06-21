@@ -3,26 +3,24 @@ from connection import connection
 from datetime import datetime
 import json
 import os
-import asyncio
+
 from modern_page_layout import ModernPageLayout
-from modern_design_system import ModernDesignSystem as MDS
 from modern_ui_components import ModernCard, ModernButton
 
-def business_track_content(standalone=False):
-    """Content method for Business Track that can be used in tabs or standalone"""
+
+def business_track_content(standalone: bool = False):
+    """Content method for Business Track that can be used in tabs or standalone."""
     if standalone:
         with ModernPageLayout("Business Track", standalone=standalone):
             BusinessTrackUI()
     else:
         BusinessTrackUI()
 
+
 @ui.page('/business-track')
 def business_track_page():
     business_track_content(standalone=True)
 
-import json
-import os
-from datetime import datetime
 
 class BusinessTrackUI:
     def __init__(self):
@@ -31,31 +29,25 @@ class BusinessTrackUI:
         self.sales_accounts = {}
         self.mapping = self.load_settings()
         self.ledger_summary = {}
-        
+
         self.load_accounts()
         self.create_ui()
         self.refresh_data()
 
     def load_accounts(self):
-        """Fetch potential ledger accounts directly from Ledger table based on account prefix.
-
-        Notes:
-        - Sales: include 7% ledger accounts.
-        - Purchase: include 6% ledger accounts.
-        - Cash/GL (e.g. 5300): include 5% ledger accounts so Business Track can map them too.
-        """
-        # Fetch Sales accounts: all accounts starting with 7 (Revenue)
+        """Fetch potential ledger accounts directly from Ledger table based on account prefix."""
+        # Sales: all accounts starting with 7 (Revenue)
         sales_data = []
         sql_sales = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '7%' ORDER BY AccountNumber"
         connection.contogetrows(sql_sales, sales_data)
         self.sales_accounts = {str(row[0]): f"{row[0]} - {row[1]}" for row in sales_data}
 
-        # Fetch Purchase accounts: all accounts starting with 6 (Expenses)
+        # Purchase: all accounts starting with 6 (Expenses)
         purchase_data = []
         sql_purchase = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '6%' ORDER BY AccountNumber"
         connection.contogetrows(sql_purchase, purchase_data)
 
-        # Fetch Cash/GL accounts: all accounts starting with 5 (e.g. 5300)
+        # Cash/GL: all accounts starting with 5 (e.g. 5300)
         cash_gl_data = []
         sql_cash_gl = "SELECT AccountNumber, Name_en FROM Ledger WHERE AccountNumber LIKE '5%' ORDER BY AccountNumber"
         connection.contogetrows(sql_cash_gl, cash_gl_data)
@@ -69,9 +61,9 @@ class BusinessTrackUI:
             try:
                 with open(self.settings_file, 'r') as f:
                     return json.load(f)
-            except:
+            except Exception:
                 pass
-        
+
         # Default empty mapping
         return {
             'sales': [['' for _ in range(2)] for _ in range(12)],
@@ -87,15 +79,22 @@ class BusinessTrackUI:
     def create_ui(self):
         with ui.column().classes('w-full gap-6 animate-fade-in'):
             # Header
-            with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10'):
+            with ui.row().classes(
+                'w-full justify-between items-center bg-white/5 p-4 rounded-3xl glass border border-white/10'
+            ):
                 with ui.column().classes('gap-1'):
-                    ui.label('Financial Analytics').classes('text-xs font-black uppercase tracking-[0.2em] text-purple-400')
-                    ui.label('Business Track').classes('text-3xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                
+                    ui.label('Financial Analytics').classes(
+                        'text-xs font-black uppercase tracking-[0.2em] text-purple-400'
+                    )
+                    ui.label('Business Track').classes('text-3xl font-black text-white').style(
+                        'font-family: "Outfit", sans-serif;'
+                    )
+
                 with ui.row().classes('items-center gap-4'):
                     ModernButton('VAT Settings', icon='percent', on_click=self.open_vat_settings, variant='outline').classes('px-4')
                     ModernButton('Save Mapping', icon='save', on_click=self.save_settings).classes('px-6')
                     ModernButton('Refresh', icon='refresh', on_click=self.refresh_data, variant='outline').classes('px-4')
+
                     with ui.tabs().classes('text-white') as self.tabs:
                         self.sales_tab = ui.tab('Sales')
                         self.purchase_tab = ui.tab('Purchase')
@@ -103,47 +102,62 @@ class BusinessTrackUI:
             with ui.tab_panels(self.tabs, value=self.sales_tab).classes('w-full bg-transparent'):
                 with ui.tab_panel(self.sales_tab).classes('p-0'):
                     self.sales_container = ui.column().classes('w-full')
-                
+
                 with ui.tab_panel(self.purchase_tab).classes('p-0'):
                     self.purchase_container = ui.column().classes('w-full')
 
     def open_vat_settings(self):
-        with ui.dialog() as d, ui.card().classes('w-[500px] p-8 rounded-3xl glass border border-white/10').style('background: rgba(15, 15, 25, 0.85); backdrop-filter: blur(20px);'):
+        with ui.dialog() as d, ui.card().classes(
+            'w-[500px] p-8 rounded-3xl glass border border-white/10'
+        ).style('background: rgba(15, 15, 25, 0.85); backdrop-filter: blur(20px);'):
             ui.label('VAT Configuration').classes('text-2xl font-black text-white mb-6')
-            
-            # Current VAT
+
             vat_history = []
-            connection.contogetrows("SELECT id, vat_percentage, effective_date FROM vat_settings ORDER BY effective_date DESC", vat_history)
-            
+            connection.contogetrows(
+                "SELECT id, vat_percentage, effective_date FROM vat_settings ORDER BY effective_date DESC",
+                vat_history
+            )
+
             with ui.column().classes('w-full gap-4'):
-                new_vat = ui.number('New VAT Percentage (%)', value=vat_history[0][1] if vat_history else 11.0).props('outlined dark color=purple stack-label').classes('w-full text-white')
-                new_date = ui.input('Effective Date').props('type=date outlined dark color=purple stack-label').classes('w-full text-white').set_value(datetime.now().strftime('%Y-%m-%d'))
-                
+                new_vat = ui.number(
+                    'New VAT Percentage (%)',
+                    value=vat_history[0][1] if vat_history else 11.0
+                ).props('outlined dark color=purple stack-label').classes('w-full text-white')
+
+                new_date = ui.input('Effective Date').props(
+                    'type=date outlined dark color=purple stack-label'
+                ).classes('w-full text-white').set_value(datetime.now().strftime('%Y-%m-%d'))
+
                 def save_vat():
                     sql = "INSERT INTO vat_settings (vat_percentage, effective_date) VALUES (?, ?)"
                     connection.insertingtodatabase(sql, (new_vat.value, new_date.value))
                     ui.notify('VAT settings updated', color='green')
                     d.close()
-                
+
                 ModernButton('Add VAT Record', icon='add', on_click=save_vat).classes('w-full mt-4')
-                
-                ui.label('VAT History').classes('text-[10px] font-black text-purple-400 mt-6 uppercase tracking-widest pl-2')
+
+                ui.label('VAT History').classes(
+                    'text-[10px] font-black text-purple-400 mt-6 uppercase tracking-widest pl-2'
+                )
+
                 with ui.column().classes('w-full max-h-40 overflow-y-auto gap-2 pr-2 custom-scrollbar'):
                     if vat_history:
                         for row in vat_history:
-                            with ui.row().classes('w-full justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10'):
+                            with ui.row().classes(
+                                'w-full justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10'
+                            ):
                                 ui.label(f"{row[1]}%").classes('font-black text-white')
                                 ds = str(row[2])[:10]
                                 ui.label(ds).classes('text-xs text-gray-400 font-mono')
                     else:
                         ui.label('No history found').classes('text-gray-500 text-xs italic pl-2')
-            
+
             with ui.row().classes('w-full justify-end mt-8'):
                 ui.button('Close', on_click=d.close).props('flat text-color=white').classes('rounded-xl hover:bg-white/5')
+
         d.open()
 
     def refresh_data(self):
-        # Fetch all sums for accounts in mapping
         all_accounts = []
         for tab in ['sales', 'purchase']:
             for row in self.mapping[tab]:
@@ -151,24 +165,24 @@ class BusinessTrackUI:
                     if acc:
                         all_accounts.append(str(acc).strip())
 
-        self.ledger_summary = {'sales': [[0.0, 0.0] for _ in range(12)], 'purchase': [[0.0, 0.0] for _ in range(12)]}
+        self.ledger_summary = {
+            'sales': [[0.0, 0.0] for _ in range(12)],
+            'purchase': [[0.0, 0.0] for _ in range(12)]
+        }
 
         if not all_accounts:
             self.sales_container.clear()
-            with self.sales_container: self.create_grid_view('sales')
+            with self.sales_container:
+                self.create_grid_view('sales')
+
             self.purchase_container.clear()
-            with self.purchase_container: self.create_grid_view('purchase')
+            with self.purchase_container:
+                self.create_grid_view('purchase')
             return
 
-        # Normalize mapping:
-        # - If mapping contains a dot => treat as exact auxiliary.number (e.g., 44270.1)
-        # - If mapping does not contain a dot => treat as:
-        #     * exact ledger code (e.g., 7111, 6011, 7090, 5300)
-        #     * OR a base auxiliary code meaning ALL auxiliary.number LIKE base+'.%'
         exact_aux_codes = sorted({a for a in all_accounts if '.' in a})
         base_aux_codes = sorted({a for a in all_accounts if '.' not in a})
 
-        # Precompute sums keyed by "mapping key" (the same string we store in mapping)
         acc_sums = {}
 
         # 1) Exact auxiliary.number sums (e.g. 44270.1)
@@ -189,9 +203,6 @@ class BusinessTrackUI:
                 acc_sums[str(row[0])] = float(row[1] or 0.0)
 
         # 2) Base auxiliary code sums (e.g. 5300 => sum all auxiliary.number LIKE '5300.%')
-        # Heuristic to avoid double-counting:
-        # - For cash/gl series (codes starting with '53'), take from auxiliary base only.
-        # - For other no-dot codes (e.g., 6xxx / 7xxx totals), take from ledger postings only.
         base_aux_codes_for_cash = sorted([c for c in base_aux_codes if str(c).startswith('53')])
 
         if base_aux_codes_for_cash:
@@ -210,7 +221,6 @@ class BusinessTrackUI:
                     acc_sums[base_code] = float(data[0][1] or 0.0)
 
         # 3) Exact ledger code sums (e.g. 7111, 6011, 6019, 7090)
-        # Only for codes that are NOT cash/gl series (to reduce double counting).
         ledger_codes_for_non_cash = sorted([c for c in base_aux_codes if not str(c).startswith('53')])
 
         if ledger_codes_for_non_cash:
@@ -235,7 +245,7 @@ class BusinessTrackUI:
                     if not acc:
                         continue
                     acc = str(acc).strip()
-                    # For purchase, negate the balance (we want net debit effect)
+
                     val = float(acc_sums.get(acc, 0.0))
                     if tab == 'purchase':
                         val = -val
@@ -256,36 +266,34 @@ class BusinessTrackUI:
             ("LOCAL SALES" if is_sales else "LOCAL PURCHASE", "Discount / Invoice", "money_off"),
             ("LOCAL SALES" if is_sales else "LOCAL PURCHASE", "Discount / Product", "local_offer"),
             ("LOCAL SALES" if is_sales else "LOCAL PURCHASE", "Charges", "add_business"),
-            
+
             ("RETURN" if is_sales else "RETURN", "Value", "settings_backup_restore"),
             ("RETURN" if is_sales else "RETURN", "Discount / Invoice", "money_off"),
             ("RETURN" if is_sales else "RETURN", "Discount / Product", "local_offer"),
             ("RETURN" if is_sales else "RETURN", "Charges", "add_business"),
-            
+
             ("EXPORT" if is_sales else "IMPORT", "Value", "public"),
             ("EXPORT" if is_sales else "IMPORT", "Discount / Invoice", "money_off"),
             ("EXPORT" if is_sales else "IMPORT", "Discount / Product", "local_offer"),
             ("EXPORT" if is_sales else "IMPORT", "Charges", "add_business"),
         ]
-        
+
         col1_label = "Local VAT Sales" if is_sales else "With VAT"
         col2_label = "Local Non-VAT Sales" if is_sales else "Without VAT"
-        
+
         data = self.ledger_summary.get(tab_type, [[0.0, 0.0] for _ in range(12)])
 
         with ModernCard(glass=True).classes('w-full p-8'):
             with ui.column().classes('w-full gap-0 border border-white/10 rounded-2xl overflow-hidden'):
-                # Table Header
                 with ui.row().classes('w-full bg-white/10 p-4 border-b border-white/10 items-center justify-between'):
                     ui.label('Metric / Indicator').classes('w-[25%] text-xs font-black uppercase tracking-widest text-purple-400')
                     ui.label(col1_label).classes('flex-1 text-center text-xs font-black uppercase tracking-widest text-white')
                     ui.label(col2_label).classes('flex-1 text-center text-xs font-black uppercase tracking-widest text-white')
 
-                # Table Rows
                 for i, (group, label, icon) in enumerate(row_labels):
                     bg_class = 'bg-white/5' if i % 2 == 0 else 'bg-transparent'
-                    border_class = 'border-b-2 border-purple-500/30' if (i+1) % 4 == 0 else 'border-b border-white/5'
-                    
+                    border_class = 'border-b-2 border-purple-500/30' if (i + 1) % 4 == 0 else 'border-b border-white/5'
+
                     with ui.row().classes(f'w-full p-4 items-center {bg_class} {border_class} hover:bg-white/10 transition-colors'):
                         with ui.row().classes('w-[25%] items-center gap-4'):
                             with ui.element('div').classes('w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center'):
@@ -295,22 +303,39 @@ class BusinessTrackUI:
                                     ui.label(group).classes('text-[8px] font-black text-purple-400 uppercase tracking-tighter')
                                 ui.label(label).classes('text-sm font-bold text-white')
 
-                        # Build Columns with Dropdowns and Values
                         for c in range(2):
                             with ui.column().classes('flex-1 items-center gap-1'):
-                                # Dropdown to select account
                                 def on_change(e, r=i, col=c, t=tab_type):
                                     self.mapping[t][r][col] = e.value
-                                
+
+                                options = dict(self.sales_accounts if is_sales else self.purchase_accounts)
+
+                                # Always allow empty selection from saved mapping.
+                                if '' not in options:
+                                    options[''] = ''
+
+                                current_value = self.mapping[tab_type][i][c]
+                                if current_value is None:
+                                    current_value = ''
+                                current_value = str(current_value).strip()
+
+                                safe_value = current_value if current_value in options else ''
                                 ui.select(
-                                    self.sales_accounts if is_sales else self.purchase_accounts, 
-                                    value=self.mapping[tab_type][i][c],
+                                    options,
+                                    value=safe_value,
                                     on_change=on_change,
                                     with_input=True,
                                     label='Select Ledger'
-                                ).props('dense outlined stand-alone dark hide-bottom-space').classes('w-full max-w-[200px] text-xs transition-all opacity-40 hover:opacity-100')
-                                
+                                ).props('dense outlined stand-alone dark hide-bottom-space').classes(
+                                    'w-full max-w-[200px] text-xs transition-all opacity-40 hover:opacity-100'
+                                )
+
                                 val = data[i][c]
-                                ui.label(f'{val:,.2f}').classes(f'text-lg font-black {"text-green-400" if val >= 0 else "text-red-400"}').style('font-family: "Outfit", sans-serif;')
+                                ui.label(f'{val:,.2f}').classes(
+                                    f'text-lg font-black { "text-green-400" if val >= 0 else "text-red-400"}'
+                                ).style('font-family: "Outfit", sans-serif;')
+                # end for c
+            # end for i
+        # end container
 
 

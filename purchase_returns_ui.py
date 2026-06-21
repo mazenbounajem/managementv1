@@ -14,7 +14,6 @@ from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from loading_indicator import loading_indicator
 from connection_cashdrawer import connection_cashdrawer
-from color_palette import ColorPalette
 from modern_design_system import ModernDesignSystem as MDS
 from purchase_returns_service import PurchaseReturnService
 from modern_ui_components import ModernActionBar
@@ -51,6 +50,7 @@ class PurchaseReturnsUI:
         self.currency_exchange_rates = {}
         self.currency_symbols = {}
         self.default_currency_id = 1
+        self.ll_currency_id = None
         self.load_currencies()
         self.previous_currency_id = self.default_currency_id
 
@@ -88,12 +88,19 @@ class PurchaseReturnsUI:
             connection.contogetrows("SELECT id, currency_name, symbol, exchange_rate FROM currencies", self.currency_rows)
             self.currency_exchange_rates = {row[0]: float(row[3]) for row in self.currency_rows}
             self.currency_symbols = {row[2]: row[0] for row in self.currency_rows}
-            # Set default to L.L. if available
+            # Find L.L. currency by symbol or highest exchange rate
+            self.ll_currency_id = None
             for row in self.currency_rows:
-                if row[2] == 'L.L.':
+                sym = row[2].strip()
+                if sym in ('L.L.', 'LL', 'LBP', 'ل.ل.'):
+                    self.ll_currency_id = row[0]
                     self.default_currency_id = row[0]
                     break
             else:
+                if self.currency_rows:
+                    max_rate = max(self.currency_rows, key=lambda r: float(r[3]) if r[3] else 0)
+                    if float(max_rate[3]) > 1:
+                        self.ll_currency_id = max_rate[0]
                 self.default_currency_id = self.currency_rows[0][0] if self.currency_rows else 1
         except Exception as e:
             ui.notify(f'Error loading currencies: {e}', color='red')
@@ -176,6 +183,7 @@ class PurchaseReturnsUI:
             self.update_totals()
             
             self.clear_inputs_inputs()
+            self.aggrid.options['rowData'] = self.rows
             self.aggrid.update()
             
         except ValueError as e:
@@ -192,9 +200,10 @@ class PurchaseReturnsUI:
         self.price_input.value = 0.0
     
     def clear_inputs(self):
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         self.purchase_history_aggrid.classes('dimmed')
         self.supplier_input.value = ''
-        self.phone_input.value = ''
         self.reference_input.value = ''
         self.barcode_input.value = ''
         self.product_input.value = ''
@@ -202,12 +211,21 @@ class PurchaseReturnsUI:
         self.discount_input.value = 0
         self.cost_input.value = 0.0
         self.price_input.value = 0.0
+        self.date_input.value = datetime.now().strftime('%Y-%m-%d')
+        self.discount_percent_input.value = 0
+        self.discount_amount_input.value = 0
+        if hasattr(self, 'discount_type_toggle'):
+            self.discount_type_toggle.value = 'Amount'
+            self.discount_percent_input.visible = False
+            self.discount_amount_input.visible = True
         
         self.rows.clear()
         self.aggrid.options['rowData'] = self.rows
         self.aggrid.update()
 
         self.total_amount = 0
+        if hasattr(self, 'll_total_input'):
+            self.ll_total_input.value = 0
         self.update_totals()
         
         self.current_purchase_id = None
@@ -259,16 +277,20 @@ class PurchaseReturnsUI:
             ui.notify(f"Error opening edit dialog: {str(ex)}")
 
     def open_product_dialog(self):
-        with ui.dialog() as dialog, ui.card().classes('w-full max-w-6xl glass p-6 border border-white/10').style('background: rgba(15, 15, 25, 0.8); backdrop-filter: blur(20px); border-radius: 2rem;'):
+        with ui.dialog() as dialog, ui.card().classes('w-full max-w-6xl glass p-6 border border-white/10').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px); border-radius: 2rem;'):
             ui.label('Product Catalog').classes('text-2xl font-black mb-6 text-white').style('font-family: "Outfit", sans-serif;')
-            
+
             with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-4'):
                 ui.icon('search', size='1.25rem').classes('text-purple-400')
-                search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('flex-1 text-white text-sm').on('keydown.enter', lambda e: self.filter_product_rows(e.sender.value))
-            
+                search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense autocomplete="off"').classes('flex-1 text-white text-sm')\
+                    .on_value_change(lambda e: self.filter_product_rows(e.value))\
+                    .on('keydown.down', lambda: self._product_search_arrow_down(dialog))\
+                    .on('keydown.enter', lambda: self._product_search_enter(dialog))
+                search_input.run_method('focus')
+
             data = []
             connection.contogetrows("SELECT barcode, product_name, stock_quantity, cost_price, price FROM products", data)
-            
+
             self.product_rows = []
             for row in data:
                 self.product_rows.append({
@@ -278,27 +300,140 @@ class PurchaseReturnsUI:
                     'cost_price': row[3],
                     'price': row[4]
                 })
-            
-            columns = [
-                {'headerName': 'Barcode', 'field': 'barcode', 'width': 120},
-                {'headerName': 'Product', 'field': 'product_name', 'flex': 1},
-                {'headerName': 'Stock', 'field': 'stock_quantity', 'width': 100},
-                {'headerName': 'Cost', 'field': 'cost_price', 'width': 100},
-                {'headerName': 'Retail', 'field': 'price', 'width': 100}
-            ]
-            
-            self.product_grid = ui.aggrid({
-                'columnDefs': columns,
-                'rowData': self.product_rows,
-                'rowSelection': 'single',
-                'domLayout': 'normal',
-            }).classes('w-full h-96 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
 
-            self.product_grid.on('cellClicked', lambda e: self.handle_product_grid_click(e, dialog))
+            columns = [
+                {'name': 'barcode', 'label': 'Barcode', 'field': 'barcode', 'align': 'left'},
+                {'name': 'product_name', 'label': 'Product', 'field': 'product_name', 'align': 'left'},
+                {'name': 'stock_quantity', 'label': 'Stock', 'field': 'stock_quantity', 'align': 'center'},
+                {'name': 'cost_price', 'label': 'Cost', 'field': 'cost_price', 'align': 'right'},
+                {'name': 'price', 'label': 'Retail', 'field': 'price', 'align': 'right'}
+            ]
+
+            with ui.element('div').classes('w-full h-96 overflow-hidden flex flex-col'):
+                with ui.element('div').classes('flex-1 overflow-auto min-h-0'):
+                    self.product_grid = ui.table(
+                        columns=columns,
+                        rows=self.product_rows,
+                        row_key='barcode',
+                        selection='single'
+                    ).classes('w-full h-full bg-transparent overflow-hidden').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+
+            # --- Category-style keyboard navigation + highlight (Sales methodology) ---
+            state = {'selected_idx': 0}
+
+            def apply_highlight_js():
+                idx = state['selected_idx']
+                ui.run_javascript(f"""
+                    try {{
+                      const root = document.getElementById('{getattr(self.product_grid, "id", "")}') || document.querySelector('.q-table');
+                      if (!root) return;
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      const target = Math.max(0, Math.min({idx} + 1, rows.length - 1));
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+
+                      const selected = rows[target];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+                    }} catch (e) {{ console.error('Highlight error:', e); }}
+                """)
+
+            def select_and_scroll():
+                if not getattr(self.product_grid, 'rows', None):
+                    return
+                if len(self.product_grid.rows) == 0:
+                    return
+                state['selected_idx'] = max(0, min(state['selected_idx'], len(self.product_grid.rows) - 1))
+                row = self.product_grid.rows[state['selected_idx']]
+                self.product_grid.selected = [row]
+                self.product_grid.update()
+                self.product_grid.run_method('scrollTo', state['selected_idx'])
+                apply_highlight_js()
+
+            def on_click_row(e):
+                # Keep state in sync so Enter always selects the clicked row
+                try:
+                    clicked_row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                    if isinstance(clicked_row, dict) and clicked_row.get('barcode') is not None and self.product_grid.rows:
+                        for i, r in enumerate(self.product_grid.rows):
+                            if r.get('barcode') == clicked_row.get('barcode'):
+                                state['selected_idx'] = i
+                                break
+                        apply_highlight_js()
+                except Exception:
+                    pass
+
+                self.handle_product_grid_click({'args': {'data': e.args[1]}}, dialog)
+
+            self.product_grid.on('rowClick', on_click_row)
+
+            # initial select
+            ui.timer(0.05, select_and_scroll, once=True)
+
+            # Focus + attach keydown listener to table root
+            grid_id = getattr(self.product_grid, 'id', '')
+            ui.run_javascript(f"""
+                window.__product_dialog_active = true;
+                try {{
+                  const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                  if (root) {{
+                    root.tabIndex = 0;
+                    try {{ root.style.outline = 'none'; }} catch(e) {{}}
+                    try {{ root.style.caretColor = 'transparent'; }} catch(e) {{}}
+
+                    root.addEventListener('keydown', (ev) => {{
+                      if (!window.__product_dialog_active) return;
+                      if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp' && ev.key !== 'Enter') return;
+                      ev.preventDefault();
+
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      let cur = parseInt(root.dataset.selIdx || '0', 10);
+                      if (isNaN(cur)) cur = 0;
+
+                      if (ev.key === 'ArrowDown') cur = Math.min(cur + 1, rows.length - 1);
+                      if (ev.key === 'ArrowUp') cur = Math.max(cur - 1, 0);
+                      root.dataset.selIdx = cur;
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+
+                      const selected = rows[cur];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+
+                      if (ev.key === 'Enter') {{
+                        if (selected) {{ selected.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true, view: window }})); }}
+                      }}
+                    }});
+                    root.focus();
+                  }}
+                }} catch (e) {{}}
+            """)
 
             with ui.row().classes('w-full justify-end mt-6'):
-                ui.button('Cancel', on_click=dialog.close).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
+                ui.button(
+                    'Cancel',
+                    on_click=lambda: (ui.run_javascript('window.__product_dialog_active=false;'), dialog.close())
+                ).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
         dialog.open()
+        ui.run_javascript('window.__product_dialog_active = true;')
 
     def open_supplier_dialog(self):
         with ui.dialog() as dialog, ui.card().classes('w-full max-w-4xl glass p-6 border border-white/10').style('background: rgba(15, 15, 25, 0.8); backdrop-filter: blur(20px); border-radius: 2rem;'):
@@ -306,77 +441,327 @@ class PurchaseReturnsUI:
             
             with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-4'):
                 ui.icon('search', size='1.25rem').classes('text-purple-400')
-                search_input = ui.input(placeholder='Search by name or phone...').props('borderless dense').classes('flex-1 text-white text-sm').on('keydown.enter', lambda e: self.filter_supplier_rows(e.sender.value))
+                search_input = ui.input(placeholder='Search by name or phone...').props('borderless dense autocomplete="off"').classes('flex-1 text-white text-sm')\
+                    .on_value_change(lambda e: self.filter_supplier_rows(e.value))\
+                    .on('keydown.down', lambda: self._supplier_search_arrow_down(dialog))\
+                    .on('keydown.enter', lambda: self._supplier_search_enter(dialog))
+                search_input.run_method('focus')
             
             data = []
             connection.contogetrows("SELECT id, name, phone, balance, balance_usd FROM suppliers", data)
             
             self.supplier_rows = []
             for row in data:
-                self.supplier_rows.append({                   'id': row[0],                    'name': row[1],                   'phone': row[2],                   'balance_ll': row[3] or 0,                    'balance_usd': row[4] or 0                })
+                self.supplier_rows.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'phone': row[2],
+                    'balance_ll': row[3] or 0,
+                    'balance_usd': row[4] or 0
+                })
             
-                columns = [ {'headerName': 'ID', 'field': 'id', 'width': 70},                {'headerName': 'Name', 'field': 'name', 'flex': 1},               {'headerName': 'Phone', 'field': 'phone', 'width': 150},              {'headerName': 'Balance LL', 'field': 'balance_ll', 'width': 100},                {'headerName': 'Balance USD', 'field': 'balance_usd', 'width': 110}            ]
+            columns = [
+                {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left'},
+                {'name': 'phone', 'label': 'Phone', 'field': 'phone', 'align': 'left'},
+                {'name': 'balance_ll', 'label': 'Balance LL', 'field': 'balance_ll', 'align': 'right'},
+                {'name': 'balance_usd', 'label': 'Balance USD', 'field': 'balance_usd', 'align': 'right'}
+            ]
             
-            self.supplier_grid = ui.aggrid({
-                'columnDefs': columns,
-                'rowData': self.supplier_rows,
-                'rowSelection': 'single',
-                'domLayout': 'normal',
-            }).classes('w-full h-80 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
+            with ui.element('div').classes('w-full h-80 overflow-hidden flex flex-col'):
+                with ui.element('div').classes('flex-1 overflow-auto min-h-0'):
+                    self.supplier_grid = ui.table(
+                        columns=columns,
+                        rows=self.supplier_rows,
+                        row_key='id',
+                        selection='single'
+                    ).classes('w-full h-full bg-transparent overflow-hidden').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
             
-            self.supplier_grid.on('cellClicked', lambda e: self.handle_supplier_grid_click(e, dialog))
+            state = {'selected_idx': 0}
+            
+            def apply_highlight_js():
+                idx = state['selected_idx']
+                ui.run_javascript(f"""
+                    try {{
+                      const root = document.getElementById('{getattr(self.supplier_grid, "id", "")}') || document.querySelector('.q-table');
+                      if (!root) return;
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      const target = Math.max(0, Math.min({idx} + 1, rows.length - 1));
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+
+                      const selected = rows[target];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+                    }} catch (e) {{ console.error('Highlight error:', e); }}
+                """)
+            
+            def select_and_scroll():
+                if not getattr(self.supplier_grid, 'rows', None):
+                    return
+                if len(self.supplier_grid.rows) == 0:
+                    return
+                state['selected_idx'] = max(0, min(state['selected_idx'], len(self.supplier_grid.rows) - 1))
+                row = self.supplier_grid.rows[state['selected_idx']]
+                self.supplier_grid.selected = [row]
+                self.supplier_grid.update()
+                self.supplier_grid.run_method('scrollTo', state['selected_idx'])
+                apply_highlight_js()
+            
+            def on_click_row(e):
+                try:
+                    clicked_row = None
+                    if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) > 1:
+                        clicked_row = e.args[1]
+                    if isinstance(clicked_row, dict) and clicked_row.get('id') is not None and self.supplier_grid.rows:
+                        for i, r in enumerate(self.supplier_grid.rows):
+                            if r.get('id') == clicked_row.get('id'):
+                                state['selected_idx'] = i
+                                break
+                        apply_highlight_js()
+                except Exception:
+                    pass
+                
+                try:
+                    self.handle_supplier_grid_click({'args': {'data': e.args[1]}}, dialog)
+                except Exception:
+                    pass
+            
+            self.supplier_grid.on('rowClick', on_click_row)
+            
+            ui.timer(0.05, select_and_scroll, once=True)
+            
+            grid_id = getattr(self.supplier_grid, 'id', '')
+            ui.run_javascript(f"""
+                window.__supplier_dialog_active = true;
+                try {{
+                  const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                  if (root) {{
+                    root.tabIndex = 0;
+                    try {{ root.style.outline = 'none'; }} catch(e) {{}}
+                    try {{ root.style.caretColor = 'transparent'; }} catch(e) {{}}
+                    root.dataset.selIdx = root.dataset.selIdx || '0';
+                    root.addEventListener('keydown', (ev) => {{
+                      if (!window.__supplier_dialog_active) return;
+                      if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp' && ev.key !== 'Enter') return;
+                      ev.preventDefault();
+
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      let cur = parseInt(root.dataset.selIdx || '0', 10);
+                      if (isNaN(cur)) cur = 0;
+
+                      if (ev.key === 'ArrowDown') cur = Math.min(cur + 1, rows.length - 1);
+                      if (ev.key === 'ArrowUp') cur = Math.max(cur - 1, 0);
+                      root.dataset.selIdx = cur;
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+                      const selected = rows[cur];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+
+                      if (ev.key === 'Enter') {{
+                        if (selected) {{ selected.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true, view: window }})); }}
+                      }}
+                    }});
+                    root.focus();
+                  }}
+                }} catch (e) {{}}
+            """)
             
             with ui.row().classes('w-full justify-end mt-6'):
-                ui.button('Cancel', on_click=dialog.close).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
+                ui.button(
+                    'Cancel',
+                    on_click=lambda: (
+                        ui.run_javascript('window.__supplier_dialog_active=false;'),
+                        dialog.close()
+                    )
+                ).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
         dialog.open()
+        ui.run_javascript('window.__supplier_dialog_active = true; console.log("[supplier-table] dialog open");')
 
     def filter_supplier_rows(self, search_text):
         if not search_text:
             filtered_rows = self.supplier_rows
         else:
             filtered_rows = [row for row in self.supplier_rows if any(search_text.lower() in str(value).lower() for value in row.values())]
-        self.supplier_grid.options['rowData'] = filtered_rows
+        self.supplier_grid.rows = filtered_rows
+        if hasattr(self.supplier_grid, 'selected'):
+            self.supplier_grid.selected = []
         self.supplier_grid.update()
 
     def filter_product_rows(self, search_text):
         if not search_text:
             filtered_rows = self.product_rows
         else:
-            filtered_rows = [row for row in self.product_rows if any(search_text.lower() in str(value).lower() for value in row.values())]
-        self.product_grid.options['rowData'] = filtered_rows
+            filtered_rows = [
+                row for row in self.product_rows
+                if any(search_text.lower() in str(value).lower() for value in row.values())
+            ]
+        self.product_grid.rows = filtered_rows
+        if hasattr(self.product_grid, 'selected'):
+            self.product_grid.selected = []
         self.product_grid.update()
+
+    def _product_search_arrow_down(self, dialog):
+        if not self.product_grid or not self.product_grid.rows:
+            return
+        row = self.product_grid.rows[0]
+        self.product_grid.selected = [row]
+        self.product_grid.update()
+        self.product_grid.run_method('scrollTo', 0)
+        grid_id = getattr(self.product_grid, 'id', '')
+        ui.run_javascript(f"""
+            try {{
+                const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                if (!root) return;
+                root.focus();
+                const rows = root.querySelectorAll('tbody tr');
+                if (!rows || rows.length === 0) return;
+                rows.forEach(el => {{
+                    el.style.backgroundColor = '';
+                    el.style.color = '';
+                    el.classList.remove('selected-highlight');
+                }});
+                const first = rows[0];
+                if (first) {{
+                    first.style.backgroundColor = '#facc15';
+                    first.style.color = 'black';
+                    first.classList.add('selected-highlight');
+                }}
+                root.dataset.selIdx = '0';
+            }} catch(e) {{}}
+        """)
+
+    def _product_search_enter(self, dialog):
+        if not self.product_grid or not self.product_grid.rows:
+            return
+        self.handle_product_grid_click(self.product_grid.rows[0], dialog)
+
+    def _supplier_search_arrow_down(self, dialog):
+        if not self.supplier_grid or not self.supplier_grid.rows:
+            return
+        row = self.supplier_grid.rows[0]
+        self.supplier_grid.selected = [row]
+        self.supplier_grid.update()
+        self.supplier_grid.run_method('scrollTo', 0)
+        grid_id = getattr(self.supplier_grid, 'id', '')
+        ui.run_javascript(f"""
+            try {{
+                const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                if (!root) return;
+                root.focus();
+                const rows = root.querySelectorAll('tbody tr');
+                if (!rows || rows.length === 0) return;
+                rows.forEach(el => {{
+                    el.style.backgroundColor = '';
+                    el.style.color = '';
+                    el.classList.remove('selected-highlight');
+                }});
+                const first = rows[0];
+                if (first) {{
+                    first.style.backgroundColor = '#facc15';
+                    first.style.color = 'black';
+                    first.classList.add('selected-highlight');
+                }}
+                root.dataset.selIdx = '0';
+            }} catch(e) {{}}
+        """)
+
+    def _supplier_search_enter(self, dialog):
+        if not self.supplier_grid or not self.supplier_grid.rows:
+            return
+        self.handle_supplier_grid_click(self.supplier_grid.rows[0], dialog)
 
     def handle_supplier_grid_click(self, e, dialog):
         try:
-            row = e.args['data']
-            self.supplier_input.value = row['name']
-            self.phone_input.value = row['phone']
+            row = None
+            if isinstance(e, dict) and 'args' in e and isinstance(e['args'], dict):
+                row = e['args'].get('data')
+            elif hasattr(e, 'args'):
+                args_obj = getattr(e, 'args', None)
+                if isinstance(args_obj, dict):
+                    row = args_obj.get('data') or args_obj.get('row')
+            
+            if not isinstance(row, dict):
+                raise TypeError(f"Unexpected supplier selection payload: {type(e)}")
+            
+            self.supplier_input.value = row.get('name', '')
             dialog.close()
-            ui.notify(f"Selected: {row['name']}")
+            ui.notify(f"Selected: {row.get('name', '')}")
+            self.barcode_input.run_method('focus')
         except Exception as ex:
             ui.notify(f"Selection error: {ex}")
             dialog.close()
 
     def handle_product_grid_click(self, e, dialog):
         try:
-            row = e.args['data']
-            self.product_input.value = row['product_name']
-            self.barcode_input.value = row['barcode']
+            row = None
+
+            if isinstance(e, dict):
+                if 'args' in e and isinstance(e.get('args'), dict):
+                    row = e['args'].get('data') or e['args'].get('row') or e['args'].get('item')
+                if row is None and all(k in e for k in ('product_name', 'barcode')):
+                    row = e
+
+            if row is None:
+                args_obj = getattr(e, 'args', None)
+                if isinstance(args_obj, dict):
+                    row = args_obj.get('data') or args_obj.get('row')
+
+            if row is None:
+                data_obj = getattr(e, 'data', None)
+                if isinstance(data_obj, dict):
+                    row = data_obj
+
+            if not isinstance(row, dict):
+                raise TypeError(f"Unexpected selection payload type={type(e)}")
+
+            self.product_input.value = row.get('product_name', '')
+            self.barcode_input.value = row.get('barcode', '')
             self.discount_input.value = 0
-            self.cost_input.value = row['cost_price']
-            self.price_input.value = row['price']
+            self.cost_input.value = row.get('cost_price', 0)
+            self.price_input.value = row.get('price', 0)
 
             selected_currency_id = self.currency_select.value
             exchange_rate = float(self.currency_exchange_rates.get(selected_currency_id, 1.0))
             
             self.cost_input.value = float(self.cost_input.value) * exchange_rate
             self.price_input.value = float(self.price_input.value) * exchange_rate
-            
+
             dialog.close()
-            ui.notify(f"Added product: {row['product_name']}")
+
+            # Continue keyboard flow: Qty -> select value
+            try:
+                self.quantity_input.run_method('focus')
+                ui.timer(0.01, lambda: self.quantity_input.run_method('select'), once=True)
+            except Exception:
+                pass
+
+            ui.notify(f"Added product: {self.product_input.value}")
         except Exception as ex:
             ui.notify(f"Selection error: {ex}")
-            dialog.close()
+            try:
+                dialog.close()
+            except Exception:
+                pass
 
     def open_edit_dialog(self, row_data):
         with ui.dialog() as dialog, ui.card().classes('glass p-8 border border-white/10').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px); border-radius: 2rem; width: 420px;'):
@@ -423,7 +808,6 @@ class PurchaseReturnsUI:
             
             self.rows[row_index]['vat_amount'] = vat_amount
             self.rows[row_index]['subtotal'] = base_sub # HT
-            self.rows[row_index]['profit'] = float(new_price) - float(new_cost)
             
             self.aggrid.options['rowData'] = self.rows
             self.aggrid.update()
@@ -456,34 +840,93 @@ class PurchaseReturnsUI:
                 self.show_history_btn.visible = not self.history_panel.visible
             ui.notify('History ' + ('hidden' if not self.history_panel.visible else 'shown'), color='info', duration=1)
 
-    def update_totals(self):
-        total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
-        subtotal = sum(row['subtotal'] for row in self.rows)
-        total_quantity = sum(row['quantity'] for row in self.rows)
+    def update_totals(self, e=None):
+        if getattr(self, '_updating_totals', False): return
+        self._updating_totals = True
+        try:
+            total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
+            subtotal = sum(row['subtotal'] for row in self.rows)
+            total_quantity = sum(row['quantity'] for row in self.rows)
 
-        self.summary_label.text = f"{len(self.rows)} items"
-        self.quantity_total_label.text = f"Total Qty: {total_quantity}"
+            self.summary_label.text = f"{len(self.rows)} items"
+            self.quantity_total_label.text = f"Total Qty: {total_quantity}"
 
-        discount_amount = float(self.discount_amount_input.value or 0)
-        discount_percent = float(self.discount_percent_input.value or 0)
-        
-        total_ht_after_discount = subtotal * (1 - discount_percent / 100) - discount_amount
-        # Re-verify VAT after global discount? Standard is HT + VAT.
-        # But if total_vat was sum of items, we should keep it or scale it.
-        # Let's keep it as sum of items for now.
-        final_total = total_ht_after_discount + total_vat
+            is_pct_mode = hasattr(self, 'discount_type_toggle') and self.discount_type_toggle.value == '%'
+            if is_pct_mode:
+                pct = float(self.discount_percent_input.value or 0)
+                discount_amount = round(subtotal * pct / 100, 2)
+                self.discount_amount_input.value = discount_amount
+            else:
+                discount_amount = float(self.discount_amount_input.value or 0)
+                pct = round((discount_amount / subtotal * 100) if subtotal > 0 else 0, 2)
+                self.discount_percent_input.value = pct
 
-        selected_currency_id = self.currency_select.value
-        currency_symbol = '$'
-        for row in self.currency_rows:
-            if row[0] == selected_currency_id:
-                currency_symbol = row[2]
-                break
+            final_total = subtotal - discount_amount + total_vat
+            self.total_amount = final_total
 
-        self.subtotal_label.text = f"Total HT: {currency_symbol}{total_ht_after_discount:.2f}"
-        self.vat_label.text = f"VAT: {currency_symbol}{total_vat:.2f}"
-        self.total_label.text = f"Total TTC: {currency_symbol}{final_total:.2f}"
-        self.total_amount = final_total
+            selected_currency_id = self.currency_select.value
+            currency_symbol = '$'
+            for row in self.currency_rows:
+                if row[0] == selected_currency_id:
+                    currency_symbol = row[2]
+                    break
+            if hasattr(self, 'ttc_currency_label'):
+                self.ttc_currency_label.text = currency_symbol
+
+            self.subtotal_label.text = f"Total HT: {currency_symbol}{subtotal:.2f}"
+            self.vat_label.text = f"VAT: {currency_symbol}{total_vat:.2f}"
+            if hasattr(self, 'total_input'):
+                self.total_input.value = round(final_total, 2)
+            
+            if hasattr(self, 'll_total_input') and self.ll_currency_id is not None:
+                ll_rate = self.currency_exchange_rates.get(self.ll_currency_id, 1.0)
+                selected_rate = self.currency_exchange_rates.get(selected_currency_id, 1.0)
+                ll_amount = final_total * (ll_rate / selected_rate)
+                self.ll_total_input.value = round(ll_amount, 2)
+        finally:
+            self._updating_totals = False
+
+    def total_input_changed(self, e):
+        if getattr(self, '_updating_totals', False): return
+        self._updating_totals = True
+        try:
+            subtotal = sum(row['subtotal'] for row in self.rows)
+            total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
+            target_val = float(e.value or 0)
+            discount_amt = max(0.0, subtotal + total_vat - target_val)
+            discount_pct = round((discount_amt / subtotal * 100) if subtotal > 0 else 0, 2)
+            self.discount_amount_input.value = round(discount_amt, 2)
+            self.discount_percent_input.value = discount_pct
+            self.total_amount = target_val
+        finally:
+            self._updating_totals = False
+
+    def ll_total_input_changed(self, e):
+        if getattr(self, '_updating_totals', False): return
+        if self.ll_currency_id is None:
+            return
+        try:
+            ll_val = float(e.value or 0)
+            ll_rate = self.currency_exchange_rates.get(self.ll_currency_id, 1.0)
+            selected_rate = self.currency_exchange_rates.get(self.currency_select.value, 1.0)
+            target_total = ll_val * (selected_rate / ll_rate)
+            self.total_input.value = round(target_total, 2)
+            subtotal = sum(row['subtotal'] for row in self.rows)
+            total_vat = sum(row.get('vat_amount', 0) for row in self.rows)
+            discount_amt = max(0.0, subtotal + total_vat - target_total)
+            discount_pct = round((discount_amt / subtotal * 100) if subtotal > 0 else 0, 2)
+            self.discount_amount_input.value = round(discount_amt, 2)
+            self.discount_percent_input.value = discount_pct
+            self.total_amount = round(target_total, 2)
+            self.update_totals()
+        except Exception:
+            pass
+
+    def _on_discount_mode_change(self, e):
+        is_pct = e.value == '%'
+        self.discount_amount_input.visible = not is_pct
+        self.discount_percent_input.visible = is_pct
+        self.update_totals()
 
     def get_max_purchase_id(self):
         return self.service.get_max_purchase_id()
@@ -506,6 +949,8 @@ class PurchaseReturnsUI:
         dialog.close()
         self.purchase_history_aggrid.classes(remove='dimmed')
         ui.notify('Undo completed successfully')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
 
     def delete_purchase(self):
         try:
@@ -583,6 +1028,12 @@ class PurchaseReturnsUI:
                     return
 
                 supplier_id = self.service.get_supplier_id(supplier_name)
+                import accounting_helpers
+                accounting_helpers.ensure_supplier_auxiliary(
+                    supplier_id,
+                    supplier_name=supplier_name,
+                    fallback_account_number='4011'
+                )
                 selected_currency_id = self.currency_select.value
                 
                 payment_method = self.payment_method.value
@@ -628,7 +1079,6 @@ class PurchaseReturnsUI:
             details = self.service.get_purchase_details(purchase_id)
             self.current_purchase_id = purchase_id
             self.supplier_input.value = details['supplier_name']
-            self.phone_input.value = details['phone']
             self.date_input.value = details['purchase_date']
             self.reference_input.value = details['invoice_number']
             self.currency_select.value = details['currency_id']
@@ -642,43 +1092,19 @@ class PurchaseReturnsUI:
             self.rows = details['rows']
             self.aggrid.options['rowData'] = self.rows
             self.aggrid.update()
+
+            saved_discount = float(details.get('discount_amount', 0))
+            self.discount_percent_input.value = 0
+            self.discount_amount_input.value = round(saved_discount, 2)
+            if hasattr(self, 'discount_type_toggle'):
+                self.discount_type_toggle.value = 'Amount'
+                self.discount_percent_input.visible = False
+                self.discount_amount_input.visible = True
+
             self.update_totals()
             ui.notify(f'Loaded Purchase ID: {purchase_id}')
         except Exception as e:
             ui.notify(f'Error loading purchase details: {e}')
-
-    def show_profit_dialog(self):
-        """Show margin analysis (profit based on retail price)"""
-        try:
-            total_cost = sum(row['subtotal'] for row in self.rows)
-            total_retail = sum(row['quantity'] * row['price'] for row in self.rows)
-            profit = total_retail - total_cost
-            margin = (profit / total_retail * 100) if total_retail > 0 else 0
-
-            with ui.dialog() as dialog, ui.card().classes('glass p-8 border border-white/10').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px); border-radius: 2rem; width: 380px;'):
-                with ui.row().classes('w-full items-center justify-between mb-4'):
-                    ui.label('Margin Analysis').classes('text-2xl font-black text-white').style('font-family: "Outfit", sans-serif;')
-                    ui.icon('trending_up', size='1.5rem').classes('text-green-400 opacity-80')
-                
-                with ui.column().classes('w-full gap-5'):
-                    with ui.row().classes('w-full justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10 shadow-inner'):
-                        with ui.column().classes('gap-0'):
-                            ui.label('Potential Profit').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                            ui.label(f'${profit:,.2f}').classes('text-2xl font-black text-green-400')
-                        
-                        with ui.column().classes('gap-0 items-end'):
-                            ui.label('Margin').classes('text-[9px] text-gray-400 font-bold uppercase tracking-tighter')
-                            ui.label(f'{margin:.2f}%').classes('text-xl font-black text-blue-400')
-
-                    with ui.row().classes('w-full justify-between items-center px-4'):
-                        ui.label('Total Cost').classes('text-[10px] text-gray-500 font-bold uppercase tracking-widest')
-                        ui.label(f'${total_cost:,.2f}').classes('text-xs font-black text-white px-2 py-1 bg-white/10 rounded-lg')
-
-                with ui.row().classes('w-full justify-end mt-8'):
-                    ui.button('Dismiss', on_click=dialog.close).props('flat text-color=grey-5').classes('px-6 rounded-xl hover:bg-white/5 font-black text-xs uppercase tracking-widest')
-            dialog.open()
-        except Exception as e:
-            ui.notify(f'Error: {e}')
 
     def view_purchase_transaction(self):
         """Open accounting transactions dialog for the current purchase."""
@@ -759,16 +1185,8 @@ class PurchaseReturnsUI:
             doc.build(elements)
             pdf_bytes = buffer.getvalue()
             buffer.close()
-            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-            pdf_data_url = f"data:application/pdf;base64,{pdf_base64}"
-
-            with ui.dialog() as pdf_dialog:
-                with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-                    with ui.row().classes('w-full justify-between items-center p-4 bg-gray-100 border-b'):
-                        ui.label('Purchase Invoice PDF').classes('text-xl font-bold')
-                        ui.button('✕ Close', on_click=pdf_dialog.close).classes('bg-red-500 text-white px-4 py-2 rounded')
-                    ui.html(f'<iframe src="{pdf_data_url}" width="100%" height="100%" style="border: none; min-height: calc(100vh - 80px);"></iframe>').classes('w-full flex-1')
-            pdf_dialog.open()
+            from pdf_viewer_helper import show_pdf_modal
+            show_pdf_modal(pdf_bytes, filename='Purchase_Return_DebitNote.pdf', title='Purchase Return (Debit Note) PDF')
         except Exception as e:
             ui.notify(f'Error generating PDF: {str(e)}')
 
@@ -778,17 +1196,54 @@ class PurchaseReturnsUI:
         company_info = connection.get_company_info()
         company_name = company_info.get('company_name', '') if company_info else ''
 
+        uiAggridTheme.addingtheme()  # Apply AG Grid theme for proper row/header alignment
         ui.add_head_html(MDS.get_global_styles())
-        
-        with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
-                    with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
-                        with ui.column().classes('flex-1 h-full p-4 gap-4 relative overflow-hidden'):
+        ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
+        ui.add_head_html('''
+<script>
+window.__aggrid_store = window.__aggrid_store || {};
+window.__aggrid_triggerLayout = function(name) {
+  try {
+    const api = window.__aggrid_store[name];
+    if (api) {
+      api.sizeColumnsToFit && api.sizeColumnsToFit();
+      api.doLayout && api.doLayout();
+      api.refreshHeader && api.refreshHeader();
+      setTimeout(()=>{ api.sizeColumnsToFit && api.sizeColumnsToFit(); }, 80);
+    }
+  } catch(e) { console.error('aggrid triggerLayout error', e); }
+};
+</script>
+''')
+        ui.add_head_html('''
+<script>
+window.__aggrid_triggerAll = function(){
+  try {
+    const s = window.__aggrid_store || {};
+    for (const k in s) {
+      try { s[k].sizeColumnsToFit && s[k].sizeColumnsToFit(); s[k].doLayout && s[k].doLayout(); s[k].refreshHeader && s[k].refreshHeader(); }
+      catch(e){console.error('aggrid triggerAll', k, e)}
+    }
+  } catch(e) { console.error('aggrid triggerAll error', e); }
+};
 
-                            with ui.row().classes('w-full gap-6 overflow-hidden').style('height: 600px;'):
+document.addEventListener('click', function(e){
+  const t = e.target.closest('[role="tab"], .q-tab, .tab');
+  if (!t) return;
+  setTimeout(()=>{ window.__aggrid_triggerAll && window.__aggrid_triggerAll(); }, 80);
+});
+</script>
+''')
+
+        with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-4 overflow-hidden'):
+                    with ui.row().classes('w-full h-full gap-4 overflow-hidden'):
+                        with ui.column().classes('flex-1 h-full gap-4 relative overflow-hidden'):
+
+                            with ui.row().classes('w-full gap-4 overflow-hidden').style('height: 600px;'):
                                 # LEFT PANEL: Purchase Return History (35%)
                                 self.history_panel = ui.column().classes('w-[35%] h-full gap-4')
                                 with self.history_panel:
-                                    with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
+                                    with ui.column().classes('w-full h-full glass p-4 rounded-3xl border border-white/10 gap-4'):
                                         with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 transition-all'):
                                             ui.icon('history', size='1.25rem').classes('text-purple-400 ml-1')
                                             self.history_search = ui.input(placeholder='Search history...').props('borderless dense clearable dark')\
@@ -824,27 +1279,20 @@ class PurchaseReturnsUI:
                                             .props('flat dense color=white').classes('absolute -left-2 top-1/2 z-50 bg-purple-600 rounded-r-xl shadow-lg border border-white/20 h-12 w-6')\
                                             .tooltip('View History')
                                         self.show_history_btn.visible = False
-                                    with ui.column().classes('flex-1 h-full gap-2 overflow-hidden'):
-                                        with ui.row().classes('w-full glass p-4 rounded-3xl border border-white/10 gap-3 items-center'):
-                                            # 1. Date & Currency (Unified Operations)
-                                            with ui.column().classes('gap-1'):
-                                                ui.label('Date & Currency').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl border border-white/10 h-[44px]'):
-                                                    ui.icon('event', size='0.9rem').classes('text-purple-400')
-                                                    self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('borderless dense').classes('text-white text-xs font-bold w-24')
-                                                    ui.element('div').classes('w-px h-4 bg-white/10 mx-1')
+                                    with ui.column().classes('flex-1 h-full gap-4 overflow-hidden'):
+                                        with ui.row().classes('w-full glass p-4 rounded-2xl border border-white/10 gap-4 items-center'):
+                                            # Supplier & Date
+                                            with ui.column().classes('flex-1 gap-1'):
+                                                ui.label('Supplier Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
+                                                with ui.row().classes('items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl border border-white/10 w-full'):
+                                                    self.date_input = ui.input(value=datetime.now().strftime('%Y-%m-%d')).props('dark rounded outlined type=date').classes('w-36 glass-input')
+                                                    ui.element('div').classes('w-px h-4 bg-white/10')
+                                                    self.supplier_input = ui.input(placeholder='Select Supplier...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_supplier_dialog)
+                                                    ui.element('div').classes('w-px h-4 bg-white/10')
                                                     self.currency_select = ui.select(
                                                         {row[0]: f"{row[2]} {row[1]}" for row in self.currency_rows}, 
                                                         value=self.default_currency_id
                                                     ).props('borderless dense').classes('text-white text-[11px] font-black w-28').on('change', self.on_currency_change)
-
-                                            # 2. Supplier (Primary Focus)
-                                            with ui.column().classes('flex-1 gap-1'):
-                                                ui.label('Supplier Information').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
-                                                with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
-                                                    ui.icon('local_shipping', size='1.1rem').classes('text-purple-400')
-                                                    self.supplier_input = ui.input(placeholder='Select Supplier...').props('borderless dense dark').classes('flex-1 text-white font-black text-sm').on('click', self.open_supplier_dialog)
-                                                    ui.icon('search', size='0.9rem').classes('text-gray-500 opacity-50')
 
                                             # 3. Ref & Payment (Metadata)
                                             with ui.column().classes('w-32 gap-1'):
@@ -862,48 +1310,106 @@ class PurchaseReturnsUI:
                                                 ui.label('Barcode').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
                                                 with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
                                                     ui.icon('qr_code_scanner', size='1.25rem').classes('text-purple-400')
-                                                    self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown)
+                                                    self.barcode_input = ui.input(placeholder='Barcode...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('change', self.update_product_dropdown).on('keydown.enter', lambda: (self.product_input.run_method('focus'), ui.timer(0.01, lambda: self.product_input.run_method('select'), once=True)))
                             
                                             with ui.column().classes('flex-[3] gap-1'):
                                                 ui.label('Product').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4')
                                                 with ui.row().classes('items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 w-full'):
                                                     ui.icon('inventory_2', size='1.25rem').classes('text-purple-400')
-                                                    self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog)
+                                                    self.product_input = ui.input(placeholder='Product...').props('borderless dense dark').classes('flex-1 text-white font-bold').on('click', self.open_product_dialog).on('keydown.enter', self.open_product_dialog)
                             
                                             with ui.column().classes('w-20 gap-1'):
                                                 ui.label('Qty').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.quantity_input = ui.number(value=1).props('borderless dense dark').classes('w-full text-white font-black text-center').on('keydown.enter', lambda: (self.discount_input.run_method('focus'), ui.timer(0.01, lambda: self.discount_input.run_method('select'), once=True)))
                             
                                             with ui.column().classes('w-24 gap-1'):
                                                 ui.label('Disc %').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.discount_input = ui.number(value=0, min=0, max=100).props('borderless dense dark').classes('w-full text-white font-black text-center').on('keydown.enter', lambda: (self.cost_input.run_method('focus'), ui.timer(0.01, lambda: self.cost_input.run_method('select'), once=True)))
 
                                             with ui.column().classes('w-28 gap-1'):
                                                 ui.label('Cost').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.cost_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center').on('keydown.enter', lambda: (self.price_input.run_method('focus'), ui.timer(0.01, lambda: self.price_input.run_method('select'), once=True)))
 
                                             with ui.column().classes('w-28 gap-1'):
                                                 ui.label('Retail').classes('text-[9px] font-black text-accent uppercase tracking-widest ml-4 text-center')
                                                 with ui.row().classes('items-center gap-1 bg-white/5 px-2 py-2 rounded-2xl border border-white/10 w-full'):
-                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center')
+                                                    self.price_input = ui.number(value=0.0).props('borderless dense dark').classes('w-full text-white font-black text-center').on('keydown.enter', self.add_product)
                             
                                             ui.button(icon='add', on_click=self.add_product).props('elevated round size=lg color=purple').classes('shadow-lg shadow-purple-500/30 hover:scale-110 transition-transform mb-1')
 
-                                        self.aggrid = ui.aggrid({
-                                            'columnDefs': self.columns,
-                                            'rowData': self.rows,
-                                            'defaultColDef': {'flex': 1, 'minWidth': 40, 'sortable': True, 'filter': True},
-                                            'rowSelection': 'single',
-                                            'pagination': False,
-
-                                            'domLayout': 'normal',
-                                        }).classes('w-full ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none; height: 380px;')
+                                        with ui.element('div').classes('w-full min-h-[400px] overflow-auto'):
+                                            self.aggrid = ui.aggrid({
+                                                'columnDefs': self.columns,
+                                                'rowData': self.rows,
+                                                'rowSelection': 'single',
+                                                'domLayout': 'normal',
+                                                'rowHeight': 30,
+                                            }).classes('w-full h-full ag-theme-quartz-dark')
 
                                         self.aggrid.on('cellClicked', self.on_row_click_edit_cells)
-                                        
+
+                                        def store_grid_api():
+                                            try:
+                                                ui.run_javascript("if(window.__aggrid_store) window.__aggrid_store['purchase_returns'] = document.querySelector('.ag-theme-quartz-dark').__ag_api;")
+                                            except Exception:
+                                                pass
+                                        ui.timer(0.5, store_grid_api, once=True)
+
+                                        # Arrow navigation for the main grid
+                                        main_grid_id = self.aggrid.id
+                                        ui.run_javascript('''
+                                            (() => {
+                                                window.__purchase_returns_main_grid_key_listener = (ev) => {
+                                                    try {
+                                                        if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+
+                                                        const apiFromStore = (window.__aggrid_store && window.__aggrid_store['purchase_returns']);
+                                                        if (!apiFromStore) return;
+                                                        const api = apiFromStore;
+
+                                                        ev.preventDefault();
+
+                                                        const nodes = api.getSelectedNodes ? api.getSelectedNodes() : [];
+                                                        let idx = 0;
+
+                                                        if (nodes && nodes.length > 0 && typeof nodes[0].rowIndex === 'number') {
+                                                            idx = nodes[0].rowIndex;
+                                                        } else {
+                                                            const focused = api.getFocusedCell && api.getFocusedCell();
+                                                            if (focused && typeof focused.rowIndex === 'number') idx = focused.rowIndex;
+                                                            else idx = 0;
+                                                        }
+
+                                                        const dir = ev.key === 'ArrowDown' ? 1 : -1;
+                                                        idx = idx + dir;
+
+                                                        const rowCount = api.getDisplayedRowCount ? api.getDisplayedRowCount() : 0;
+                                                        const max = rowCount - 1;
+                                                        if (idx > max) idx = max;
+                                                        if (idx < 0) idx = 0;
+
+                                                        if (api.ensureIndexVisible) api.ensureIndexVisible(idx);
+
+                                                        const row = api.getDisplayedRowAtIndex && api.getDisplayedRowAtIndex(idx);
+                                                        if (row && row.setSelected) row.setSelected(true, false);
+
+                                                        if (api.setFocusedCell) api.setFocusedCell(idx, 'product');
+                                                    } catch(e) {
+                                                        console.error('[purchase-returns-grid] listener error', e);
+                                                    }
+                                                };
+
+                                                if (window.__purchase_returns_main_grid_key_listener_attached) {
+                                                    window.removeEventListener('keydown', window.__purchase_returns_main_grid_key_listener, true);
+                                                }
+                                                window.addEventListener('keydown', window.__purchase_returns_main_grid_key_listener, true);
+                                                window.__purchase_returns_main_grid_key_listener_attached = true;
+                                            })();
+                                        ''')
+
                                     # Action Bar Panel (Right Side of Editor)
                                     with ui.column().classes('w-60px items-center shrink-0'):
                                         from modern_ui_components import ModernActionBar
@@ -925,14 +1431,14 @@ class PurchaseReturnsUI:
 
 
                             # --- FOOTER: Consolidated High-Visibility Row ---
-                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-2 items-center justify-between shadow-2xl flex-nowrap'):
+                            with ui.row().classes('w-full bg-black/80 backdrop-blur-xl border-t border-white/20 p-4 items-center justify-between shadow-2xl flex-nowrap gap-4'):
                                 # 1. Operational Metrics
                                 with ui.row().classes('items-center gap-3 shrink-0'):
                                     with ui.row().classes('items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-xl border border-purple-500/20'):
                                         ui.icon('analytics', size='1rem').classes('text-purple-400')
                                         with ui.column().classes('gap-0'):
                                             ui.label('Procurement Pipeline').classes('text-[9px] font-black text-purple-400 uppercase tracking-widest')
-                                    
+
                                     with ui.row().classes('items-center gap-3 bg-white/5 py-1 px-3 rounded-xl border border-white/10'):
                                         with ui.column().classes('items-center gap-0'):
                                             ui.label('Items').classes('text-[8px] text-gray-500 font-bold uppercase tracking-tighter')
@@ -946,7 +1452,7 @@ class PurchaseReturnsUI:
                                 with ui.row().classes('items-center gap-4 px-4 py-1.5 bg-white/5 border border-white/10 rounded-2xl shadow-inner mx-2 shrink-0'):
                                     with ui.column().classes('items-center gap-0'):
                                         ui.label('Operator').classes('text-[8px] text-gray-500 font-bold uppercase tracking-widest')
-                                        ui.label(user.get('username', 'Guest')).classes('text-xs font-black text-[#08CB00] uppercase tracking-wider')
+                                        ui.label(user.get('username', 'Guest')).classes('text-xs font-black text-[#80B9AD] uppercase tracking-wider')
                                     
                                     ui.element('div').classes('w-[1px] h-6 bg-white/10')
                                     
@@ -964,35 +1470,40 @@ class PurchaseReturnsUI:
                                         footer_time_label = ui.label()
                                         update_footer_time()
                                         ui.timer(1.0, update_footer_time)
-                                        footer_time_label.classes('text-xs font-black text-[#08CB00] tracking-widest')
+                                        footer_time_label.classes('text-xs font-black text-[#80B9AD] tracking-widest')
 
                                 # 3. Financial Summary
                                 with ui.row().classes('items-center gap-3 bg-purple-500/5 px-4 py-1.5 rounded-2xl border border-purple-500/20 shadow-inner ml-auto shrink-0'):
                                     with ui.column().classes('items-center gap-0'):
                                         ui.label('Total HT').classes('text-[9px] text-gray-400 font-bold uppercase tracking-widest')
                                         self.subtotal_label = ui.label('$0.00').classes('text-sm font-black text-white')
-                                    
-                                    ui.element('div').classes('w-[1px] h-8 bg-white/10')
-                                    
-                                    with ui.column().classes('items-center gap-0'):
-                                        ui.label('Total VAT').classes('text-[9px] text-gray-400 font-bold uppercase tracking-widest')
+                                        ui.label('Total VAT').classes('text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1')
                                         self.vat_label = ui.label('$0.00').classes('text-sm font-black text-purple-400')
                                     
-                                    ui.element('div').classes('w-[1px] h-8 bg-purple-500/20 mx-1')
+                                    ui.element('div').classes('w-[1px] h-14 bg-white/10')
                                     
-                                    with ui.column().classes('items-center gap-0'):
-                                        ui.label('Total TTC').classes('text-[10px] text-purple-300 font-black uppercase tracking-[.25em]')
-                                        self.total_label = ui.label('$0.00').classes('text-2xl font-black text-white leading-none tracking-tight')
+                                    with ui.column().classes('items-center gap-0 w-28'):
+                                        ui.label('Total L.L.').classes('text-[9px] text-yellow-400/80 font-bold uppercase tracking-widest')
+                                        self.ll_total_input = ui.number(value=0, on_change=self.ll_total_input_changed).props('dense dark borderless').classes('w-full text-lg font-bold text-yellow-400/90 text-center bg-white/5 rounded')
+                                    
+                                    ui.element('div').classes('w-[1px] h-14 bg-white/10')
+                                    
+                                    with ui.column().classes('items-center gap-0 w-36'):
+                                        with ui.row().classes('items-center justify-between w-full'):
+                                            ui.label('Discount').classes('text-[8px] text-purple-300 font-black uppercase tracking-widest')
+                                            self.discount_type_toggle = ui.radio(['Amount', '%'], value='Amount', on_change=self._on_discount_mode_change).props('inline dense dark color=purple').classes('text-[9px] font-black')
+                                        with ui.row().classes('items-center w-full gap-1'):
+                                            self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense dark borderless').classes('w-full text-right text-xs text-white bg-white/5 rounded px-1')
+                                            self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense dark borderless').classes('w-full text-right text-xs text-white bg-white/5 rounded px-1 hidden')
+                                        with ui.row().classes('items-center justify-center gap-1 mt-1'):
+                                            ui.label('Total TTC').classes('text-[10px] text-purple-300 font-black uppercase tracking-[.25em]')
+                                            self.ttc_currency_label = ui.label('$').classes('text-[10px] text-purple-300 font-black')
+                                        self.total_input = ui.number(value=0, on_change=self.total_input_changed).props('dense dark borderless').classes('w-full text-2xl font-black text-white text-center bg-white/5 rounded')
 
 
-                                # Functional Hidden Inputs
-                                with ui.element('div').classes('hidden'):
-                                    self.discount_percent_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-                                    self.discount_amount_input = ui.number(value=0, on_change=self.update_totals).props('dense borderless').classes('hidden')
-
-    
                     ui.timer(0.1, self.load_max_purchase, once=True)
                     ui.timer(0.2, self.refresh_purchase_table, once=True)
+                    ui.timer(0.3, lambda: ui.run_javascript("window.__aggrid_triggerVisible && window.__aggrid_triggerVisible();"), once=True)
 
 
 @ui.page('/purchasereturn')

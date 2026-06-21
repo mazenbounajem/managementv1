@@ -81,6 +81,7 @@ def tabbed_dashboard_page():
     # Add global styles
     from modern_design_system import ModernDesignSystem as MDS
     ui.add_head_html(MDS.get_global_styles())
+    ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
 
     # Get user permissions
     permissions = connection.get_user_permissions(user['role_id'])
@@ -156,36 +157,42 @@ def tabbed_dashboard_page():
     with ui.column().classes('w-full flex-1 gap-0 mesh-gradient') as main_container:
         # Splitter for Side-by-Side view
         splitter = ui.splitter(value=100, reverse=False).classes('w-full flex-1')
-        splitter.props('separator-class=bg-[#08CB00]/20 separator-style=width:4px')
+        splitter.props('separator-class=bg-[#80B9AD]/20 separator-style=width:4px')
         
         with splitter.before:
             # Primary Tab Panels Container
-            tab_panels_left = ui.tab_panels(navigation.tabs_ui).classes('w-full h-full bg-transparent')
+            tab_panels_left = ui.tab_panels(
+                navigation.tabs_ui, 
+                on_change=lambda _: ui.run_javascript('setTimeout(() => window.dispatchEvent(new Event("resize")), 100)')
+            ).classes('w-full h-full bg-transparent')
             navigation.tab_panels_ui = tab_panels_left
         
-        with splitter.after:
-            # Secondary Area (Initially hidden by splitter value=100)
-            with ui.column().classes('w-full h-full bg-black/5 border-l border-white/10') as right_area:
-                with ui.row().classes('w-full items-center justify-between p-2 bg-white/5 border-b border-white/10'):
-                    with ui.row().classes('items-center gap-2'):
-                        ui.icon('space_dashboard', size='xs').classes('text-[#08CB00] ml-2')
-                        ui.label('Secondary Workspace').classes('text-xs font-black uppercase tracking-widest text-[#08CB00]')
-                    
-                    with ui.row().classes('items-center gap-2'):
-                        # Module selector for the right side
-                        right_selector = ui.select(
-                            {k: v['label'] for k, v in content_map.items()},
-                            label='Open Module',
-                            with_input=True,
-                            on_change=lambda e: open_tab_callback(e.value, side='right')
-                        ).props('dense outlined size=xs').classes('w-32 bg-white/50')
-                        
-                        ui.button(icon='close', on_click=lambda: toggle_split_view()).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500')
-                
-                # Secondary Tabs and Panels
-                tabs_right = ui.tabs().classes('w-full text-gray-600 border-b border-white/5')
-                tabs_right.props('active-color=#08CB00 indicator-color=#08CB00 dense ripple=False')
-                tab_panels_right = ui.tab_panels(tabs_right).classes('w-full flex-1 bg-transparent')
+        # with splitter.after:
+        #     # Secondary Area (Initially hidden by splitter value=100)
+        #     with ui.column().classes('w-full h-full bg-black/5 border-l border-white/10') as right_area:
+        #         with ui.row().classes('w-full items-center justify-between p-2 bg-white/5 border-b border-white/10'):
+        #             with ui.row().classes('items-center gap-2'):
+        #                 ui.icon('space_dashboard', size='xs').classes('text-[#08CB00] ml-2')
+        #                 ui.label('Secondary Workspace').classes('text-xs font-black uppercase tracking-widest text-[#08CB00]')
+        #
+        #             with ui.row().classes('items-center gap-2'):
+        #                 # Module selector for the right side
+        #                 right_selector = ui.select(
+        #                     {k: v['label'] for k, v in content_map.items()},
+        #                     label='Open Module',
+        #                     with_input=True,
+        #                     on_change=lambda e: open_tab_callback(e.value, side='right')
+        #                 ).props('dense outlined size=xs').classes('w-32 bg-white/50')
+        #
+        #                 ui.button(icon='close', on_click=lambda: toggle_split_view()).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500')
+        #
+        #         # Secondary Tabs and Panels
+        #         tabs_right = ui.tabs().classes('w-full text-gray-600 border-b border-white/5')
+        #         tabs_right.props('active-color=#08CB00 indicator-color=#08CB00 dense ripple=False')
+        #         tab_panels_right = ui.tab_panels(
+        #             tabs_right,
+        #             on_change=lambda _: ui.run_javascript('setTimeout(() => window.dispatchEvent(new Event("resize")), 100)')
+        #         ).classes('w-full flex-1 bg-transparent')
 
     def toggle_split_view():
         """Toggle split view mode"""
@@ -197,7 +204,7 @@ def tabbed_dashboard_page():
             # Link header tabs back to left panels
             navigation.tabs_ui.props(f'value={tab_panels_left.value}')
         else:
-            ui.notify('Split View active. Use the secondary area for side-by-side work.', color='#08CB00')
+            ui.notify('Split View active. Use the secondary area for side-by-side work.', color='#80B9AD')
         return state['is_split']
 
     # Link toggle to navigation
@@ -262,7 +269,7 @@ def tabbed_dashboard_page():
 
         # Create new tab in the target side
         with target_tabs:
-            with ui.tab(display_label, icon=config['icon']).classes('px-4 active:bg-[#08CB00]/10') as new_tab:
+            with ui.tab(display_label, icon=config['icon']).classes('px-4 active:bg-[#80B9AD]/10') as new_tab:
                 if page_key != 'dashboard' or side == 'right':
                     # Close button
                     ui.button(icon='close', on_click=lambda k=tab_key, s=side: close_tab(k, s)).props('flat round dense size=xs').classes('text-gray-400 hover:text-red-500 ml-2')
@@ -441,7 +448,7 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
       .kpi-card { transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease; }
       .kpi-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 22px 50px rgba(0,0,0,.25); }
       .module-tile { transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease; cursor: pointer; }
-      .module-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 16px 40px rgba(8,203,0,.15); }
+      .module-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 16px 40px rgba(21,145,220,.15); }
       .progress-bar-fill { transition: width .8s cubic-bezier(.22,1,.36,1); }
       @keyframes count-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
       .kpi-value { animation: count-up .6s ease forwards; }
@@ -492,7 +499,7 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
         # ── HEADER ─────────────────────────────────────────────────────
         with ui.row().classes('w-full items-center justify-between glass border border-white/10 p-5 rounded-3xl'):
             with ui.column().classes('gap-0'):
-                ui.label('COMMAND CENTER').classes('text-xs font-black uppercase tracking-[.25em] text-[#08CB00]')
+                ui.label('COMMAND CENTER').classes('text-xs font-black uppercase tracking-[.25em] text-[#80B9AD]')
                 ui.label(company_name).classes('section-title text-4xl text-white')
                 ui.label(
                     datetime.datetime.now().strftime('📅  %A, %B %d %Y  •  %H:%M')
@@ -500,15 +507,15 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
             with ui.row().classes('gap-3'):
                 with ui.element('div').classes('flex items-center gap-2 px-4 py-2 rounded-xl glass border border-white/10'):
                     with ui.element('div').style(
-                        'width:8px;height:8px;border-radius:50%;background:#08CB00;'
-                        'box-shadow:0 0 0 0 rgba(8,203,0,.7);animation:pulse-ring 2s infinite;'
+                        'width:8px;height:8px;border-radius:50%;background:#80B9AD;'
+                        'box-shadow:0 0 0 0 rgba(21,145,220,.7);animation:pulse-ring 2s infinite;'
                     ): pass
                     ui.label('System Online').classes('text-xs font-bold text-white/70')
 
         # ── KPI ROW ─────────────────────────────────────────────────────
         with ui.row().classes('w-full gap-5 flex-wrap'):
             if can_dashboard_kpis:
-                kpi_card('Today\'s Revenue',  f'${sales_today:,.2f}',   'payments',      '#08CB00',  f'Week: ${week_sales:,.0f}',  True)
+                kpi_card('Today\'s Revenue',  f'${sales_today:,.2f}',   'payments',      '#80B9AD',  f'Week: ${week_sales:,.0f}',  True)
                 kpi_card('Monthly Sales',    f'${month_sales:,.2f}',   'bar_chart',     '#3b82f6',  'Current period',             True)
                 kpi_card('Total Customers',  f'{total_customers:,}',   'people',        '#a78bfa',  'Active accounts',            True)
                 kpi_card('Suppliers',        f'{sup_count:,}',         'business',      '#f59e0b',  'Registered vendors',         True)
@@ -523,7 +530,7 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
             # — 1. Financial Snapshot
             with ui.card().classes('glass border border-white/10 p-5').style('border-radius:1.5rem; flex: 1;'):
                 with ui.row().classes('items-center gap-2 mb-4'):
-                    ui.icon('donut_large').style('color:#08CB00; font-size:20px;')
+                    ui.icon('donut_large').style('color:#80B9AD; font-size:20px;')
                     ui.label('Financial Snapshot').classes('section-title text-base text-white')
 
                 def meter_row(label, value, max_val, color):
@@ -540,7 +547,7 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
                             )
 
                 ref = max(month_sales, week_sales, sales_today, exp_today, 1)
-                meter_row('Today\'s Sales',  sales_today,  ref, '#08CB00')
+                meter_row('Today\'s Sales',  sales_today,  ref, '#80B9AD')
                 meter_row('Week\'s Sales',   week_sales,   ref, '#3b82f6')
                 meter_row('Month\'s Sales',  month_sales,  ref, '#a78bfa')
                 meter_row('Today\'s Expenses', float(exp_today), ref, '#ef4444')
@@ -567,13 +574,13 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
 
                 with ui.row().classes('justify-between mb-2'):
                     ui.label('Healthy Stock').classes('text-xs text-white/60')
-                    ui.label(f'{pct_healthy:.0f}%').classes('text-xs font-black text-[#08CB00]')
+                    ui.label(f'{pct_healthy:.0f}%').classes('text-xs font-black text-[#80B9AD]')
                 with ui.element('div').style(
                     'width:100%;height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;'
                 ):
                     ui.element('div').classes('progress-bar-fill').style(
                         f'width:{pct_healthy:.1f}%;height:100%;'
-                        'background:linear-gradient(90deg,#08CB00,#34d399);border-radius:99px;'
+                        'background:linear-gradient(90deg,#80B9AD,#B3E2A7);border-radius:99px;'
                     )
 
                 with ui.row().classes('justify-between mt-6 w-full'):
@@ -641,12 +648,12 @@ def create_dashboard_content(can_dashboard_kpis: bool = False):
                         ui.icon('bolt').style('color:#fbbf24; font-size:20px;')
                         ui.label('Live Activity').classes('section-title text-base text-white')
                     with ui.element('div').style(
-                        'width:7px;height:7px;border-radius:50%;background:#08CB00;'
-                        'box-shadow:0 0 0 0 rgba(8,203,0,.7);animation:pulse-ring 2s infinite;'
+                        'width:7px;height:7px;border-radius:50%;background:#80B9AD;'
+                        'box-shadow:0 0 0 0 rgba(21,145,220,.7);animation:pulse-ring 2s infinite;'
                     ): pass
 
                 activities = [
-                    ('point_of_sale', 'Sales', 'New invoice created',    '#08CB00', 'Just now'),
+                    ('point_of_sale', 'Sales', 'New invoice created',    '#80B9AD', 'Just now'),
                     ('inventory_2',   'Stock',  'Low stock: 3 products',  '#f59e0b', '5m ago'),
                     ('payments',      'Finance','Supplier payment logged', '#a78bfa', '12m ago'),
                     ('people',        'CRM',    'New customer registered', '#3b82f6', '25m ago'),

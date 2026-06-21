@@ -70,8 +70,8 @@ def report_trial_balance_expert(fd, td, a=None):
                             ui.notify('Exporting to CSV...', color='positive')
 
                         ui.button('EXCEL', icon='download', on_click=export_excel).props('flat color=green-400').classes('font-black')
-                        ui.button('PRINT', icon='print', on_click=lambda: ui.run_javascript('window.print()')).props('flat color=blue-400').classes('font-black')
-                        ui.button('CLOSE', icon='close', on_click=dlg.close).props('flat color=red').classes('font-black')
+                        ui.button('PRINT', icon='print', on_click=lambda: ui.run_javascript('window.print()')).props('flat color=blue-400').classes('font-black hide-on-print')
+                        ui.button('CLOSE', icon='close', on_click=dlg.close).props('flat color=red').classes('font-black hide-on-print')
 
                 # Grid Container
                 with ui.column().classes('w-full flex-1 overflow-auto p-4'):
@@ -102,7 +102,7 @@ def report_trial_balance_expert(fd, td, a=None):
                     ''')
                     table.style('font-family: "Outfit", sans-serif;')
         
-            ui.add_head_html('<style> @media print { .q-dialog__inner > div { max-width: none !important; width: 100% !important; background: white !important; color: black !important; } .q-table__container { background: white !important; color: black !important; } .hide-on-print { display: none !important; } } </style>')
+            ui.add_head_html('<style> @media print { .q-dialog__inner > div { max-width: none !important; width: 100% !important; background: white !important; color: black !important; } .q-table__container { background: white !important; color: black !important; } .q-table th, .q-table td { color: black !important; } .hide-on-print { display: none !important; } .bg-\\[\\#0f1712\\] { background: white !important; } .text-white { color: black !important; } .text-green-400, [class*="text-green"] { color: #006600 !important; } [class*="text-yellow"], [class*="text-amber"], .text-facc15 { color: #996600 !important; } [class*="text-orange"], .text-fb923c { color: #cc4400 !important; } [style*="color:#4ade80"] { color: #006600 !important; } [style*="color:#9ca3af"] { color: #444 !important; } } </style>')
         dlg.open()
     except Exception as e:
         ui.notify(f'Expert Report Error: {e}', color='negative')

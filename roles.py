@@ -1,11 +1,8 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 
 def roles_content(standalone=False):
@@ -29,6 +26,9 @@ class RolesUI:
         self.initial_values = {}
         self.row_data = []
         self.table = None
+        self._all_rows = []
+        self._selected_row_index = None
+        self.search_input = None
 
         # Flat list is kept for DB read/write compatibility
         self.available_pages = [
@@ -107,25 +107,30 @@ class RolesUI:
                 self.input_refs[f'perm_{page}'].value = False
         if self.table:
             self.table.classes(add='dimmed')
-            self.table.run_method('deselectAll')
+            self.table.selected = None
+        self._selected_row_index = None
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new role', color='info')
 
     def _load_last_row(self):
         """Load the first row (last id DESC) into form and undim table"""
-        if not self.table:
+        if not getattr(self.table, 'rows', None):
             return
-        self.table.classes(remove='dimmed')
-        try:
-            data = []
-            connection.contogetrows("SELECT TOP 1 id, name, description FROM roles ORDER BY id DESC", data)
-            if data:
-                r = data[0]
-                self.input_refs['id'].value = str(r[0])
-                self.input_refs['name'].value = r[1] or ''
-                self.input_refs['description'].value = r[2] or ''
-                self.load_permissions(r[0])
-        except Exception as e:
-            print(f"Error loading last role: {e}")
+        if not self.table.rows:
+            return
+        row = self.table.rows[0]
+        role_id = row['id']
+        self._selected_row_index = 0
+        self.input_refs['id'].value = str(role_id)
+        self.input_refs['name'].value = row.get('name') or ''
+        self.input_refs['description'].value = row.get('description') or ''
+        self.load_permissions(role_id)
+        if self.table:
+            self.table.classes(remove='dimmed')
+            self._apply_selected_row_color()
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
 
     def save_role(self):
         name = self.input_refs['name'].value
@@ -166,11 +171,19 @@ class RolesUI:
                     )
 
             ui.notify('Role and Permissions saved', color='positive')
-            if self.table:
-                self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving: {str(e)}', color='negative')
+
+    def undo_changes(self):
+        self.clear_input_fields()
+        if self.table:
+            self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
+        ui.notify('Changes reverted', color='info')
 
     def delete_role(self):
         id_val = self.input_refs['id'].value
@@ -199,8 +212,11 @@ class RolesUI:
             rows = []
             for r in data:
                 rows.append({'id': r[0], 'name': r[1], 'description': r[2]})
-            self.table.options['rowData'] = rows
+            self._all_rows = rows
+            self._selected_row_index = None
+            self.table.rows = rows
             self.table.update()
+            self.row_data = rows
             self._load_last_row()
         except Exception as e:
             ui.notify(f'Error refreshing: {str(e)}', color='negative')
@@ -223,6 +239,75 @@ class RolesUI:
         except Exception as e:
             print(f"Error loading perms: {e}")
 
+    def _filter_table(self, query: str):
+        if not getattr(self, 'table', None):
+            return
+        q = (query or "").strip().lower()
+        if not q:
+            self.table.rows = getattr(self, '_all_rows', [])
+            self.table.update()
+            self._load_last_row()
+            return
+        all_rows = getattr(self, '_all_rows', []) or []
+        filtered = []
+        for row in all_rows:
+            name = str(row.get('name') or '').lower()
+            if q in name:
+                filtered.append(row)
+        self.table.rows = filtered
+        self.table.update()
+        if self.table:
+            self.table.classes(remove='dimmed')
+
+    def _focus_first_row(self):
+        if self.table and self.table.rows:
+            role_id = self.table.rows[0].get('id')
+            if role_id is not None:
+                self._apply_row_from_id(role_id)
+
+    def _apply_row_from_id(self, role_id):
+        if not getattr(self, 'table', None):
+            return
+        rows = getattr(self.table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == role_id), None)
+        if target_index is None:
+            return
+        row = rows[target_index]
+        self._selected_row_index = target_index
+        self.input_refs['id'].value = str(role_id)
+        self.input_refs['name'].value = row.get('name') or ''
+        self.input_refs['description'].value = row.get('description') or ''
+        self.load_permissions(role_id)
+        if self.table:
+            self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
+        self._apply_selected_row_color()
+
+    def _apply_selected_row_color(self):
+        if self._selected_row_index is None:
+            return
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.q-table');
+          if (!root) return;
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+          const idx = Math.max(0, Math.min({self._selected_row_index} + 1, rows.length - 1));
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+          const selected = rows[idx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ console.error('Highlight error:', e); }}
+        """)
+
     def create_ui(self):
         # Wrap content in ModernPageLayout only if standalone, otherwise just render the content
         if self.standalone:
@@ -236,27 +321,92 @@ class RolesUI:
                     with ModernCard(glass=True).classes('w-full p-6'):
                         ui.label('Roles Directory')\
                             .classes('text-lg font-black mb-4 text-white uppercase tracking-widest opacity-70')
-                        self.table = ui.aggrid({
-                            'columnDefs': [
-                                {'headerName': 'ID', 'field': 'id', 'width': 70},
-                                {'headerName': 'Role Name', 'field': 'name', 'flex': 1},
-                            ],
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[600px] ag-theme-quartz-dark shadow-inner')
+
+                        # Search UI
+                        with ui.row().classes('w-full gap-3 mb-3 items-center'):
+                            self.search_input = (
+                                ui.input(placeholder='Search roles...')
+                                .props('outlined dense')
+                                .classes('flex-1 text-white bg-black')
+                                .on('update:model-value', lambda e: self._filter_table(e.args))
+                                .on('keydown.down', lambda: self._focus_first_row())
+                            )
+
+                        columns = [
+                            {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                            {'name': 'name', 'label': 'Role Name', 'field': 'name', 'align': 'left'},
+                        ]
+
+                        self.table = ui.table(
+                            columns=columns,
+                            rows=[],
+                            row_key='id',
+                            selection='single'
+                        ).classes('w-full h-80 overflow-hidden').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
 
                         def on_row_click(e):
-                            selected = e.args.get('data', {})
-                            if selected:
-                                self.input_refs['id'].value = str(selected['id'])
-                                self.input_refs['name'].value = selected['name'] or ''
-                                self.input_refs['description'].value = selected.get('description') or ''
-                                self.load_permissions(selected['id'])
+                            try:
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                if not row:
+                                    return
+                                role_id = row.get('id')
+                                if role_id is None:
+                                    return
+                                self.input_refs['id'].value = str(role_id)
+                                self.input_refs['name'].value = row.get('name') or ''
+                                self.input_refs['description'].value = row.get('description') or ''
+                                self.load_permissions(role_id)
                                 if self.table:
                                     self.table.classes(remove='dimmed')
+                                if hasattr(self, 'action_bar'):
+                                    self.action_bar.enter_edit_mode()
+                            except Exception as ex:
+                                ui.notify(f'Error selecting row: {str(ex)}', color='negative')
 
-                        self.table.on('cellClicked', on_row_click)
+                        def on_keydown(e):
+                            try:
+                                key = getattr(e, 'key', None) or getattr(e, 'args', {}).get('key', None)
+                                if key not in ('ArrowDown', 'ArrowUp'):
+                                    return
+                                rows = getattr(self.table, 'rows', None) or []
+                                if not rows:
+                                    return
+                                if self._selected_row_index is None:
+                                    self._selected_row_index = 0
+                                if key == 'ArrowDown':
+                                    self._selected_row_index = min(self._selected_row_index + 1, len(rows) - 1)
+                                else:
+                                    self._selected_row_index = max(self._selected_row_index - 1, 0)
+                                role_id = rows[self._selected_row_index].get('id')
+                                if role_id is None:
+                                    return
+                                self._apply_row_from_id(role_id)
+                            except Exception as ex:
+                                ui.notify(f'Keyboard navigation error: {ex}', color='warning')
+
+                        def _row_click_wrapper(e):
+                            try:
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                if isinstance(row, dict) and row.get('id') is not None:
+                                    self._selected_row_index = next((i for i, r in enumerate(self.table.rows or []) if r.get('id') == row.get('id')), None)
+                                    self._apply_selected_row_color()
+                            except:
+                                pass
+                            on_row_click(e)
+
+                        self.table.on('rowClick', _row_click_wrapper)
+
+                        if self.table:
+                            try:
+                                self.table.on('keydown', on_keydown)
+                            except Exception:
+                                pass
 
                 # Center Column: Details & Permissions
                 with ui.column().classes('flex-1 gap-4'):
@@ -290,14 +440,15 @@ class RolesUI:
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_role,
-                        on_undo=lambda: ui.notify('Undo not implemented for roles'),
+                        on_undo=self.undo_changes,
                         on_delete=self.delete_role,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_refresh=self.refresh_table,
                         button_class='h-16',
+                        target_table=self.table,
                         classes=' '
                     ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 

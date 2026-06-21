@@ -16,7 +16,7 @@ class PurchaseRepository:
     def get_purchase_header_data(self, purchase_id):
         purchase_header_data = []
         connection.contogetrows(
-            "SELECT s.name, s.phone, p.payment_status, p.invoice_number, p.purchase_date, p.currency_id FROM purchases p "
+            "SELECT s.name, s.phone, p.payment_status, p.invoice_number, p.purchase_date, p.currency_id, ISNULL(p.discount_amount, 0) FROM purchases p "
             "INNER JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?",
             purchase_header_data, params=[purchase_id]
         )
@@ -190,61 +190,8 @@ class PurchaseRepository:
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
         last_id = connection.getid("SELECT MAX(id) FROM purchases", [])
-        
-        try:
-            import accounting_helpers
-            import business_track_settings
-            if supplier_id:
-                supplier_aux = []
-                connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
-                credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
-            else:
-                credit_account = "4011.000001"
 
-            has_vat = total_vat > 0
-            purchase_account = business_track_settings.get_purchase_account(has_vat)
-                
-            jv_lines = [
-                {'account': purchase_account, 'debit': subtotal, 'credit': 0}
-            ]
-            if total_vat > 0:
-                supplier_name = ""
-                if supplier_id:
-                    name_res = []
-                    connection.contogetrows(f"SELECT name FROM suppliers WHERE id={supplier_id}", name_res)
-                    supplier_name = name_res[0][0] if name_res else "Unknown"
-                    
-                vat_account = accounting_helpers.ensure_vat_auxiliary('Supplier', supplier_id, supplier_name, credit_account)
-                jv_lines.append({'account': vat_account, 'debit': total_vat, 'credit': 0})
-                
-            if discount_amount > 0:
-                jv_lines.append({'account': '6019.000001', 'debit': 0, 'credit': discount_amount})
-                
-            jv_lines.append({'account': credit_account, 'debit': 0, 'credit': final_total})
-            
-            if payment_status != 'pending':
-                payment_aux = business_track_settings.get_payment_account(payment_method)
-                # Cash payment logic
-                jv_lines.append({'account': credit_account, 'debit': final_total, 'credit': 0})
-                jv_lines.append({'account': payment_aux, 'debit': 0, 'credit': final_total})
-
-                # Record cash drawer operation
-                try:
-                    from session_storage import session_storage
-                    user = session_storage.get('user')
-                    user_id = user.get('user_id') if user else None
-                    self.add_cash_drawer_operation(final_total, 'Out', user_id, f"Purchase Invoice {invoice_number}")
-                except Exception as ex:
-                    print(f"Cash Drawer Error: {ex}")
-                
-            accounting_helpers.save_accounting_transaction(
-                reference_type='Purchase',
-                reference_id=last_id,
-                lines=jv_lines,
-                description=f"Purchase Invoice {invoice_number}"
-            )
-        except Exception as e:
-            print(f"Accounting Error: {e}")
+        # Accounting is handled by PurchaseService._record_purchase_accounting()
             
         return last_id
 
@@ -261,79 +208,31 @@ class PurchaseRepository:
         )
         connection.insertingtodatabase(purchase_sql, purchase_values)
 
-        try:
-            import accounting_helpers
-            import business_track_settings
-            connection.insertingtodatabase("DELETE FROM accounting_transaction_lines WHERE jv_id IN (SELECT jv_id FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?)", [purchase_id])
-            connection.insertingtodatabase("DELETE FROM accounting_transactions WHERE reference_type='Purchase' AND reference_id=?", [purchase_id])
-            
-            if supplier_id:
-                supplier_aux = []
-                connection.contogetrows(f"SELECT auxiliary_number FROM suppliers WHERE id={supplier_id}", supplier_aux)
-                credit_account = supplier_aux[0][0] if (supplier_aux and supplier_aux[0][0]) else "4011.000001"
-            else:
-                credit_account = "4011.000001"
-                
-            inv_data = []
-            connection.contogetrows(f"SELECT invoice_number FROM purchases WHERE id={purchase_id}", inv_data)
-            inv_num = inv_data[0][0] if inv_data else str(purchase_id)
-
-            has_vat = total_vat > 0
-            purchase_account = business_track_settings.get_purchase_account(has_vat)
-            
-            jv_lines = [
-                {'account': purchase_account, 'debit': subtotal, 'credit': 0}
-            ]
-            if total_vat > 0:
-                supplier_name = ""
-                if supplier_id:
-                    name_res = []
-                    connection.contogetrows(f"SELECT name FROM suppliers WHERE id={supplier_id}", name_res)
-                    supplier_name = name_res[0][0] if name_res else "Unknown"
-                
-                vat_account = accounting_helpers.ensure_vat_auxiliary('Supplier', supplier_id, supplier_name, credit_account)
-                jv_lines.append({'account': vat_account, 'debit': total_vat, 'credit': 0})
-                
-            if discount_amount > 0:
-                jv_lines.append({'account': '6019.000001', 'debit': 0, 'credit': discount_amount})
-                
-            jv_lines.append({'account': credit_account, 'debit': 0, 'credit': final_total})
-            
-            if payment_status != 'pending':
-                # Reversal logic for cash updates
-                prev_data = []
-                connection.contogetrows("SELECT total_amount, payment_status FROM purchases WHERE id=?", prev_data, [purchase_id])
-                if prev_data and prev_data[0][1] != 'pending':
-                    prev_total = prev_data[0][0]
-                    try:
-                        from session_storage import session_storage
-                        user = session_storage.get('user')
-                        user_id = user.get('user_id') if user else None
-                        self.add_cash_drawer_operation(prev_total, 'In', user_id, f"Reversal for update Invoice {inv_num}")
-                    except Exception as ex:
-                        print(f"Cash Drawer Reversal Error: {ex}")
-
-                payment_aux = business_track_settings.get_payment_account(payment_method)
-                jv_lines.append({'account': credit_account, 'debit': final_total, 'credit': 0})
-                jv_lines.append({'account': payment_aux, 'debit': 0, 'credit': final_total})
-
-                # Record new cash drawer operation
+        # Cash drawer reversal + re-record (handles payment status changes)
+        inv_data = []
+        connection.contogetrows(f"SELECT invoice_number FROM purchases WHERE id={purchase_id}", inv_data)
+        inv_num = inv_data[0][0] if inv_data else str(purchase_id)
+        if payment_status != 'pending':
+            prev_data = []
+            connection.contogetrows("SELECT total_amount, payment_status FROM purchases WHERE id=?", prev_data, [purchase_id])
+            if prev_data and prev_data[0][1] != 'pending':
+                prev_total = prev_data[0][0]
                 try:
                     from session_storage import session_storage
                     user = session_storage.get('user')
                     user_id = user.get('user_id') if user else None
-                    self.add_cash_drawer_operation(final_total, 'Out', user_id, f"Update Purchase Invoice {inv_num}")
+                    self.add_cash_drawer_operation(prev_total, 'In', user_id, f"Reversal for update Invoice {inv_num}")
                 except Exception as ex:
-                    print(f"Cash Drawer Error: {ex}")
-            
-            accounting_helpers.save_accounting_transaction(
-                reference_type='Purchase',
-                reference_id=purchase_id,
-                lines=jv_lines,
-                description=f"Updated Purchase Invoice {inv_num}"
-            )
-        except Exception as e:
-            print(f"Accounting Error: {e}")
+                    print(f"Cash Drawer Reversal Error: {ex}")
+            try:
+                from session_storage import session_storage
+                user = session_storage.get('user')
+                user_id = user.get('user_id') if user else None
+                self.add_cash_drawer_operation(final_total, 'Out', user_id, f"Update Purchase Invoice {inv_num}")
+            except Exception as ex:
+                print(f"Cash Drawer Error: {ex}")
+
+        # Accounting is handled by PurchaseService._record_purchase_accounting()
 
     def get_supplier_id(self, supplier_name):
         return connection.getid('select id from suppliers where name = ?', [supplier_name])

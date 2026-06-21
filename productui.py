@@ -4,6 +4,7 @@ from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable
 from session_storage import session_storage
+from reports import Reports
 import datetime
 from barcode.ean import EAN13
 from barcode.writer import SVGWriter
@@ -33,6 +34,33 @@ def product_page_route(standalone=False):
     supplier_map = {}
     currency_map = {}
 
+    def capture_state():
+        """
+        Snapshot current form values for dirty-checking / draft storage.
+        """
+        state = {}
+        for k, ref in input_refs.items():
+            if k == 'uploader':
+                continue
+            # Some refs may not exist yet during page construction
+            if not hasattr(ref, 'value'):
+                continue
+            if k == 'photo':
+                # store empty string instead of None for stable comparisons
+                state[k] = ref.value or ''
+            else:
+                state[k] = ref.value
+        return state
+
+    saved_state = capture_state().copy()
+
+    def update_saved_state():
+        """
+        Update the baseline snapshot used by is_dirty().
+        """
+        nonlocal saved_state
+        saved_state = capture_state().copy()
+
     def handle_photo_upload(e):
         try:
             content = e.content.read()
@@ -52,6 +80,47 @@ def product_page_route(standalone=False):
             input_refs['uploader'].reset()
         ui.notify('Photo removed from form')
 
+    def undo_changes():
+        """
+        Restore inputs from saved_state (used by Undo button).
+        After undo:
+        - Make the table active (not dimmed)
+        - Enable ALL action-bar buttons except Save
+        """
+        try:
+            # Restore simple input values
+            for k, ref in input_refs.items():
+                if k == 'uploader':
+                    continue
+                if k not in saved_state:
+                    continue
+                if hasattr(ref, 'set_value'):
+                    ref.set_value(saved_state[k])
+
+            # Restore photo preview if photo exists in saved_state
+            if 'photo' in saved_state:
+                if saved_state.get('photo'):
+                    photo_preview.set_source(saved_state.get('photo'))
+                else:
+                    photo_preview.set_source('https://via.placeholder.com/150')
+
+            # Activate table (remove dimmed)
+            table_obj = locals().get('table')
+            if table_obj:
+                table_obj.classes(remove='dimmed')
+
+            # Recalc profit
+            update_profit_analysis()
+
+            # Enable all default action-bar buttons except Save and Undo after undo
+            if hasattr(footer_container, 'action_bar'):
+                footer_container.action_bar.reset_state()
+
+            # IMPORTANT: do NOT call update_saved_state() here,
+            # otherwise Undo would become a no-op (snapshot becomes current).
+        except Exception as ex:
+            ui.notify(f'Undo error: {ex}', color='negative')
+
     def clear_input_fields():
         for key, ref in input_refs.items():
             if key == 'id': ref.set_value('')
@@ -65,7 +134,6 @@ def product_page_route(standalone=False):
             input_refs['uploader'].reset()
         if table:
             table.classes(add='dimmed')
-            table.run_method('deselectAll')
         if hasattr(footer_container, 'action_bar'):
             footer_container.action_bar.enter_new_mode()
         try:
@@ -185,16 +253,19 @@ def product_page_route(standalone=False):
         pid = input_refs['id'].value
         if not pid: return ui.notify('Select a product to delete', color='warning')
         
-        # Check for transactions first to avoid unnecessary confirmation
         tx_chk = []
-        connection.contogetrows("SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id=?) + (SELECT COUNT(*) FROM purchase_items WHERE product_id=?)", tx_chk, params=[pid, pid])
+        connection.contogetrows(
+            "SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id=?) + (SELECT COUNT(*) FROM purchase_items WHERE product_id=?)",
+            tx_chk, params=[pid, pid]
+        )
         if tx_chk and tx_chk[0][0] > 0:
             return ui.notify('Cannot delete product with existing transactions. Delete them or set to inactive.', color='negative')
             
         def confirm_and_delete():
-            with ui.dialog() as d, ui.card().classes('p-8 rounded-3xl border border-white/10 shadow-2xl').style('background: rgba(15, 15, 25, 0.95); backdrop-filter: blur(20px); width: 400px;'):
+            with ui.dialog() as d, ui.card().classes('p-8 rounded-3xl border border-white/10 shadow-2xl').style(
+                'background: rgba(15, 15, 25, 0.95); backdrop-filter: blur(20px); width: 400px;'
+            ):
                 with ui.column().classes('w-full items-center gap-6'):
-                    # Warning Icon with Glow
                     with ui.element('div').classes('p-4 rounded-full bg-red-500/10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]'):
                         ui.icon('delete_forever', color='red-500').classes('text-5xl')
                     
@@ -203,7 +274,9 @@ def product_page_route(standalone=False):
                         ui.label('This action is permanent').classes('text-[10px] uppercase font-black text-red-500 tracking-[0.2em]')
                     
                     product_name = input_refs['product_name'].value or "this item"
-                    ui.label(f'Are you sure you want to delete "{product_name}"? All associated metadata will be removed.').classes('text-gray-400 text-center text-sm leading-relaxed px-2')
+                    ui.label(
+                        f'Are you sure you want to delete "{product_name}"? All associated metadata will be removed.'
+                    ).classes('text-gray-400 text-center text-sm leading-relaxed px-2')
                     
                     with ui.row().classes('w-full gap-3 mt-2'):
                         ui.button('Cancel', on_click=d.close).props('flat color=white').classes('flex-1 rounded-2xl h-12 font-bold')
@@ -219,7 +292,10 @@ def product_page_route(standalone=False):
                                 ui.notify(f'Delete error: {e}', color='negative')
                                 d.close()
                                 
-                        ui.button('Delete Now', on_click=perform_deletion).props('unelevated color=red-600').classes('flex-1 rounded-2xl h-12 font-black shadow-lg shadow-red-600/20')
+                        ui.button(
+                            'Delete Now',
+                            on_click=perform_deletion
+                        ).props('unelevated color=red-600').classes('flex-1 rounded-2xl h-12 font-black shadow-lg shadow-red-600/20')
             d.open()
 
         confirm_and_delete()
@@ -228,7 +304,9 @@ def product_page_route(standalone=False):
         pid = input_refs['id'].value
         if not pid: return ui.notify('Select a product first', color='warning')
         p_name = input_refs['product_name'].value
-        with ui.dialog() as d, ui.card().classes('w-full max-w-4xl p-6 border border-white/10 rounded-3xl').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px);'):
+        with ui.dialog() as d, ui.card().classes('w-full max-w-4xl p-6 border border-white/10 rounded-3xl').style(
+            'background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px);'
+        ):
             ui.label(f'Stock Transactions for {p_name}').classes('text-2xl font-black text-white tracking-wider mb-4 font-outfit')
             sql = """
                 SELECT 'Sale' as type, s.sale_date as date, s.invoice_number as ref, si.quantity as qty, si.unit_price as price
@@ -256,11 +334,211 @@ def product_page_route(standalone=False):
                 ui.button('Close', on_click=d.close).props('flat text-color=gray').classes('px-4 py-2 rounded-xl')
         d.open()
 
+    def _generate_fast_moving_pdf(f, t):
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from io import BytesIO
+        from pdf_viewer_helper import show_pdf_modal
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        story.append(Paragraph('Fast Moving Items', styles['Title']))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f'Period: {f} to {t}', styles['Normal']))
+        story.append(Spacer(1, 20))
+        data = Reports.fetch_fast_moving_items(f, t, limit=20)
+        if data:
+            headers = ['Rank', 'Product', 'Barcode', 'Qty Sold', 'Revenue', 'Transactions', 'Last Sale']
+            rows = [[r.get('rank', ''), r.get('product_name', ''), r.get('barcode', ''),
+                     r.get('total_qty_sold', ''), f"${float(r.get('total_revenue', 0)):,.2f}",
+                     r.get('num_transactions', ''), str(r.get('last_sale_date', ''))] for r in data]
+            tbl = Table([headers] + rows)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            story.append(tbl)
+        else:
+            story.append(Paragraph('No data available.', styles['Normal']))
+        doc.build(story)
+        buffer.seek(0)
+        pdf_bytes = buffer.read()
+        buffer.close()
+        show_pdf_modal(pdf_bytes, filename=f'fast_moving_{date.today().strftime("%Y%m%d")}.pdf', title='Fast Moving Items')
+
+    def _generate_slow_moving_pdf(f, t):
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from io import BytesIO
+        from pdf_viewer_helper import show_pdf_modal
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        story.append(Paragraph('Slow Moving Items', styles['Title']))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f'Period: {f} to {t}', styles['Normal']))
+        story.append(Spacer(1, 20))
+        data = Reports.fetch_slow_moving_items(f, t, limit=20)
+        if data:
+            headers = ['Rank', 'Product', 'Barcode', 'Qty Sold', 'Revenue', 'Transactions', 'Last Sale']
+            rows = [[r.get('rank', ''), r.get('product_name', ''), r.get('barcode', ''),
+                     r.get('total_qty_sold', ''), f"${float(r.get('total_revenue', 0)):,.2f}",
+                     r.get('num_transactions', ''), str(r.get('last_sale_date', ''))] for r in data]
+            tbl = Table([headers] + rows)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            story.append(tbl)
+        else:
+            story.append(Paragraph('No data available.', styles['Normal']))
+        doc.build(story)
+        buffer.seek(0)
+        pdf_bytes = buffer.read()
+        buffer.close()
+        show_pdf_modal(pdf_bytes, filename=f'slow_moving_{date.today().strftime("%Y%m%d")}.pdf', title='Slow Moving Items')
+
+    def _generate_monthly_sales_pdf(f, t):
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from io import BytesIO
+        from pdf_viewer_helper import show_pdf_modal
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        story.append(Paragraph('Monthly Sales by Item', styles['Title']))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f'Period: {f} to {t}', styles['Normal']))
+        story.append(Spacer(1, 20))
+        data = Reports.fetch_sales_by_item(f, t)
+        if data:
+            headers = ['Product', 'Barcode', 'Qty Sold', 'Revenue', 'Cost', 'Profit', 'Margin %']
+            rows = [[r.get('product_name', ''), r.get('barcode', ''),
+                     r.get('total_qty_sold', ''), f"${float(r.get('total_revenue', 0)):,.2f}",
+                     f"${float(r.get('total_cost', 0)):,.2f}", f"${float(r.get('total_profit', 0)):,.2f}",
+                     f"{float(r.get('profit_margin_pct', 0)):,.2f}%"] for r in data]
+            tbl = Table([headers] + rows)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            story.append(tbl)
+        else:
+            story.append(Paragraph('No data available.', styles['Normal']))
+        doc.build(story)
+        buffer.seek(0)
+        pdf_bytes = buffer.read()
+        buffer.close()
+        show_pdf_modal(pdf_bytes, filename=f'monthly_sales_{date.today().strftime("%Y%m%d")}.pdf', title='Monthly Sales by Item')
+
+    def _generate_stock_status_pdf():
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from io import BytesIO
+        from pdf_viewer_helper import show_pdf_modal
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        story.append(Paragraph('Daily Product List (Stock Status)', styles['Title']))
+        story.append(Spacer(1, 20))
+        data = Reports.fetch_stock()
+        if data:
+            headers = ['Product', 'Barcode', 'Category', 'Stock', 'Price', 'Cost', 'Supplier']
+            rows = [[r.get('product_name', ''), r.get('barcode', ''), r.get('category_name', ''),
+                     r.get('stock_quantity', ''), f"${float(r.get('price', 0)):,.2f}",
+                     f"${float(r.get('cost_price', 0)):,.2f}", r.get('supplier_name', '')] for r in data[:100]]
+            tbl = Table([headers] + rows)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            story.append(tbl)
+        else:
+            story.append(Paragraph('No data available.', styles['Normal']))
+        doc.build(story)
+        buffer.seek(0)
+        pdf_bytes = buffer.read()
+        buffer.close()
+        show_pdf_modal(pdf_bytes, filename=f'stock_status_{date.today().strftime("%Y%m%d")}.pdf', title='Daily Product List (Stock Status)')
+
+    def open_stock_print_special_dialog():
+        with ui.dialog() as dlg, ui.card().classes('w-full max-w-2xl p-8').style('background: rgba(15,15,25,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);'):
+            with ui.column().classes('w-full items-center gap-6'):
+                ui.label('Stock Reports').classes('text-2xl font-black text-white tracking-wider')
+                ui.label('Select a report to generate').classes('text-sm text-gray-400')
+
+                with ui.row().classes('w-full gap-4 justify-center flex-wrap'):
+                    ui.button('Fast Moving Items', icon='trending_up',
+                              on_click=lambda: (_generate_fast_moving_pdf(f, t), dlg.close())
+                             ).props('unelevated color=green').classes('w-52 py-8 rounded-2xl font-bold text-sm')
+
+                    ui.button('Slow Moving Items', icon='trending_down',
+                              on_click=lambda: (_generate_slow_moving_pdf(f, t), dlg.close())
+                             ).props('unelevated color=orange').classes('w-52 py-8 rounded-2xl font-bold text-sm')
+
+                    ui.button('Monthly Sales by Item', icon='receipt_long',
+                              on_click=lambda: (_generate_monthly_sales_pdf(f, t), dlg.close())
+                             ).props('unelevated color=blue').classes('w-52 py-8 rounded-2xl font-bold text-sm')
+
+                    ui.button('Stock Status', icon='inventory',
+                              on_click=lambda: (_generate_stock_status_pdf(), dlg.close())
+                             ).props('unelevated color=purple').classes('w-52 py-8 rounded-2xl font-bold text-sm')
+
+                with ui.row().classes('w-full justify-center mt-4'):
+                    ui.button('Cancel', on_click=dlg.close).props('flat text-color=grey-5').classes('px-6')
+
+        from datetime import date
+        f = date.today().replace(day=1).strftime('%Y-%m-%d')
+        t = date.today().strftime('%Y-%m-%d')
+        dlg.open()
+
     def show_price_history():
         pid = input_refs['id'].value
         if not pid: return ui.notify('Select a product first', color='warning')
         p_name = input_refs['product_name'].value
-        with ui.dialog() as d, ui.card().classes('w-full max-w-2xl p-6 border border-white/10 rounded-3xl').style('background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px);'):
+        with ui.dialog() as d, ui.card().classes('w-full max-w-2xl p-6 border border-white/10 rounded-3xl').style(
+            'background: rgba(15, 15, 25, 0.82); backdrop-filter: blur(20px);'
+        ):
             ui.label(f'Price History for {p_name}').classes('text-2xl font-black text-white tracking-wider mb-4 font-outfit')
             sql = """
                 SELECT p.purchase_date as date, p.invoice_number as ref, pi.unit_price as cost, pi.quantity as qty
@@ -284,9 +562,106 @@ def product_page_route(standalone=False):
                 ui.button('Close', on_click=d.close).props('flat text-color=gray').classes('px-4 py-2 rounded-xl')
         d.open()
 
+    # ---- ui.table state helpers (replaces ag-grid) ----
+    _all_rows = []
+    _selected_row_index = None
+    _selected_row_id = None
+    _filter_text = ''
+
+    def _apply_row_from_id(pid):
+        nonlocal _selected_row_index, _selected_row_id
+        if not table:
+            return
+
+        rows = getattr(table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == pid), None)
+        if target_index is None:
+            return
+
+        _selected_row_index = target_index
+        _selected_row_id = pid
+
+        row = rows[_selected_row_index]
+        input_refs['id'].set_value(str(pid))
+        for key in ['product_name', 'barcode', 'sku', 'description', 'price', 'cost_price',
+                    'stock_quantity', 'min_stock_level', 'max_stock_level', 'local_price', 'is_active']:
+            if key in row:
+                input_refs[key].set_value(row[key])
+
+        input_refs['category_id'].set_value(row.get('category', ''))
+        input_refs['supplier_id'].set_value(row.get('supplier', ''))
+        input_refs['currency_id'].set_value(row.get('currency', ''))
+
+        photo_data = []
+        connection.contogetrows(f"SELECT photo FROM products WHERE id = {pid}", photo_data)
+        full_photo = photo_data[0][0] if photo_data else None
+        input_refs['photo'].set_value(full_photo or '')
+        if full_photo:
+            photo_preview.set_source(full_photo)
+        else:
+            photo_preview.set_source('https://via.placeholder.com/150')
+
+        if hasattr(footer_container, 'action_bar'):
+            footer_container.action_bar.enter_edit_mode()
+
+        # keep selected row highlight in sync
+        _apply_selected_row_color()
+        update_ttc_from_ht()
+        try:
+            update_saved_state()
+        except:
+            pass
+
+    def _apply_selected_row_color():
+        if _selected_row_index is None:
+            return
+        idx = _selected_row_index
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.q-table');
+          if (!root) return;
+
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+
+          const safeIdx = Math.max(0, Math.min({idx}, rows.length - 1));
+
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+
+          const selected = rows[safeIdx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ }}
+        """)
+
+    def _apply_all_filters():
+        nonlocal _all_rows, _selected_row_index, _selected_row_id, _filter_text
+        if not table:
+            return
+        q = _filter_text.strip().lower()
+        filtered = []
+        for r in (_all_rows or []):
+            if q and q not in str(r.get('product_name') or '').lower() and q not in str(r.get('barcode') or '').lower():
+                continue
+            filtered.append(r)
+        table.rows = filtered
+        table.update()
+        table.classes(remove='dimmed')
+        if filtered:
+            _apply_row_from_id(filtered[0].get('id'))
+
+    filter_table = _apply_all_filters
+
     def refresh_table():
+        nonlocal _all_rows, _selected_row_index, _selected_row_id
         data = []
-        # Selecting photo presence flag instead of full binary data
         sql = """SELECT p.id, p.product_name, p.barcode, p.sku, p.description,
                  c.category_name as category, p.price, p.cost_price, p.stock_quantity,
                  p.min_stock_level, p.max_stock_level, s.name as supplier,
@@ -299,21 +674,29 @@ def product_page_route(standalone=False):
                  LEFT JOIN currencies cu ON p.currency_id = cu.id
                  ORDER BY p.id DESC"""
         connection.contogetrows(sql, data)
+
         rows = []
-        
         for r in data:
             rows.append({
-                'id': r[0], 'product_name': r[1], 'barcode': r[2], 'sku': r[3], 'description': r[4], 
-                'category': r[5], 'price': r[6], 'cost_price': r[7], 'stock_quantity': r[8], 
-                'min_stock_level': r[9], 'max_stock_level': r[10], 'supplier': r[11], 
+                'id': r[0], 'product_name': r[1], 'barcode': r[2], 'sku': r[3], 'description': r[4],
+                'category': r[5], 'price': r[6], 'cost_price': r[7], 'stock_quantity': r[8],
+                'min_stock_level': r[9], 'max_stock_level': r[10], 'supplier': r[11],
                 'currency': r[12], 'local_price': r[13], 'is_active': r[14],
                 'has_photo': bool(r[15]),
                 'is_vat_subjected': bool(r[16]), 'vat_percentage': r[17], 'price_ttc': r[18]
             })
-        table.options['rowData'] = rows
-        table.update()
+
+        _all_rows = rows
+        _selected_row_index = None
+        _selected_row_id = None
+
         if table:
+            table.rows = rows
+            table.update()
             table.classes(remove='dimmed')
+            if rows:
+                _apply_row_from_id(rows[0].get('id'))
+
         update_profit_analysis()
 
     def update_profit_analysis():
@@ -367,31 +750,24 @@ def product_page_route(standalone=False):
             from reportlab.graphics.shapes import Drawing
             from reportlab.graphics import renderPDF
             
-            # Create a 50x30 mm thermal label PDF
             pdf_buf = BytesIO()
             c = canvas.Canvas(pdf_buf, pagesize=(50*mm, 30*mm))
             
-            # Gather details
             name = input_refs['product_name'].value or "Product"
             price = input_refs['price_ttc'].value or input_refs['price'].value or 0
             try: price_str = f"L.L. {float(price):,.0f}" if float(price) > 1000 else f"${float(price):.2f}"
             except: price_str = str(price)
             
             c.setFont("Helvetica-Bold", 8)
-            # Center truncate name if too long
             n = name[:22]
             c.drawCentredString(25*mm, 24*mm, n)
             
-            # Barcode widget
-            # ensure val is 13 digits
             if len(val) == 13 and val.isdigit():
                 barcode_w = Ean13BarcodeWidget(val)
                 barcode_w.barHeight = 10*mm
                 barcode_w.barWidth = 0.25*mm
-                
                 d = Drawing(40*mm, 15*mm)
                 d.add(barcode_w)
-                # Position barcode horizontally centered (approx 10mm from left)
                 renderPDF.draw(d, c, 5*mm, 8*mm)
             else:
                 c.setFont("Helvetica", 8)
@@ -403,8 +779,6 @@ def product_page_route(standalone=False):
             c.save()
             pdf_buf.seek(0)
             b64 = base64.b64encode(pdf_buf.read()).decode('utf-8')
-            
-            # We can use our reports_framework show_pdf to view it, and user prints it
             from reports_framework import show_pdf
             show_pdf(b64, 'Barcode Label')
             
@@ -412,7 +786,6 @@ def product_page_route(standalone=False):
             ui.notify(f'Barcode error: {e}', color='negative')
 
     def open_suppliers_tab():
-        """Trigger opening the suppliers tab in the dashboard."""
         try:
             from tabbed_dashboard import current_open_tab
             if current_open_tab:
@@ -452,174 +825,9 @@ def product_page_route(standalone=False):
         input_refs['vat_percentage'].options = [float(v[0]) for v in vats]
         input_refs['vat_percentage'].update()
 
-    def print_transactions():
-        try:
-            pid = input_refs['id'].value
-            product_name = input_refs['product_name'].value
-            if not pid:
-                ui.notify('Select a product to view transactions', color='warning')
-                return
-
-            transactions = []
-            
-            # Fetch Sales
-            sales_data = []
-            try:
-                connection.contogetrows("""
-                    SELECT s.sale_date, 'Sale' as type, s.invoice_number, si.quantity, si.unit_price, si.total_price, s.id
-                    FROM sale_items si 
-                    JOIN sales s ON si.sales_id = s.id 
-                    WHERE si.product_id = ?
-                """, sales_data, params=[pid])
-                for r in sales_data:
-                    date_val = str(r[0])[:19] if r[0] else ''
-                    transactions.append({
-                        'date': date_val, 
-                        'type': r[1], 
-                        'reference': str(r[2]), 
-                        'quantity': -float(r[3] or 0), 
-                        'price': float(r[4] or 0), 
-                        'total': -float(r[5] or 0),
-                        'id': r[6]
-                    })
-            except Exception as e:
-                print(f"Error fetching sales: {e}")
-
-            # Fetch Purchases
-            purchases_data = []
-            try:
-                connection.contogetrows("""
-                    SELECT p.purchase_date, 'Purchase' as type, p.invoice_number, pi.quantity, pi.unit_cost, pi.total_cost, p.id
-                    FROM purchase_items pi 
-                    JOIN purchases p ON pi.purchase_id = p.id 
-                    WHERE pi.product_id = ?
-                """, purchases_data, params=[pid])
-                for r in purchases_data:
-                    date_val = str(r[0])[:19] if r[0] else ''
-                    transactions.append({
-                        'date': date_val, 
-                        'type': r[1], 
-                        'reference': str(r[2]), 
-                        'quantity': float(r[3] or 0), 
-                        'price': float(r[4] or 0), 
-                        'total': float(r[5] or 0),
-                        'id': r[6]
-                    })
-            except Exception as e:
-                print(f"Error fetching purchases: {e}")
-
-            if not transactions:
-                ui.notify('No transactions found for this product.', color='info')
-                return
-
-            # Sort transactions by date descending
-            transactions.sort(key=lambda x: x['date'], reverse=True)
-
-            with ui.dialog() as dialog, ui.card().classes('w-[1000px] max-w-full p-6 glass border border-white/10').style('background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(20px); border-radius: 2rem;'):
-                with ui.row().classes('w-full justify-between items-center mb-6'):
-                    with ui.column().classes('gap-0'):
-                        ui.label('Product Activity').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest')
-                        ui.label(f'{product_name}').classes('text-2xl font-black text-white')
-                    ui.button(icon='close', on_click=dialog.close).props('flat round dense color=white')
-                
-                columns = [
-                    {'headerName': 'Date', 'field': 'date', 'sortable': True, 'width': 160},
-                    {'headerName': 'Type', 'field': 'type', 'sortable': True, 'filter': True, 'width': 100},
-                    {'headerName': 'Reference', 'field': 'reference', 'sortable': True, 'filter': True, 'width': 130},
-                    {'headerName': 'Qty', 'field': 'quantity', 'sortable': True, 'width': 100, 'cellClassRules': {'text-red-400': 'x < 0', 'text-green-400': 'x > 0'}},
-                    {'headerName': 'Unit Cost/Price', 'field': 'price', 'sortable': True, 'width': 130},
-                    {'headerName': 'Total', 'field': 'total', 'sortable': True, 'width': 130, 'cellClassRules': {'text-red-400': 'x < 0', 'text-green-400': 'x > 0'}},
-                ]
-                
-                grid = ui.aggrid({
-                    'columnDefs': columns,
-                    'rowData': transactions,
-                    'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True},
-                    'rowSelection': 'single',
-                }).classes('w-full h-[450px] ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
-
-                async def view_acc_tx():
-                    selected = await grid.get_selected_row()
-                    if not selected:
-                        ui.notify('Select a transaction first', color='warning')
-                        return
-                    import accounting_helpers
-                    ref_type = selected['type']
-                    ref_id = selected['id']
-                    accounting_helpers.show_transactions_dialog(reference_type=ref_type, reference_id=ref_id)
-
-                with ui.row().classes('w-full justify-end gap-3 mt-6'):
-                    ui.button('Accounting Details', icon='receipt_long', on_click=view_acc_tx).props('unelevated color=purple').classes('rounded-xl font-black text-xs uppercase tracking-widest px-6 h-12 shadow-lg shadow-purple-500/20')
-                    ui.button('Close', on_click=dialog.close).props('flat color=white').classes('rounded-xl font-bold px-6')
-                
-            dialog.open()
-        except Exception as ex:
-            ui.notify(f'Display error: {ex}', color='negative')
-
-    def show_price_history():
-        try:
-            pid = input_refs['id'].value
-            product_name = input_refs['product_name'].value
-            if not pid:
-                ui.notify('Select a product to view price history', color='warning')
-                return
-
-            history_data = []
-            try:
-                connection.contogetrows(f"""
-                    SELECT p.purchase_date, pi.unit_cost, pi.unit_price, p.invoice_number, s.name
-                    FROM purchase_items pi
-                    JOIN purchases p ON pi.purchase_id = p.id
-                    LEFT JOIN suppliers s ON p.supplier_id = s.id
-                    WHERE pi.product_id = {pid}
-                """, history_data)
-            except Exception as e:
-                print(f"Error fetching price history: {e}")
-
-            if not history_data:
-                ui.notify('No purchase history found to track price changes.', color='info')
-                return
-
-            history = []
-            for r in history_data:
-                date_val = str(r[0])[:19] if r[0] else ''
-                history.append({
-                    'date': date_val,
-                    'cost': float(r[1] or 0),
-                    'price': float(r[2] or 0),
-                    'invoice': str(r[3]),
-                    'supplier': str(r[4] or 'Unknown')
-                })
-
-            history.sort(key=lambda x: x['date'], reverse=True)
-
-            with ui.dialog() as dialog, ui.card().classes('w-[700px] max-w-full p-6'):
-                with ui.row().classes('w-full justify-between items-center mb-4'):
-                    ui.label(f'Price History: {product_name}').classes('text-xl font-bold').style(f'color: {MDS.ACCENT_DARK}')
-                    ui.button(icon='close', on_click=dialog.close).props('flat round dense')
-                
-                columns = [
-                    {'headerName': 'Date', 'field': 'date', 'sortable': True},
-                    {'headerName': 'Unit Cost', 'field': 'cost', 'sortable': True},
-                    {'headerName': 'Unit Price', 'field': 'price', 'sortable': True},
-                    {'headerName': 'Invoice #', 'field': 'invoice', 'sortable': True},
-                    {'headerName': 'Supplier', 'field': 'supplier', 'sortable': True, 'filter': True},
-                ]
-                
-                ui.aggrid({
-                    'columnDefs': columns,
-                    'rowData': history,
-                    'defaultColDef': {'flex': 1, 'sortable': True},
-                }).classes('w-full h-[400px] ag-theme-quartz-dark')
-                
-            dialog.open()
-        except Exception as ex:
-            ui.notify(f'Display error: {ex}', color='negative')
-
     def setup_data():
         refresh_dropdowns()
         refresh_table()
-        # Auto-load the last product into the form
         try:
             last_data = []
             sql = """SELECT TOP 1 p.id, p.product_name, p.barcode, p.sku, p.description,
@@ -662,239 +870,199 @@ def product_page_route(standalone=False):
         except Exception as ex:
             print(f"Auto-load last product error: {ex}")
 
-    # Layout Construction
     user = session_storage.get('user') or {}
     can_profit = connection.check_page_permission(user.get('role_id'), 'profit-analytics') if user else False
 
     with ModernPageLayout("Product Management", standalone=standalone):
-        with ui.column().classes('w-full gap-6 p-4 animate-fade-in'):
-            
-            with ui.row().classes('w-full gap-6 items-start'):
-                # Left Column: Form
-                with ui.column().classes('w-[420px] gap-4'):
-                    # Product Image Card
-                    with ModernCard().classes('w-full p-6 flex flex-col items-center'):
-                        ui.label('Product Image').classes('text-lg font-bold mb-4 w-full text-center')
-                        photo_preview = ui.image('https://via.placeholder.com/150').classes('w-full h-48 rounded-2xl border-2 border-accent/20 object-cover shadow-inner mb-2')
-                        
-                        with ui.row().classes('w-full gap-2 mb-2'):
-                            input_refs['photo'] = ui.input().classes('hidden') # State holder
-                            input_refs['uploader'] = ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dense label="Upload Image" accept=".jpg,.png,.jpeg"').classes('flex-1')
-                            ui.button(icon='delete', on_click=remove_photo).props('flat round color=red').tooltip('Remove current photo')
+        with ui.row().classes('w-full gap-6 items-start p-4 animate-fade-in'):
+            with ui.column().classes('flex-1 gap-4'):
+                with ui.splitter(horizontal=True, value=40).classes('w-full h-[850px]') as splitter:
+                    with splitter.before:
+                        with ModernCard(glass=True).classes('w-full p-4'):
+                            with ui.row().classes('w-full justify-between items-center mb-4 ml-2'):
+                                ui.label('Product Repository').classes('text-lg font-bold').style(f'color: {MDS.ACCENT_DARK}')
+                                with ui.row().classes('items-center bg-white/10 rounded-full px-3 py-1 shadow-sm border border-gray-300 dark:border-gray-600'):
+                                    ui.icon('search', color='gray').classes('text-lg')
+                                    search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('ml-2 w-64 text-sm outline-none')
+                            def on_search_change(e):
+                                nonlocal _filter_text
+                                _filter_text = e.sender.value if hasattr(e, 'sender') else (e.args if isinstance(e.args, str) else '')
+                                _apply_all_filters()
+                            search_input.on('update:model-value', on_search_change)
 
-                    with ModernCard().classes('w-full p-6'):
-                        ui.label('Product Details').classes('text-lg font-bold mb-4 flex items-center gap-2').style(f'color: {MDS.ACCENT_DARK}')
-                        
-                        input_refs['id'] = ui.input('ID').props('readonly outlined dense').classes('hidden')
-                        input_refs['product_name'] = ModernInput('Product Name', placeholder='Enter name...', icon='label', required=True)
-                        input_refs['product_name'].style(f'color: {MDS.ACCENT_DARK}')
-                        
-                        with ui.row().classes('w-full gap-2 mt-2'):
-                            input_refs['barcode'] = ModernInput('Barcode', icon='qr_code').classes('flex-1')
-                            ui.button(icon='auto_fix_high', on_click=generate_barcode).props('flat round color=accent').tooltip('Generate EAN-13')
-                            ui.button(icon='print', on_click=print_barcode).props('flat round color=primary').tooltip('Print Barcode Label')
-                            ui.button(icon='history', on_click=show_price_history).props('flat round color=secondary').tooltip('View Price History')
-                        
-                        input_refs['sku'] = ModernInput('SKU', icon='tag')
-                        input_refs['description'] = ModernInput('Description', placeholder='Short description...', icon='description')
-                        
-                        with ui.row().classes('w-full gap-2 mt-2'):
-                            input_refs['category_id'] = ui.select([], label='Category').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
-                            with ui.row().classes('flex-1 items-center gap-1'):
-                                input_refs['supplier_id'] = ui.select([], label='Supplier').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
-                                ui.button(icon='add', on_click=open_suppliers_tab).props('flat round dense color=accent').tooltip('Open Suppliers in new tab')
+                            def _focus_first_row_from_search():
+                                ui.run_javascript("""
+                                try {
+                                  const root = document.querySelector('.q-table');
+                                  if (root) { root.tabIndex = 0; root.focus(); }
+                                } catch (e) {}
+                                """)
+                                if table and getattr(table, 'rows', None) and len(table.rows) > 0:
+                                    first_id = table.rows[0].get('id')
+                                    if first_id is not None:
+                                        _apply_row_from_id(first_id)
 
-                    with ModernCard().classes('w-full p-6'):
-                        with ui.row().classes('w-full bg-white/5 p-3 rounded-2xl border border-white/10 mb-2 items-center gap-4'):
-                            input_refs['is_vat_subjected'] = ui.checkbox('Subject to VAT', on_change=lambda: update_ttc_from_ht()).classes('text-xs font-black text-white uppercase tracking-widest')
-                            input_refs['vat_percentage'] = ui.select([], label='VAT %', on_change=lambda: update_ttc_from_ht()).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                            search_input.on('keydown.down', lambda: _focus_first_row_from_search())
 
-                        with ui.row().classes('w-full gap-2 items-end'):
-                            input_refs['currency_id'] = ui.select([], label='Currency', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('w-1/3').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
-                            input_refs['price'] = ui.number('Price (HT)', on_change=lambda: (update_ttc_from_ht())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
-                            input_refs['price_ttc'] = ui.number('Price (TTC)', on_change=lambda: (update_ht_from_ttc())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
-                        
-                        with ui.row().classes('w-full gap-2 mt-2'):
-                            input_refs['local_price'] = ui.input('Local (HT)').props('readonly outlined dense dark stack-label').classes('flex-1').style(f'color: {MDS.ACCENT_DARK}')
-                            input_refs['cost_price'] = ui.number('Cost Price', on_change=update_profit_analysis).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
-                            input_refs['stock_quantity'] = ui.number('Current Stock').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
+                            columns = [
+                                {'name': 'has_photo', 'label': 'Img', 'field': 'has_photo', 'align': 'left', 'sortable': True},
+                                {'name': 'product_name', 'label': 'Name', 'field': 'product_name', 'align': 'left', 'sortable': True},
+                                {'name': 'category', 'label': 'Category', 'field': 'category', 'align': 'left', 'sortable': True},
+                                {'name': 'price', 'label': 'Price', 'field': 'price', 'align': 'left', 'sortable': True},
+                                {'name': 'stock_quantity', 'label': 'Stock', 'field': 'stock_quantity', 'align': 'left', 'sortable': True},
+                                {'name': 'supplier', 'label': 'Supplier', 'field': 'supplier', 'align': 'left', 'sortable': True},
+                                {'name': 'currency', 'label': 'Currency', 'field': 'currency', 'align': 'left', 'sortable': True},
+                                {'name': 'is_active', 'label': 'Status', 'field': 'is_active', 'align': 'left', 'sortable': True},
+                            ]
 
-                        with ui.row().classes('w-full gap-2 mt-2'):
-                            input_refs['min_stock_level'] = ui.number('Min Level').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
-                            input_refs['max_stock_level'] = ui.number('Max Level').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
-                        
-                        input_refs['is_active'] = ui.checkbox('Active Product', value=True).classes('mt-2')
+                            table = ui.table(
+                                columns=columns,
+                                rows=[],
+                                row_key='id',
+                                selection='single',
+                                pagination={'rowsPerPage': 10}
+                            ).classes('w-full h-80 overflow-hidden').props('flat bordered dense')
 
-                # Right Column: Data Grid
-                with ui.column().classes('flex-1'):
-                    with ModernCard().classes('w-full p-4'):
-                        with ui.row().classes('w-full justify-between items-center mb-4 ml-2'):
-                            ui.label('Product Repository').classes('text-lg font-bold').style(f'color: {MDS.ACCENT_DARK}')
-                            with ui.row().classes('items-center bg-white/10 rounded-full px-3 py-1 shadow-sm border border-gray-300 dark:border-gray-600'):
-                                ui.icon('search', color='gray').classes('text-lg')
-                                search_input = ui.input(placeholder='Search by name or barcode...').props('borderless dense').classes('ml-2 w-64 text-sm outline-none')
-                        
-                        columns = [
-                            {'headerName': 'Img', 'field': 'photo', 'width': 60, 'cellRenderer': 'img_renderer'},
-                            {'headerName': 'Name', 'field': 'product_name', 'flex': 2},
-                            {'headerName': 'Category', 'field': 'category'},
-                            {'headerName': 'Price', 'field': 'price'},
-                            {'headerName': 'Stock', 'field': 'stock_quantity'},
-                            {'headerName': 'Supplier', 'field': 'supplier'},
-                            {'headerName': 'Currency', 'field': 'currency'},
-                            {'headerName': 'Status', 'field': 'is_active', 'cellRenderer': 'agCheckboxRenderer'}
-                        ]
-                        
-                        ui.add_body_html('''
-                        <script>
-                        window.img_renderer = (params) => {
-                            if (!params.data.has_photo) return "";
-                            return `<div style="width: 24px; height: 24px; border-radius: 4px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
-                                <span style="font-size: 8px; opacity: 0.5;">📦</span>
-                            </div>`;
-                        };
-                        </script>
-                        ''')
-
-                        table = ui.aggrid({
-                            'columnDefs': columns,
-                            'rowData': [],
-                            'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True},
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
-                        
-                        search_input.on('update:model-value', lambda e: (
-                            table.options.update({'quickFilterText': e.sender.value}),
-                            table.update()
-                        ))
-                        
-                        def on_row_click(e):
-                            try:
-                                # Instant response from click event data
-                                row = e.args.get('data')
-                                if not row: return
-                                
-                                pid = row.get('id')
-                                if pid is None: return
-                                
-                                # Load metadata immediately
-                                input_refs['id'].set_value(str(pid))
-                                for key in ['product_name', 'barcode', 'sku', 'description', 'price', 'cost_price', 'stock_quantity', 'min_stock_level', 'max_stock_level', 'local_price', 'is_active']:
-                                    if key in row: input_refs[key].set_value(row[key])
-                                
-                                # Handle selection mapping
-                                input_refs['category_id'].set_value(row.get('category', ''))
-                                input_refs['supplier_id'].set_value(row.get('supplier', ''))
-                                input_refs['currency_id'].set_value(row.get('currency', ''))
-                                
-                                # Fetch high-resolution image on-demand from database
-                                photo_data = []
-                                connection.contogetrows(f"SELECT photo FROM products WHERE id = {pid}", photo_data)
-                                full_photo = photo_data[0][0] if photo_data else None
-                                
-                                input_refs['photo'].set_value(full_photo or '')
-                                if full_photo:
-                                    photo_preview.set_source(full_photo)
-                                else:
-                                    photo_preview.set_source('https://via.placeholder.com/150')
-                                    
-                                if table:
+                            def on_row_click(e):
+                                try:
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict):
+                                        return
+                                    pid = row.get('id')
+                                    if pid is None:
+                                        return
                                     table.classes(remove='dimmed')
-                                if hasattr(footer_container, 'action_bar'):
-                                    footer_container.action_bar.enter_edit_mode()
-                                
-                                # Handle VAT UI update
-                                update_ttc_from_ht()
-                                
-                                try: update_saved_state()
-                                except: pass
-                            except Exception as ex:
-                                print(f"Product selection error: {ex}")
-                                ui.notify(f'Display error: {ex}', color='warning')
+                                    _apply_row_from_id(pid)
+                                except Exception as ex:
+                                    print(f"Product selection error: {ex}")
+                                    ui.notify(f'Display error: {ex}', color='warning')
 
-                        table.on('cellClicked', on_row_click)
+                            table.on('rowClick', on_row_click)
 
-                    if can_profit:
-                        with ModernCard().classes('w-full p-6 mt-4'):
-                            ui.label('Profit Analysis').classes('text-lg font-bold mb-4').style(f'color: {MDS.SUCCESS}')
-                            with ui.row().classes('w-full justify-between items-center'):
-                                with ui.column().classes('items-center'):
-                                    ui.label('Profit (USD)').classes('text-xs text-gray-500 uppercase font-black')
-                                    profit_label = ui.label('$0.00').classes('text-xl font-black text-success')
-                                with ui.column().classes('items-center'):
-                                    ui.label('Margin').classes('text-xs text-gray-500 uppercase font-black')
-                                    margin_label = ui.label('0.0%').classes('text-xl font-black text-primary')
-                                with ui.column().classes('items-center'):
-                                    ui.label('Markup').classes('text-xs text-gray-500 uppercase font-black')
-                                    markup_label = ui.label('0.0%').classes('text-xl font-black text-accent')
-                    else:
-                        # Keep layout stable for restricted roles
-                        with ModernCard().classes('w-full p-6 mt-4'):
-                            ui.label('Profit analysis hidden for your role').classes('text-sm text-gray-500')
+                            ui.run_javascript("""
+                            try {
+                              const root = document.querySelector('.q-table');
+                              if (!root) return;
+                              root.tabIndex = 0;
+                              if (!root.__bb_prod_arrow_nav) {
+                                root.__bb_prod_arrow_nav = true;
+                                root.addEventListener('keydown', (ev) => {
+                                  if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+                                  ev.preventDefault();
+                                  const rows = root.querySelectorAll('tbody tr');
+                                  const visibleRows = Array.from(rows).filter(r => r && r.offsetParent !== null);
+                                  if (!visibleRows.length) return;
+                                  let currentIndex = visibleRows.findIndex(r => r.classList && r.classList.contains('selected-highlight'));
+                                  if (currentIndex < 0) currentIndex = 0;
+                                  const nextIndex = ev.key === 'ArrowDown'
+                                    ? Math.min(currentIndex + 1, visibleRows.length - 1)
+                                    : Math.max(currentIndex - 1, 0);
+                                  const target = visibleRows[nextIndex];
+                                  if (target) target.click();
+                                });
+                              }
+                            } catch (e) {}
+                            """)
 
-                # Action Bar Panel (Right Side of Editor)
-                with ui.column().classes('w-80px items-center') as footer_container:
-                    from modern_ui_components import ModernActionBar
-                    from product_reports import open_print_special_dialog
-                    footer_container.action_bar = ModernActionBar(
-                        on_new=clear_input_fields,
-                        on_save=save_product,
-                        on_undo=lambda: (footer_container.action_bar.reset_state(), refresh_table()),
-                        on_delete=delete_product,
-                        on_refresh=refresh_table,
-                        on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                        on_print=print_transactions,
-                        on_print_special=open_print_special_dialog,
-                        on_view_transaction=print_transactions,
-                        target_table=table,
-                        button_class='h-16',
-                        classes=' '
-                    )
-                    footer_container.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                    with splitter.after:
+                        with ui.row().classes('w-full gap-4 pt-4'):
+                            with ui.column().classes('flex-1 gap-4'):
+                                with ModernCard(glass=True).classes('w-full p-6'):
+                                    ui.label('Product Details').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4')
+                                    input_refs['id'] = ui.input('ID').props('readonly outlined dense dark').classes('hidden')
+                                    with ui.row().classes('w-full gap-2 items-end'):
+                                        with ui.element('div').classes('flex-2'):
+                                            input_refs['product_name'] = ModernInput('Product Name', placeholder='Enter name...', icon='label', required=True)
+                                            input_refs['product_name'].style(f'color: {MDS.ACCENT_DARK}')
+                                        with ui.element('div').classes('flex-1'):
+                                            input_refs['sku'] = ModernInput('SKU', icon='tag')
+                                        with ui.element('div').classes('flex-1'):
+                                            input_refs['barcode'] = ModernInput('Barcode', icon='qr_code')
+                                        ui.button(icon='auto_fix_high', on_click=generate_barcode).props('flat round color=accent').tooltip('Generate EAN-13')
+                                        ui.button(icon='print', on_click=print_barcode).props('flat round color=primary').tooltip('Print Barcode Label')
+                                        ui.button(icon='history', on_click=show_price_history).props('flat round color=secondary').tooltip('View Price History')
+                                    with ui.row().classes('w-full gap-2 items-end'):
+                                        with ui.element('div').classes('flex-1'):
+                                            input_refs['description'] = ModernInput('Description', placeholder='Short description...', icon='description')
+                                        with ui.element('div').classes('flex-1'):
+                                            input_refs['category_id'] = ui.select([], label='Category').classes('w-full').props('outlined dense dark').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                                        with ui.element('div').classes('flex-1'):
+                                            with ui.row().classes('w-full items-center gap-1'):
+                                                input_refs['supplier_id'] = ui.select([], label='Supplier').classes('flex-1').props('outlined dense dark').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                                                ui.button(icon='add', on_click=open_suppliers_tab).props('flat round dense color=accent').tooltip('Open Suppliers in new tab')
 
-    # Register refresh callback for tabbed dashboard
+                                with ModernCard(glass=True).classes('w-full p-6'):
+                                    ui.label('Pricing & Stock').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4')
+                                    with ui.row().classes('w-full gap-2 items-end'):
+                                        input_refs['is_vat_subjected'] = ui.checkbox('Subject to VAT', on_change=lambda: update_ttc_from_ht()).classes('text-xs font-black text-white uppercase tracking-widest')
+                                        input_refs['vat_percentage'] = ui.select([], label='VAT %', on_change=lambda: update_ttc_from_ht()).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                                        input_refs['currency_id'] = ui.select([], label='Currency', on_change=lambda: (update_local_price(), update_profit_analysis())).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}').on('focus', lambda: refresh_dropdowns())
+                                        input_refs['price'] = ui.number('Price (HT)', on_change=lambda: (update_ttc_from_ht())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                                        input_refs['price_ttc'] = ui.number('Price (TTC)', on_change=lambda: (update_ht_from_ttc())).classes('flex-1 font-bold').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                                    with ui.row().classes('w-full gap-2 mt-2'):
+                                        input_refs['local_price'] = ui.input('Local (HT)').props('readonly outlined dense dark stack-label').classes('flex-1').style(f'color: {MDS.ACCENT_DARK}')
+                                        input_refs['cost_price'] = ui.number('Cost Price', on_change=update_profit_analysis).classes('flex-1').props('outlined dense dark stack-label').style(f'color: {MDS.ACCENT_DARK}')
+                                        input_refs['stock_quantity'] = ui.number('Current Stock').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
+                                        input_refs['min_stock_level'] = ui.number('Min Level').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
+                                        input_refs['max_stock_level'] = ui.number('Max Level').classes('flex-1').props('outlined dense').style(f'color: {MDS.ACCENT_DARK}')
+                                    input_refs['is_active'] = ui.checkbox('Active Product', value=True).classes('mt-2')
 
-    # Register refresh callback for tabbed dashboard
-    try:
-        from tabbed_dashboard import tab_refresh_callbacks
-        tab_refresh_callbacks['products'] = refresh_dropdowns
-    except ImportError:
-        pass
+                            with ui.column().classes('w-[280px] gap-4'):
+                                with ModernCard(glass=True).classes('w-full p-6 flex flex-col items-center'):
+                                    ui.label('Product Image').classes('text-[10px] font-black uppercase text-purple-400 tracking-wider mb-4 w-full text-center')
+                                    photo_preview = ui.image('https://via.placeholder.com/150').classes('w-full h-32 rounded-xl object-cover border-2 border-white/10 mb-4 shadow-sm')
+                                    with ui.row().classes('w-full gap-2 mb-2'):
+                                        input_refs['photo'] = ui.input().classes('hidden')
+                                        input_refs['uploader'] = ui.upload(on_upload=handle_photo_upload, auto_upload=True).props('flat bordered dark dense label="Upload Image" accept=".jpg,.png,.jpeg"').classes('flex-1')
+                                        ui.button(icon='delete', on_click=remove_photo).props('flat round color=red').tooltip('Remove current photo')
 
-    ui.timer(0.1, setup_data, once=True)
+                                if can_profit:
+                                    with ModernCard(glass=True).classes('w-full p-6'):
+                                        ui.label('Profit Analysis').classes('text-[10px] font-black uppercase text-green-400 tracking-wider mb-4')
+                                        with ui.column().classes('w-full gap-3'):
+                                            with ui.row().classes('w-full justify-between items-center'):
+                                                ui.label('Profit (USD)').classes('text-xs text-gray-500 uppercase font-black')
+                                                profit_label = ui.label('$0.00').classes('text-xl font-black text-success')
+                                            with ui.row().classes('w-full justify-between items-center'):
+                                                ui.label('Margin').classes('text-xs text-gray-500 uppercase font-black')
+                                                margin_label = ui.label('0.0%').classes('text-xl font-black text-primary')
+                                            with ui.row().classes('w-full justify-between items-center'):
+                                                ui.label('Markup').classes('text-xs text-gray-500 uppercase font-black')
+                                                markup_label = ui.label('0.0%').classes('text-xl font-black text-primary')
 
-    # Dirty state tracking for unsaved changes warning
-    saved_state = {}
+            with ui.column().classes('w-80px items-center shrink-0') as footer_container:
+                from modern_ui_components import ModernActionBar
+                footer_container.action_bar = ModernActionBar(
+                    on_new=clear_input_fields,
+                    on_save=save_product,
+                    on_undo=undo_changes,
+                    on_delete=delete_product,
+                    on_refresh=refresh_table,
+                    on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
+                    on_print=print_transactions,
+                    on_print_special=open_stock_print_special_dialog,
+                    target_table=table,
+                    button_class='h-16',
+                    classes=' '
+                )
+                footer_container.action_bar.style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
-    def capture_state():
-        state = {}
-        for k, ref in input_refs.items():
-            if k == 'uploader': continue
-            if hasattr(ref, 'value'):
-                state[k] = ref.value
-        return state
-
-    def update_saved_state():
-        nonlocal saved_state
-        saved_state = capture_state().copy()
-
+        ui.timer(0.1, setup_data, once=True)
+        ui.timer(0.2, refresh_table, once=True)
     def is_dirty():
         current_state = capture_state()
-        
-        # If no product selected and form is empty, it's not dirty
+
         if not current_state.get('id') and not current_state.get('product_name'):
             return False
-            
+
         for k, v in current_state.items():
             if k == 'photo': continue
             s_val = saved_state.get(k, '')
-            
-            # Normalize to strings for comparison
+
             v_str = str(v) if v is not None else ''
             s_str = str(s_val) if s_val is not None else ''
-            
+
             if v_str != s_str:
-                # Ignore empty vs unset vs 0 variations
                 if not v_str and not s_str: continue
                 if v_str in ('0', '0.0', '0.00', 'None', '') and s_str in ('0', '0.0', '0.00', 'None', ''): continue
                 if v_str == 'False' and s_str == '': continue
@@ -902,17 +1070,15 @@ def product_page_route(standalone=False):
                 if v_str == 'False' and s_str == '0': continue
                 return True
         return False
-        
+
     try:
         from tabbed_dashboard import tab_dirty_callbacks
         tab_dirty_callbacks['products'] = is_dirty
     except ImportError:
         pass
 
-    # Initial state capture
     ui.timer(0.2, update_saved_state, once=True)
 
-    # ── Auto-Save Drafts (saved to browser sessionStorage every 5 s) ─────────
     def save_draft():
         if not is_dirty(): return
         import json
@@ -920,7 +1086,8 @@ def product_page_route(standalone=False):
             state = {k: v for k, v in capture_state().items() if k != 'photo'}
             encoded = json.dumps(state).replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
             ui.run_javascript(f"sessionStorage.setItem('draft_products', '{encoded}');")
-        except Exception: pass
+        except Exception:
+            pass
 
     def restore_draft_values(state_json):
         import json
@@ -952,9 +1119,10 @@ def product_page_route(standalone=False):
                         ui.button('Discard', on_click=lambda: (ui.run_javascript("sessionStorage.removeItem('draft_products');"), d.close())).props('flat color=gray')
                         ui.button('Restore Draft', color='purple', on_click=lambda: (restore_draft_values(result), d.close())).props('unelevated')
                 d.open()
-            except Exception: pass
+            except Exception:
+                pass
 
-    ui.timer(5.0, save_draft)                   # silently auto-save every 5 s
-    ui.timer(1.5, check_for_draft, once=True)   # check for draft on page open
+    ui.timer(5.0, save_draft)
+    ui.timer(1.5, check_for_draft, once=True)
 
 product_page = product_page_route

@@ -415,90 +415,13 @@ class AppointmentsUI:
             from_date = ui.input('From Date', value=from_month_start.strftime('%Y-%m-%d')).props('type=date dark outlined')
             to_date = ui.input('To Date', value=today.strftime('%Y-%m-%d')).props('type=date dark outlined')
             
-            with ui.row().classes('justify-end gap-3 mt-8'):
-                ui.button('Cancel', on_click=dialog.close).props('flat').classes('text-white')
-            with ui.row().classes('justify-end gap-3 mt-8'):
-                ui.button('Preview', on_click=lambda: self._preview_appointments_report(
-                    from_date.value, to_date.value
-                )).props('flat').classes('text-white')
-                ui.button('Download PDF', on_click=lambda: self._generate_appointments_pdf(
+            with ui.row().classes('justify-end gap-3 mt-8 w-full'):
+                ui.button('CANCEL', on_click=dialog.close).props('flat').classes('text-white font-bold')
+                ui.button('VIEW REPORT', icon='visibility', on_click=lambda: self._generate_appointments_pdf(
                     from_date.value, to_date.value, dialog
-                )).props('color=primary flat').classes('text-white')
+                )).props('color=primary unelevated').classes('text-white font-black px-6 py-2 rounded-xl')
         
         dialog.open()
-
-    def _preview_appointments_report(self, from_date_str, to_date_str):
-        try:
-            # Validate dates
-            from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d').date()
-            to_date = datetime.datetime.strptime(to_date_str, '%Y-%m-%d').date()
-            
-            # Get appointments data
-            data = []
-            query = """
-                SELECT 
-                    a.appointment_date, a.appointment_time, 
-                    ISNULL(c.customer_name, 'N/A') as customer_name, 
-                    ISNULL(e.first_name + ' ' + ISNULL(e.last_name, ''), 'N/A') as employee_name, 
-                    ISNULL(s.service_name, 'N/A') as service_name, ISNULL(a.status, 'N/A') as status, ISNULL(a.duration_minutes, 0) as duration_minutes
-                FROM appointments a
-                LEFT JOIN customers c ON a.customer_id = c.id
-                LEFT JOIN employees e ON a.employee_id = e.id
-                LEFT JOIN services s ON a.service_id = s.id
-                WHERE a.appointment_date BETWEEN ? AND ?
-                ORDER BY a.appointment_date, a.appointment_time
-            """
-            connection.contogetrows(query, data, (from_date_str, to_date_str))
-            print(f"[DEBUG] Preview report: {len(data)} rows fetched for {from_date_str} to {to_date_str}")
-            
-            # Process data for table
-            report_data = []
-            total_duration = 0
-            for r in data:
-                row = {
-                    'date': r[0].strftime('%Y-%m-%d') if r[0] else '',
-                    'time': r[1].strftime('%H:%M') if r[1] else '',
-                    'customer': r[2] or 'N/A',
-                    'employee': r[3] or 'N/A',
-                    'service': r[4] or 'N/A',
-                    'status': r[5] or 'N/A',
-                    'duration': f"{r[6] or 0} min"
-                }
-                report_data.append(row)
-                total_duration += r[6] or 0
-            
-            # Preview dialog
-            preview_dialog = ui.dialog()
-            with preview_dialog, ModernCard(glass=True).classes('w-[90vw] max-w-7xl h-[80vh] p-6 overflow-auto'):
-                ui.label(f'Appointments Preview - {from_date_str} to {to_date_str}').classes('text-2xl font-black mb-6 text-white')
-                
-                ui.aggrid({
-                    'columnDefs': [
-                        {'field': 'date', 'headerName': 'Date'},
-                        {'field': 'time', 'headerName': 'Time'},
-                        {'field': 'customer', 'headerName': 'Customer'},
-                        {'field': 'employee', 'headerName': 'Employee'},
-                        {'field': 'service', 'headerName': 'Service'},
-                        {'field': 'status', 'headerName': 'Status'},
-                        {'field': 'duration', 'headerName': 'Duration'},
-                    ],
-                    'rowData': report_data,
-                    'defaultColDef': {'flex': 1, 'minWidth': 120},
-                    'pagination': True,
-                    'paginationPageSize': 20,
-                }).classes('w-full h-[60vh] my-4')
-                
-                with ui.row().classes('justify-center gap-4 mt-4'):
-                    ui.label(f'Total: {len(report_data)} appointments, {total_duration} minutes').classes('text-lg font-bold text-white')
-                
-                with ui.row().classes('justify-end gap-3 mt-6'):
-                    ui.button('Close', on_click=preview_dialog.close).props('flat').classes('text-white')
-                    ui.button('Download PDF', on_click=lambda: (self._generate_appointments_pdf(from_date_str, to_date_str, None), preview_dialog.close())).props('color=primary flat').classes('text-white')
-            
-            preview_dialog.open()
-            
-        except Exception as e:
-            ui.notify(f'Preview error: {str(e)}', color='negative')
 
     def _generate_appointments_pdf(self, from_date_str, to_date_str, dialog=None):
         try:
@@ -597,8 +520,8 @@ class AppointmentsUI:
             doc.build(story)
             buffer.seek(0)
             
-            filename = f"Reports/appointments_report_{from_date_str.replace('-','')}_to_{to_date_str.replace('-','')}.pdf"
-            ui.download(filename, buffer.getvalue())
+            from pdf_viewer_helper import show_pdf_modal
+            show_pdf_modal(buffer.getvalue(), filename=f"appointments_report_{from_date_str.replace('-','')}_to_{to_date_str.replace('-','')}.pdf", title='Appointments Report')
             
             ui.notify('Appointments report downloaded!', color='positive')
             if dialog:

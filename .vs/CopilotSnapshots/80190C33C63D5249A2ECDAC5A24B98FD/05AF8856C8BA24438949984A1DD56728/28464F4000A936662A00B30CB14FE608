@@ -1,0 +1,414 @@
+﻿#/* AG Grid Custom Theme - New Color Palette */
+"""
+Professional AG Grid Theme for NiceGUI
+Ensures rows align properly under columns with consistent spacing and visibility
+"""
+
+from nicegui import ui
+from color_palette import ColorPalette
+
+
+class uiAggridTheme:
+    # Compact sizing constants for professional appearance
+    # NOTE: Use 28 for compact grids, adjust per page if needed
+    HEADER_HEIGHT = 28
+    ROW_HEIGHT = 28
+    CELL_PADDING = 8
+    CELL_LINE_HEIGHT = 1.2
+
+    @staticmethod
+    def addingtheme():
+        """Initialize the professional AG Grid theme with CSS and JS helpers"""
+        # Add CSS variables first
+        ui.add_css(ColorPalette.get_css_variables())
+
+        # Professional AG Grid Dark Theme CSS
+        ui.add_css(
+            f"""
+        /* ===== AG GRID DARK THEME - PROFESSIONAL ===== */
+        .ag-theme-quartz-dark {{
+            --ag-header-height: {uiAggridTheme.HEADER_HEIGHT}px;
+            --ag-row-height: {uiAggridTheme.ROW_HEIGHT}px;
+            --ag-cell-horizontal-padding: {uiAggridTheme.CELL_PADDING}px;
+            --ag-line-height: {uiAggridTheme.CELL_LINE_HEIGHT};
+
+            /* Base colors */
+            --ag-foreground-color: {ColorPalette.MAIN_TEXT};
+            --ag-background-color: rgba(15, 15, 25, 0.6);
+            /* Green header (only header styling changed; body/rows remain unchanged) */
+            --ag-header-background-color: rgba(20, 80, 40, 0.95);
+            --ag-header-foreground-color: {ColorPalette.HEADER_TEXT};
+            --ag-header-cell-hover-background-color: rgba(20, 120, 60, 0.8);
+            --ag-header-cell-moving-background-color: rgba(20, 180, 90, 0.6);
+
+            /* Row colors */
+            --ag-odd-row-background-color: rgba(20, 20, 35, 0.5);
+            --ag-even-row-background-color: rgba(25, 25, 40, 0.5);
+            --ag-row-hover-color: rgba(100, 100, 140, 0.4);
+            --ag-row-border-color: rgba(255, 255, 255, 0.08);
+
+            /* Selection colors */
+            --ag-selected-row-background-color: rgba(167, 139, 250, 0.25);
+            --ag-range-selection-background-color: rgba(230, 193, 122, 0.2);
+
+            /* Border colors */
+            --ag-border-color: rgba(255, 255, 255, 0.12);
+            --ag-secondary-border-color: rgba(255, 255, 255, 0.08);
+
+            /* Input colors */
+            --ag-input-focus-border-color: rgba(167, 139, 250, 0.8);
+
+            /* Checkbox colors */
+            --ag-checkbox-background-color: rgba(30, 30, 50, 0.8);
+            --ag-checkbox-checked-color: rgba(167, 139, 250, 0.9);
+
+            /* Menu colors */
+            --ag-menu-background-color: rgba(20, 20, 35, 0.95);
+            --ag-menu-border-color: rgba(255, 255, 255, 0.12);
+        }}
+
+        /* ===== HEADER STYLING ===== */
+        .ag-theme-quartz-dark .ag-header {{
+            background-color: rgba(20, 80, 40, 0.95) !important;
+            color: {ColorPalette.HEADER_TEXT} !important;
+            font-weight: 600 !important;
+            font-size: 12px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            box-sizing: border-box !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-row {{
+            /* keep AG Grid layout sizing to avoid header/body width/spacing drift */
+            height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            min-height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            align-items: center !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-cell {{
+            background-color: rgba(20, 80, 40, 0.95) !important;
+            color: {ColorPalette.HEADER_TEXT} !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            box-sizing: border-box !important;
+            height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            min-height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            padding: 0px {uiAggridTheme.CELL_PADDING}px !important;
+            display: flex !important;
+            align-items: center !important;
+            line-height: 1.0 !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-cell:hover {{
+            background-color: rgba(20, 120, 60, 0.7) !important;
+            color: #ffffff !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-cell-text {{
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            line-height: 1.0 !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-cell-resize {{
+            display: inline-block !important;
+            cursor: col-resize !important;
+            width: 6px !important;
+            margin-left: 2px !important;
+            opacity: 0.3 !important;
+            transition: opacity 0.2s ease !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-header-cell:hover .ag-header-cell-resize {{
+            opacity: 0.8 !important;
+            background-color: rgba(167, 139, 250, 0.6) !important;
+        }}
+
+        /* ===== ROW STYLING ===== */
+        .ag-theme-quartz-dark .ag-center-cols-container {{
+            background-color: transparent !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-row {{
+            background-color: rgba(25, 25, 40, 0.5) !important;
+            color: {ColorPalette.MAIN_TEXT} !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            height: {uiAggridTheme.ROW_HEIGHT}px !important;
+            min-height: {uiAggridTheme.ROW_HEIGHT}px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-size: 13px !important;
+            line-height: 1.0 !important;
+            box-sizing: border-box !important;
+            padding: 0px !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-row-odd {{
+            background-color: rgba(20, 20, 35, 0.5) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-row-even {{
+            background-color: rgba(25, 25, 40, 0.5) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-row:hover {{
+            background-color: rgba(100, 100, 140, 0.25) !important;
+            color: {ColorPalette.HEADER_TEXT} !important;
+            transition: background-color 0.15s ease !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-row-selected {{
+            background-color: rgba(167, 139, 250, 0.25) !important;
+            border: 1px solid rgba(167, 139, 250, 0.5) !important;
+            color: {ColorPalette.HEADER_TEXT} !important;
+        }}
+
+        /* ===== CELL STYLING ===== */
+        .ag-theme-quartz-dark .ag-cell {{
+            color: {ColorPalette.MAIN_TEXT} !important;
+            padding: 0px {uiAggridTheme.CELL_PADDING}px !important;
+            height: {uiAggridTheme.ROW_HEIGHT}px !important;
+            min-height: {uiAggridTheme.ROW_HEIGHT}px !important;
+            display: flex !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
+            box-sizing: border-box !important;
+            line-height: 1.0 !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-cell-focus {{
+            border: 1px solid rgba(167, 139, 250, 0.6) !important;
+            outline: none !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-cell-range-selected {{
+            background-color: rgba(230, 193, 122, 0.15) !important;
+        }}
+
+        /* ===== PINNED COLUMNS ===== */
+        .ag-theme-quartz-dark .ag-pinned-left-cols-container,
+        .ag-theme-quartz-dark .ag-pinned-right-cols-container {{
+            background-color: rgba(20, 20, 35, 0.7) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-pinned-header {{
+            background-color: rgba(20, 80, 40, 0.95) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-sizing: border-box !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-pinned-left-header .ag-header-cell,
+        .ag-theme-quartz-dark .ag-pinned-right-header .ag-header-cell {{
+            box-sizing: border-box !important;
+            height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+            min-height: {uiAggridTheme.HEADER_HEIGHT}px !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-pinned-left-cols-container .ag-cell,
+        .ag-theme-quartz-dark .ag-pinned-right-cols-container .ag-cell {{
+            box-sizing: border-box !important;
+            height: {uiAggridTheme.ROW_HEIGHT}px !important;
+            min-height: {uiAggridTheme.ROW_HEIGHT}px !important;
+        }}
+
+        /* ===== SCROLLBAR STYLING ===== */
+        .ag-theme-quartz-dark .ag-horizontal-scrollbar {{
+            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-horizontal-scrollbar-thumb {{
+            background-color: rgba(167, 139, 250, 0.4) !important;
+            border-radius: 3px !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-horizontal-scrollbar-thumb:hover {{
+            background-color: rgba(167, 139, 250, 0.6) !important;
+        }}
+
+        /* ===== CUSTOM HEADER CLASSES ===== */
+        .blue-header {{
+            background-color: rgba(40, 60, 100, 0.8) !important;
+            color: #e0e7ff !important;
+            font-weight: 600 !important;
+        }}
+
+        .green-header {{
+            background-color: rgba(20, 80, 40, 0.8) !important;
+            color: #a7f3d0 !important;
+            font-weight: 600 !important;
+        }}
+
+        .orange-header {{
+            background-color: rgba(100, 60, 20, 0.8) !important;
+            color: #fed7aa !important;
+            font-weight: 600 !important;
+        }}
+
+        /* ===== UTILITY CLASSES ===== */
+        .highlighted-row {{
+            background-color: rgba(167, 139, 250, 0.3) !important;
+            color: #ffffff !important;
+        }}
+
+        .dimmed {{
+            opacity: 0.5 !important;
+            pointer-events: none !important;
+        }}
+
+        /* ===== DROPDOWN & MENU ===== */
+        .ag-theme-quartz-dark .ag-menu {{
+            background-color: rgba(20, 20, 35, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-menu-option {{
+            color: {ColorPalette.MAIN_TEXT} !important;
+            padding: 8px 12px !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-menu-option:hover {{
+            background-color: rgba(100, 100, 140, 0.4) !important;
+            color: #ffffff !important;
+        }}
+
+        /* ===== OVERLAY ===== */
+        .ag-theme-quartz-dark .ag-overlay {{
+            background-color: rgba(15, 15, 25, 0.85) !important;
+        }}
+
+        .ag-theme-quartz-dark .ag-overlay-loading-center {{
+            color: {ColorPalette.HEADER_TEXT} !important;
+        }}
+        """
+        )
+
+        # Global JS helpers for grid layout management
+        ui.add_head_html(
+            """
+        <script>
+        window.__aggrid_store = window.__aggrid_store || {};
+
+        window.__aggrid_triggerLayout = function(name) {
+            try {
+                const api = window.__aggrid_store[name];
+                if (!api) {
+                    console.warn('[AG Grid] No API stored for:', name);
+                    return;
+                }
+                if (api.sizeColumnsToFit) api.sizeColumnsToFit();
+                if (api.doLayout) api.doLayout();
+                if (api.refreshHeader) api.refreshHeader();
+                setTimeout(() => {
+                    if (api.sizeColumnsToFit) api.sizeColumnsToFit();
+                }, 100);
+            } catch (e) {
+                console.error('[AG Grid] triggerLayout error:', name, e);
+            }
+        };
+
+        window.__aggrid_triggerAll = function() {
+            try {
+                const store = window.__aggrid_store || {};
+                for (const name in store) {
+                    try {
+                        const api = store[name];
+                        if (api.sizeColumnsToFit) api.sizeColumnsToFit();
+                        if (api.doLayout) api.doLayout();
+                    } catch (e) {
+                        console.error('[AG Grid] triggerAll error for', name, e);
+                    }
+                }
+            } catch (e) {
+                console.error('[AG Grid] triggerAll error:', e);
+            }
+        };
+
+        document.addEventListener('click', function(e) {
+            const tab = e.target.closest('[role="tab"], .q-tab, .tab');
+            if (tab) {
+                setTimeout(() => {
+                    window.__aggrid_triggerAll && window.__aggrid_triggerAll();
+                }, 100);
+            }
+        });
+
+        if (window.MutationObserver) {
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const el = mutation.target;
+                        if (el.classList && el.classList.contains('ag-theme-quartz-dark')) {
+                            const display = window.getComputedStyle(el).display;
+                            if (display !== 'none') {
+                                setTimeout(() => {
+                                    window.__aggrid_triggerAll && window.__aggrid_triggerAll();
+                                }, 150);
+                            }
+                        }
+                    }
+                });
+            });
+            observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+        }
+        </script>
+        """
+        )
+
+        # Additional compact/layout fixes
+        ui.add_css(
+            """
+        /* Keep visibility intact in dialogs without overriding AG Grid layout rules */
+        .ag-theme-quartz-custom .ag-body-container,
+        .ag-theme-quartz-custom .ag-center-cols-container,
+        .ag-theme-quartz-custom .ag-body-horizontal-scroll-viewport,
+        .ag-theme-quartz-custom .ag-body-viewport,
+        .ag-theme-quartz-custom .ag-center-cols-viewport {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Make rows and cells very compact (ONLY for quartz-custom).
+           Do NOT override quartz-dark row/header sizing; that causes header/body misalignment. */
+        .ag-theme-quartz-custom .ag-cell,
+        .ag-theme-quartz-custom .ag-header-cell {
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+            line-height: 1 !important;
+            min-height: 18px !important;
+            height: 18px !important;
+        }
+
+        /* Force row element heights to match compact rows (ONLY for quartz-custom). */
+        .ag-theme-quartz-custom .ag-row {
+            height: 22px !important;
+            min-height: 22px !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+        }
+
+        /* Ensure cell content doesn't add extra spacing */
+        .ag-theme-quartz-custom .ag-cell-value,
+        .ag-theme-quartz-dark .ag-cell-value {
+            display: block !important;
+            line-height: 18px !important;
+            padding: 0 !important;
+        }
+        """
+        )

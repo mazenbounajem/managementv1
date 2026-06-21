@@ -1,12 +1,9 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from datetime import datetime
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 import logging
 
 
@@ -72,19 +69,31 @@ class JournalVoucherUI:
                     with ModernCard(glass=True).classes('w-full p-6'):
                         ui.label('Voucher Header').classes('text-xl font-black mb-6 text-white')
                         with ui.row().classes('w-full gap-6'):
-                            self.headers_grid = ui.aggrid({
-                                'columnDefs': [
-                                    {'headerName': 'ID', 'field': 'id', 'width': 80},
-                                    {'headerName': 'Date', 'field': 'date', 'width': 120},
-                                    {'headerName': 'Voucher #', 'field': 'voucher_number', 'width': 150},
-                                    {'headerName': 'Subtype', 'field': 'subtype_code', 'width': 100},
-                                    {'headerName': 'Ref', 'field': 'manual_reference', 'width': 150}
-                                ],
-                                'rowData': [],
-                                'defaultColDef': MDS.get_ag_grid_default_def(),
-                                'rowSelection': 'single',
-                            }).classes('flex-1 h-64 ag-theme-quartz-dark')
-                            self.headers_grid.on('cellClicked', lambda e: self.load_header_data(e.args['data']['id'] if isinstance(e.args, dict) and 'data' in e.args and e.args['data'] else None))
+                            headers_columns = [
+                                {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                                {'name': 'date', 'label': 'Date', 'field': 'date', 'align': 'left'},
+                                {'name': 'voucher_number', 'label': 'Voucher #', 'field': 'voucher_number', 'align': 'left'},
+                                {'name': 'subtype_code', 'label': 'Subtype', 'field': 'subtype_code', 'align': 'left'},
+                                {'name': 'manual_reference', 'label': 'Ref', 'field': 'manual_reference', 'align': 'left'},
+                            ]
+                            self.headers_grid = ui.table(
+                                columns=headers_columns,
+                                rows=[],
+                                row_key='id',
+                                selection='single',
+                            ).classes('flex-1 h-64').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+
+                            def on_header_click(e):
+                                try:
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict):
+                                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                            row = e.args[0]
+                                    if row and row.get('id'):
+                                        self.load_header_data(row['id'])
+                                except Exception as ex:
+                                    print(f'Header click error: {ex}')
+                            self.headers_grid.on('rowClick', on_header_click)
 
                             with ui.column().classes('w-80 gap-4'):
                                 self.header_inputs['date'] = ui.input('Date').classes('w-full glass-input').props('dark rounded outlined type=date')
@@ -133,28 +142,41 @@ class JournalVoucherUI:
                             ModernButton('Add Line', icon='add', on_click=self.add_line, variant='primary').classes('h-14')
 
                         # Lines Grid
-                        self.lines_grid = ui.aggrid({
-                            'columnDefs': [
-                                {'headerName': 'Account', 'field': 'account', 'width': 150},
-                                {'headerName': 'Cur', 'field': 'currency_code', 'width': 80},
-                                {'headerName': 'Debit', 'field': 'debit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
-                                {'headerName': 'Credit', 'field': 'credit', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
-                                {'headerName': 'Remark', 'field': 'remark', 'width': 200, 'flex': 1},
-                            ],
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'rowSelection': 'single',
-                        }).classes('w-full h-80 ag-theme-quartz-dark')
+                        lines_columns = [
+                            {'name': 'account', 'label': 'Account', 'field': 'account', 'align': 'left'},
+                            {'name': 'currency_code', 'label': 'Cur', 'field': 'currency_code', 'align': 'left'},
+                            {'name': 'debit', 'label': 'Debit', 'field': 'debit_display', 'align': 'right'},
+                            {'name': 'credit', 'label': 'Credit', 'field': 'credit_display', 'align': 'right'},
+                            {'name': 'remark', 'label': 'Remark', 'field': 'remark', 'align': 'left'},
+                        ]
+                        self.lines_grid = ui.table(
+                            columns=lines_columns,
+                            rows=[],
+                            row_key='id',
+                            selection='single',
+                        ).classes('w-full h-80').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                         
-                        async def delete_line():
-                            selected = await self.lines_grid.get_selected_row()
-                            if selected:
-                                try:
-                                    connection.deleterow("DELETE FROM journal_voucher_items WHERE Id=?", selected['id'])
-                                    ui.notify('Line deleted', color='positive')
-                                    self.refresh_lines_table()
-                                except Exception as e:
-                                    ui.notify(f'Error deleting line: {str(e)}', color='negative')
+                        def on_line_click(e):
+                            try:
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                            except Exception:
+                                pass
+                        self.lines_grid.on('rowClick', on_line_click)
+                        
+                        def delete_line():
+                            selected = self.lines_grid.selected if hasattr(self.lines_grid, 'selected') else None
+                            if selected and isinstance(selected, dict):
+                                line_id = selected.get('id')
+                                if line_id:
+                                    try:
+                                        connection.deleterow("DELETE FROM journal_voucher_items WHERE Id=?", line_id)
+                                        ui.notify('Line deleted', color='positive')
+                                        self.refresh_lines_table()
+                                    except Exception as e:
+                                        ui.notify(f'Error deleting line: {str(e)}', color='negative')
                         
                         with ui.row().classes('w-full justify-end mt-3 mb-2 gap-3'):
                             ui.label('Totals:').classes('text-sm text-white/70')
@@ -166,9 +188,26 @@ class JournalVoucherUI:
                 # Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
-                        on_new=self.clear_all,
-                        on_save=self.save_header,
+                    
+                    def handle_new():
+                        self.clear_all()
+                        if hasattr(self, 'action_bar'):
+                            self.action_bar.enter_new_mode()
+                            
+                    def handle_save():
+                        self.save_header()
+                        if hasattr(self, 'action_bar'):
+                            self.action_bar.reset_state()
+                            
+                    def handle_undo():
+                        self.clear_all()
+                        if hasattr(self, 'action_bar'):
+                            self.action_bar.reset_state()
+
+                    self.action_bar = ModernActionBar(
+                        on_new=handle_new,
+                        on_save=handle_save,
+                        on_undo=handle_undo,
                         on_delete=self.delete_header,
                         on_refresh=self.refresh_headers_table,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
@@ -185,11 +224,10 @@ class JournalVoucherUI:
         self.header_inputs['voucher_number'].value = ''
         self.header_inputs['subtype'].value = None
         self.header_inputs['manual_reference'].value = ''
-        self.lines_grid.options['rowData'] = []
-        self.lines_grid.update()
+        self.lines_grid.rows = []
         self._update_balance_check([])
         if self.headers_grid:
-            self.headers_grid.run_method('deselectAll')
+            self.headers_grid.selected = None
         if 'debit' in self.lines_inputs:
             self.lines_inputs['debit'].value = 0
         if 'credit' in self.lines_inputs:
@@ -265,38 +303,39 @@ class JournalVoucherUI:
             filtered = list(rows)
 
             columns = [
-                {'headerName': 'Auxiliary ID', 'field': 'auxiliary_id', 'width': 140},
-                {'headerName': 'Number/Code', 'field': 'aux_number', 'width': 140},
-                {'headerName': 'Name', 'field': 'account_name', 'flex': 1},
-                {'headerName': 'Full Display', 'field': 'display', 'width': 260},
+                {'name': 'auxiliary_id', 'label': 'Auxiliary ID', 'field': 'auxiliary_id', 'align': 'left'},
+                {'name': 'aux_number', 'label': 'Number/Code', 'field': 'aux_number', 'align': 'left'},
+                {'name': 'account_name', 'label': 'Name', 'field': 'account_name', 'align': 'left'},
+                {'name': 'display', 'label': 'Full Display', 'field': 'display', 'align': 'left'},
             ]
 
-            grid = ui.aggrid({
-                'columnDefs': columns,
-                'rowData': filtered,
-                'rowSelection': 'single',
-                'domLayout': 'normal',
-            }).classes('w-full h-72 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
+            grid = ui.table(
+                columns=columns,
+                rows=filtered,
+                row_key='auxiliary_id',
+                selection='single',
+            ).classes('w-full h-72').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
 
             def apply_filter(val):
                 q = (val or '').strip().lower()
                 if not q:
-                    new_filtered = list(rows)
+                    grid.rows = list(rows)
                 else:
-                    new_filtered = [
+                    grid.rows = [
                         x for x in rows
                         if q in str(x.get('account_name', '')).lower()
                         or q in str(x.get('aux_number', '')).lower()
                         or q in str(x.get('display', '')).lower()
                     ]
-                grid.options['rowData'] = new_filtered
-                grid.update()
 
             search_input.on('keydown.enter', lambda e: apply_filter(search_input.value))
 
             def on_click(e):
                 try:
-                    selected = e.args.get('data') if isinstance(e.args, dict) else None
+                    selected = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                    if not isinstance(selected, dict):
+                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                            selected = e.args[0]
                     if not selected:
                         return
 
@@ -311,7 +350,7 @@ class JournalVoucherUI:
                 except Exception as ex:
                     ui.notify(f'Account select error: {ex}', color='negative')
 
-            grid.on('cellClicked', on_click)
+            grid.on('rowClick', on_click)
 
             with ui.row().classes('w-full justify-end mt-6'):
                 ui.button('Cancel', on_click=dialog.close).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5')
@@ -337,11 +376,7 @@ class JournalVoucherUI:
             return
 
         try:
-            current_rows = []
-            if hasattr(self.lines_grid, 'options') and self.lines_grid.options is not None:
-                current_rows = self.lines_grid.options.get('rowData') or []
-            elif hasattr(self.lines_grid, 'rowData'):
-                current_rows = self.lines_grid.rowData or []
+            current_rows = self.lines_grid.rows or []
 
             total_debit = sum(float(r.get('debit') or 0) for r in current_rows or [])
             total_credit = sum(float(r.get('credit') or 0) for r in current_rows or [])
@@ -701,8 +736,7 @@ class JournalVoucherUI:
                     'subtype_code': r[3],
                     'manual_reference': r[4] or ''
                 })
-            self.headers_grid.options['rowData'] = rows
-            self.headers_grid.update()
+            self.headers_grid.rows = rows
         except Exception as e:
             ui.notify(f'Error refreshing headers: {str(e)}', color='negative')
 
@@ -740,10 +774,11 @@ class JournalVoucherUI:
                     'currency_code': r[4],
                     'debit': float(r[5] or 0),
                     'credit': float(r[6] or 0),
+                    'debit_display': f"${float(r[5] or 0):,.2f}",
+                    'credit_display': f"${float(r[6] or 0):,.2f}",
                     'remark': r[7] or ''
                 })
-            self.lines_grid.options['rowData'] = rows
-            self.lines_grid.update()
+            self.lines_grid.rows = rows
             self._update_balance_check(rows)
         except Exception as e:
             ui.notify(f'Error refreshing lines: {str(e)}', color='negative')

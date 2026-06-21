@@ -1,11 +1,8 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 def currencies_content(standalone=False):
     """Content method for currencies that can be used in tabs"""
@@ -27,6 +24,8 @@ class CurrencyUI:
         self.row_data = []
         self.table = None
         self.search_input = None
+        self._all_category_rows = []
+        self._selected_row_index = None
         self.create_ui()
 
     def clear_input_fields(self):
@@ -37,37 +36,102 @@ class CurrencyUI:
         self.input_refs['is_active'].value = True
         self.input_refs['id'].value = ''
         if self.table:
-            self.table.run_method('deselectAll')
+            self.table.classes(add='dimmed')
+            self.table.selected = None
         if hasattr(self, 'action_bar'):
             self.action_bar.enter_new_mode()
         ui.notify('Ready for new currency', color='info')
 
     def _load_last_row(self):
         """Load the most recent currency into the form and undim table"""
-        if not self.row_data:
+        if not getattr(self.table, 'rows', None):
             return
-            
-        last_row = self.row_data[0]
-        self.input_refs['id'].value = str(last_row['id'])
-        self.input_refs['currency_code'].value = last_row['currency_code']
-        self.input_refs['currency_name'].value = last_row['currency_name']
-        self.input_refs['symbol'].value = last_row['symbol']
-        self.input_refs['exchange_rate'].value = last_row['exchange_rate']
-        self.input_refs['is_active'].value = last_row['is_active']
-        
+        if not self.table.rows:
+            return
+        row = self.table.rows[0]
+        cid = row['id']
+        self._selected_row_index = 0
+
+        self.input_refs['id'].value = str(cid)
+        self.input_refs['currency_code'].value = row.get('currency_code') or ''
+        self.input_refs['currency_name'].value = row.get('currency_name') or ''
+        self.input_refs['symbol'].value = row.get('symbol') or ''
+        self.input_refs['exchange_rate'].value = row.get('exchange_rate') or 1.0
+        self.input_refs['is_active'].value = row.get('is_active')
+
         self.initial_values = {
-            'currency_code': last_row['currency_code'],
-            'currency_name': last_row['currency_name'],
-            'symbol': last_row['symbol'],
-            'exchange_rate': last_row['exchange_rate'],
-            'is_active': last_row['is_active'],
-            'id': str(last_row['id'])
+            'currency_code': row.get('currency_code') or '',
+            'currency_name': row.get('currency_name') or '',
+            'symbol': row.get('symbol') or '',
+            'exchange_rate': row.get('exchange_rate') or 1.0,
+            'is_active': row.get('is_active'),
+            'id': str(cid)
         }
-        
+
         if self.table:
             self.table.classes(remove='dimmed')
-        if hasattr(self, 'action_bar'):
-            self.action_bar.enter_edit_mode()
+            self._apply_selected_row_color()
+
+    def _apply_row_from_id(self, cid):
+        """Select a row by id, update form, and apply highlight."""
+        if not getattr(self, 'table', None):
+            return
+        rows = getattr(self.table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == cid), None)
+        if target_index is None:
+            return
+
+        row = rows[target_index]
+        self._selected_row_index = target_index
+
+        self.input_refs['id'].value = str(cid)
+        self.input_refs['currency_code'].value = row.get('currency_code') or ''
+        self.input_refs['currency_name'].value = row.get('currency_name') or ''
+        self.input_refs['symbol'].value = row.get('symbol') or ''
+        self.input_refs['exchange_rate'].value = row.get('exchange_rate') or 1.0
+        self.input_refs['is_active'].value = row.get('is_active')
+
+        if self.table:
+            self.table.classes(remove='dimmed')
+
+        self._apply_selected_row_color()
+
+    def _apply_selected_row_color(self):
+        """Updates row highlights based on self._selected_row_index."""
+        if self._selected_row_index is None:
+            return
+
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.q-table');
+          if (!root) return;
+
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+
+          const idx = Math.max(0, Math.min({self._selected_row_index} + 1, rows.length - 1));
+
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+
+          const selected = rows[idx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ console.error('Highlight error:', e); }}
+        """)
+
+    def _focus_first_row(self):
+        """Focuses the first row of the table when pressing Down Arrow in search."""
+        if self.table and self.table.rows:
+            cid = self.table.rows[0].get('id')
+            if cid is not None:
+                self._apply_row_from_id(cid)
 
     def save_currency(self):
         currency_code = self.input_refs['currency_code'].value.upper()
@@ -93,6 +157,8 @@ class CurrencyUI:
             ui.notify('Currency saved successfully', color='positive')
             if self.table:
                 self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving currency: {str(e)}', color='negative')
@@ -103,6 +169,8 @@ class CurrencyUI:
                 self.input_refs[field].value = self.initial_values[field]
         if self.table:
             self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
         ui.notify('Changes reverted', color='info')
 
     def delete_currency(self):
@@ -127,27 +195,29 @@ class CurrencyUI:
             data = []
             connection.contogetrows("SELECT id, currency_code, currency_name, symbol, exchange_rate, is_active, created_at FROM currencies ORDER BY id DESC", data)
 
-            new_row_data = []
+            normalized = []
             for row in data:
-                new_row_data.append({
+                normalized.append({
                     'id': row[0],
                     'currency_code': row[1],
                     'currency_name': row[2],
                     'symbol': row[3] or '',
                     'exchange_rate': float(row[4]) if row[4] is not None else 1.0,
                     'is_active': bool(row[5]),
+                    'is_active_display': 'Active' if bool(row[5]) else 'Inactive',
                     'created_at': str(row[6])
                 })
 
-            if self.table:
-                self.table.options['rowData'] = new_row_data
-                self.table.update()
-                self.table.classes(remove='dimmed')
+            self._all_category_rows = normalized
+            self._selected_row_index = None
 
-            self.row_data = new_row_data
-            if self.row_data:
+            if self.table:
+                self.table.rows = normalized
+                self.table.classes(remove='dimmed')
                 self._load_last_row()
-            else:
+
+            self.row_data = normalized
+            if not normalized:
                 self.clear_input_fields()
         except Exception as e:
             ui.notify(f'Error refreshing data: {str(e)}', color='negative')
@@ -164,49 +234,113 @@ class CurrencyUI:
                 # Left Column: List
                 with ui.column().classes('w-1/2 gap-4'):
                     with ModernCard(glass=True).classes('w-full p-6'):
-                        with ui.row().classes('w-full justify-between items-center mb-4'):
+                        with ui.row().classes('w-full gap-3 mb-3 items-center'):
                             ui.label('Active Currencies').classes('text-xl font-black text-white uppercase tracking-widest opacity-70')
-                            self.search_input = ui.input(placeholder='Search currencies...').classes('w-48 glass-input text-white text-sm').props('dark rounded outlined dense')
-                            self.search_input.on('input', lambda e: self.filter_rows(e.value))
+                            self.search_input = (
+                                ui.input(placeholder='Search currencies...')
+                                .props('outlined dense')
+                                .classes('flex-1 text-white bg-black')
+                                .on('update:model-value', lambda e: self._filter_table(e.args))
+                                .on('keydown.down', lambda: self._focus_first_row())
+                            )
 
-                        column_defs = [
-                            {'headerName': 'Code', 'field': 'currency_code', 'width': 80},
-                            {'headerName': 'Name', 'field': 'currency_name', 'flex': 1},
-                            {'headerName': 'Rate', 'field': 'exchange_rate', 'width': 90},
-                            {'headerName': 'Active', 'field': 'is_active', 'width': 80, 'cellRenderer': 'agCheckboxRenderer'},
+                        self._all_category_rows = []
+
+                        columns = [
+                            {'name': 'currency_code', 'label': 'Code', 'field': 'currency_code', 'align': 'left', 'sortable': True},
+                            {'name': 'currency_name', 'label': 'Name', 'field': 'currency_name', 'align': 'left', 'sortable': True},
+                            {'name': 'exchange_rate', 'label': 'Rate', 'field': 'exchange_rate', 'align': 'right', 'sortable': True},
+                            {'name': 'is_active', 'label': 'Active', 'field': 'is_active_display', 'align': 'center', 'sortable': False},
                         ]
 
-                        self.table = ui.aggrid({
-                            'columnDefs': column_defs,
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[550px] ag-theme-quartz-dark shadow-inner')
-                        
-                        async def on_row_click():
+                        self.table = ui.table(
+                            columns=columns,
+                            rows=[],
+                            row_key='id',
+                            selection='single'
+                        ).classes('w-full h-[550px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+
+                        def on_row_click(e):
                             try:
-                                selected_row = await self.table.get_selected_row()
-                                if selected_row:
-                                    self.input_refs['id'].value = str(selected_row['id'])
-                                    self.input_refs['currency_code'].value = selected_row['currency_code']
-                                    self.input_refs['currency_name'].value = selected_row['currency_name']
-                                    self.input_refs['symbol'].value = selected_row['symbol']
-                                    self.input_refs['exchange_rate'].value = selected_row['exchange_rate']
-                                    self.input_refs['is_active'].value = selected_row['is_active']
-                                    
-                                    self.initial_values = {
-                                        'currency_code': selected_row['currency_code'],
-                                        'currency_name': selected_row['currency_name'],
-                                        'symbol': selected_row['symbol'],
-                                        'exchange_rate': selected_row['exchange_rate'],
-                                        'is_active': selected_row['is_active'],
-                                        'id': str(selected_row['id'])
-                                    }
-                                    ui.notify(f'Selected: {selected_row["currency_code"]}', color='info')
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                if not row:
+                                    return
+
+                                cid = row.get('id')
+                                if cid is None:
+                                    return
+
+                                self.input_refs['id'].value = str(cid)
+                                self.input_refs['currency_code'].value = row.get('currency_code') or ''
+                                self.input_refs['currency_name'].value = row.get('currency_name') or ''
+                                self.input_refs['symbol'].value = row.get('symbol') or ''
+                                self.input_refs['exchange_rate'].value = row.get('exchange_rate') or 1.0
+                                self.input_refs['is_active'].value = row.get('is_active')
+
+                                self.initial_values = {
+                                    'currency_code': row.get('currency_code') or '',
+                                    'currency_name': row.get('currency_name') or '',
+                                    'symbol': row.get('symbol') or '',
+                                    'exchange_rate': row.get('exchange_rate') or 1.0,
+                                    'is_active': row.get('is_active'),
+                                    'id': str(cid)
+                                }
+
+                                if self.table:
                                     self.table.classes(remove='dimmed')
-                            except Exception as e:
-                                ui.notify(f'Error selecting currency: {str(e)}', color='negative')
-                        self.table.on('cellClicked', on_row_click)
+                            except Exception as ex:
+                                ui.notify(f'Error selecting currency: {str(ex)}', color='negative')
+
+                        def on_keydown(e):
+                            """Handle up/down keyboard navigation for the table."""
+                            try:
+                                key = getattr(e, 'key', None) or getattr(e, 'args', {}).get('key', None)
+                                if key not in ('ArrowDown', 'ArrowUp'):
+                                    return
+
+                                rows = getattr(self.table, 'rows', None) or []
+                                if not rows:
+                                    return
+
+                                if self._selected_row_index is None:
+                                    self._selected_row_index = 0
+
+                                if key == 'ArrowDown':
+                                    self._selected_row_index = min(self._selected_row_index + 1, len(rows) - 1)
+                                else:
+                                    self._selected_row_index = max(self._selected_row_index - 1, 0)
+
+                                cid = rows[self._selected_row_index].get('id')
+                                if cid is None:
+                                    return
+
+                                self._apply_row_from_id(cid)
+                            except Exception as ex:
+                                ui.notify(f'Keyboard navigation error: {ex}', color='negative')
+
+                        def _row_click_wrapper(e):
+                            try:
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                if isinstance(row, dict) and row.get('id') is not None:
+                                    self._selected_row_index = next((i for i, r in enumerate(self.table.rows or []) if r.get('id') == row.get('id')), None)
+                                    self._apply_selected_row_color()
+                            except:
+                                pass
+                            on_row_click(e)
+
+                        self.table.on('rowClick', _row_click_wrapper)
+
+                        if self.table:
+                            try:
+                                self.table.on('keydown', on_keydown)
+                            except Exception:
+                                pass
 
                 # Center Column: Details Form
                 with ui.column().classes('flex-1 gap-4'):
@@ -247,11 +381,24 @@ class CurrencyUI:
             if self.standalone:
                 layout_container.__exit__(None, None, None)
 
-    def filter_rows(self, search_text):
-        if not search_text:
-            self.table.options['rowData'] = self.row_data
-        else:
-            search_text = search_text.lower()
-            filtered = [row for row in self.row_data if any(search_text in str(v).lower() for v in row.values())]
-            self.table.options['rowData'] = filtered
-        self.table.update()
+    def _filter_table(self, query: str):
+        if not getattr(self, 'table', None):
+            return
+
+        q = (query or "").strip().lower()
+        if not q:
+            self.table.rows = getattr(self, '_all_category_rows', [])
+            self._load_last_row()
+            return
+
+        all_rows = getattr(self, '_all_category_rows', []) or []
+        filtered = []
+        for row in all_rows:
+            code = str(row.get('currency_code') or '').lower()
+            name = str(row.get('currency_name') or '').lower()
+            if q in code or q in name:
+                filtered.append(row)
+
+        self.table.rows = filtered
+        if self.table:
+            self.table.classes(remove='dimmed')

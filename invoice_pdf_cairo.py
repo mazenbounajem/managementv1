@@ -17,7 +17,13 @@ class CairoInvoiceGenerator:
         buffer = BytesIO()
         surface = cairo.PDFSurface(buffer, self.width, self.height)
         ctx = cairo.Context(surface)
-        
+
+        # Use widely available fonts with reliable Arabic support.
+        # Prefer Tahoma; fall back to Arial if Tahoma isn't installed.
+        tahoma_path = r'C:\Windows\Fonts\tahoma.ttf'
+        font_family = "Tahoma" if os.path.exists(tahoma_path) else "Arial"
+        ctx.select_font_face(font_family, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+
         # Set background
         ctx.set_source_rgb(1, 1, 1)  # White background
         ctx.paint()

@@ -124,9 +124,6 @@ class StatisticalReportsUI:
                     # Sort by date
                     daily_summary = daily_summary.sort_values('sale_date')
 
-                    # Prepare data for aggrid
-                    headers = ['Sale Date', 'Total Sales', 'Total Profit']
-                    column_defs = [{'headerName': h, 'field': h.lower().replace(' ', '_')} for h in headers]
                     row_data = [
                         {
                             'sale_date': row['sale_date'].strftime('%Y-%m-%d'),
@@ -135,11 +132,14 @@ class StatisticalReportsUI:
                         } for _, row in daily_summary.iterrows()
                     ]
 
-                    ui.aggrid({
-                        'columnDefs': column_defs,
-                        'rowData': row_data,
-                        'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True}
-                    }).classes('w-full h-96 ag-theme-quartz-custom')
+                    ui.table(
+                        columns=[
+                            {'name': 'sale_date', 'label': 'Sale Date', 'field': 'sale_date', 'align': 'left', 'sortable': True},
+                            {'name': 'total_sales', 'label': 'Total Sales', 'field': 'total_sales', 'align': 'right', 'sortable': True},
+                            {'name': 'total_profit', 'label': 'Total Profit', 'field': 'total_profit', 'align': 'right', 'sortable': True},
+                        ],
+                        rows=row_data,
+                    ).classes('w-full h-96').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                 else:
                     ui.label('No data available for the selected period.')
             else:
@@ -212,10 +212,6 @@ class StatisticalReportsUI:
             data = connection.contogetrows_with_params(query, [], params)
 
             if data:
-                headers = ['Product Name', 'Total Profit']
-                display_headers = headers
-
-                column_defs = [{'headerName': h, 'field': h.lower().replace(' ', '_')} for h in headers]
                 row_data = [
                     {
                         'product_name': row[0],
@@ -223,11 +219,13 @@ class StatisticalReportsUI:
                     } for row in data
                 ]
 
-                ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': row_data,
-                    'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True}
-                }).classes('w-full h-96')
+                ui.table(
+                    columns=[
+                        {'name': 'product_name', 'label': 'Product Name', 'field': 'product_name', 'align': 'left', 'sortable': True},
+                        {'name': 'total_profit', 'label': 'Total Profit', 'field': 'total_profit', 'align': 'right', 'sortable': True},
+                    ],
+                    rows=row_data,
+                ).classes('w-full h-96').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
             else:
                 ui.label('No data available for the selected period.')
 
@@ -257,10 +255,6 @@ class StatisticalReportsUI:
             data = connection.contogetrows_with_params(query, [], params)
 
             if data:
-                headers = ['Product Name', 'Profit Percentage']
-                display_headers = headers
-
-                column_defs = [{'headerName': h, 'field': h.lower().replace(' ', '_')} for h in headers]
                 row_data = [
                     {
                         'product_name': row[0],
@@ -268,11 +262,13 @@ class StatisticalReportsUI:
                     } for row in data
                 ]
 
-                ui.aggrid({
-                    'columnDefs': column_defs,
-                    'rowData': row_data,
-                    'defaultColDef': {'flex': 1, 'sortable': True, 'filter': True}
-                }).classes('w-full h-96')
+                ui.table(
+                    columns=[
+                        {'name': 'product_name', 'label': 'Product Name', 'field': 'product_name', 'align': 'left', 'sortable': True},
+                        {'name': 'profit_percentage', 'label': 'Profit Percentage', 'field': 'profit_percentage', 'align': 'right', 'sortable': True},
+                    ],
+                    rows=row_data,
+                ).classes('w-full h-96').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
             else:
                 ui.label('No data available for the selected period.')
 

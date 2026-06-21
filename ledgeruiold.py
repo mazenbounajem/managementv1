@@ -43,6 +43,8 @@ class LedgerUI:
         self.input_refs['name_ar'].value = ''
         self.input_refs['status'].value = 1
         self.input_refs['id'].value = ''
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new ledger entry', color='info')
 
     def _load_last_row(self):
@@ -105,6 +107,8 @@ class LedgerUI:
 
             connection.insertingtodatabase(sql, values)
             ui.notify('Ledger saved successfully', color='positive')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving ledger: {str(e)}', color='negative')
@@ -113,6 +117,8 @@ class LedgerUI:
         for field in ['account_number', 'sub_number', 'parent_id', 'name_en', 'name_fr', 'name_ar', 'status', 'id']:
             if field in self.initial_values:
                 self.input_refs[field].value = self.initial_values[field]
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
         ui.notify('Changes reverted', color='info')
 
     def delete_ledger(self):
@@ -442,7 +448,7 @@ class LedgerUI:
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_ledger,
                         on_undo=self.undo_changes,

@@ -1,6 +1,5 @@
 from nicegui import ui
 from connection import connection
-from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
 from session_storage import session_storage
@@ -111,37 +110,59 @@ class AccountingTransactionsUI:
                         self._count_label = ui.label('').classes('text-xs text-gray-400')
 
                     cols = [
-                        {'headerName': 'ID',          'field': 'id',           'width': 65},
-                        {'headerName': 'Date',         'field': 'transaction_date', 'width': 110},
-                        {'headerName': 'Account',      'field': 'account_code', 'width': 80},
-                        {'headerName': 'Account Name', 'field': 'account_name', 'flex': 2},
-                        {'headerName': 'Description',  'field': 'description',  'flex': 2},
-                        {'headerName': 'Reference',    'field': 'reference',    'width': 120},
-                        {'headerName': 'Debit',        'field': 'debit',        'width': 110,
-                         'valueFormatter': '"$" + Number(params.value || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})'},
-                        {'headerName': 'Credit',       'field': 'credit',       'width': 110,
-                         'valueFormatter': '"$" + Number(params.value || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})'},
-                        {'headerName': 'Entity Type',  'field': 'entity_type',  'width': 100},
+                        {'name': 'id',               'label': 'ID',             'field': 'id',               'align': 'left'},
+                        {'name': 'transaction_date', 'label': 'Date',           'field': 'transaction_date', 'align': 'left'},
+                        {'name': 'account_code',     'label': 'Account',        'field': 'account_code',     'align': 'left'},
+                        {'name': 'account_name',     'label': 'Account Name',   'field': 'account_name',     'align': 'left'},
+                        {'name': 'description',      'label': 'Description',    'field': 'description',      'align': 'left'},
+                        {'name': 'reference',        'label': 'Reference',      'field': 'reference',        'align': 'left'},
+                        {'name': 'debit',            'label': 'Debit',          'field': 'debit_display',    'align': 'right'},
+                        {'name': 'credit',           'label': 'Credit',         'field': 'credit_display',   'align': 'right'},
+                        {'name': 'entity_type',      'label': 'Entity Type',    'field': 'entity_type',      'align': 'left'},
                     ]
 
-                    self._grid = ui.aggrid({
-                        'columnDefs': cols,
-                        'rowData': [],
-                        'rowSelection': 'single',
-                        'defaultColDef': {'resizable': True, 'sortable': True},
-                        'pagination': True,
-                        'paginationPageSize': 25,
-                    }).classes('w-full ag-theme-quartz-dark').style('height: 600px;')
+                    self._grid = ui.table(
+                        columns=cols,
+                        rows=[],
+                        row_key='id',
+                        selection='single',
+                    ).classes('w-full').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"').style('height: 600px;')
 
-                    self._grid.on('cellClicked', self._on_row_click)
+                    def handle_row_click(e):
+                        try:
+                            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                            if not isinstance(row, dict):
+                                if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                    row = e.args[0]
+                            if row:
+                                self._populate_form(row)
+                        except Exception as ex:
+                            print(f'Row click error: {ex}')
+                    self._grid.on('rowClick', handle_row_click)
 
             # ── Right: Action Bar ──────────────────────────────
             with ui.column().classes('w-[80px] items-center flex-shrink-0'):
                 from modern_ui_components import ModernActionBar
-                ModernActionBar(
-                    on_new=self._clear_form,
-                    on_save=self._save_transaction,
-                    on_undo=self._clear_form,
+                
+                def handle_new():
+                    self._clear_form()
+                    if hasattr(self, 'action_bar'):
+                        self.action_bar.enter_new_mode()
+                
+                def handle_save():
+                    self._save_transaction()
+                    if hasattr(self, 'action_bar'):
+                        self.action_bar.reset_state()
+                        
+                def handle_undo():
+                    self._clear_form()
+                    if hasattr(self, 'action_bar'):
+                        self.action_bar.reset_state()
+
+                self.action_bar = ModernActionBar(
+                    on_new=handle_new,
+                    on_save=handle_save,
+                    on_undo=handle_undo,
                     on_delete=self._delete_transaction,
                     on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_refresh=self._refresh_table,
@@ -169,29 +190,22 @@ class AccountingTransactionsUI:
             headers = ['id', 'transaction_date', 'account_code', 'account_name',
                        'description', 'reference', 'debit', 'credit', 'entity_type', 'entity_id']
             rows = [dict(zip(headers, r)) for r in data]
-            # Serialize
             for row in rows:
-                row['debit'] = float(row['debit'] or 0)
-                row['credit'] = float(row['credit'] or 0)
+                d = float(row['debit'] or 0)
+                c = float(row['credit'] or 0)
+                row['debit'] = d
+                row['credit'] = c
+                row['debit_display'] = f"${d:,.2f}"
+                row['credit_display'] = f"${c:,.2f}"
 
-            self._grid.options['rowData'] = rows
-            self._grid.update()
+            self._grid.rows = rows
             self._count_label.set_text(f'{len(rows)} transactions')
 
-            # Load last entry into form
             if rows:
                 self._populate_form(rows[0])
         except Exception as ex:
             ui.notify(f'Error loading transactions: {ex}', color='red')
             print(f'Error loading accounting_transactions: {ex}')
-
-    def _on_row_click(self, e):
-        try:
-            row = e.args.get('data', {})
-            if row:
-                self._populate_form(row)
-        except Exception as ex:
-            print(f'Row click error: {ex}')
 
     def _populate_form(self, row):
         try:
@@ -295,4 +309,4 @@ class AccountingTransactionsUI:
         self._credit_input.set_value(0)
         self._entity_type_select.set_value('sale')
         self._entity_id_input.set_value(None)
-        self._grid.run_method('deselectAll')
+        self._grid.selected = None

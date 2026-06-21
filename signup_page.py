@@ -13,6 +13,7 @@ class SignupPage:
     def build_ui(self):
         # Add global styles
         ui.add_head_html(MDS.get_global_styles())
+        ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
         
         # Share the same premium styles as login
         ui.add_head_html('''
@@ -53,7 +54,7 @@ class SignupPage:
                 # Header Section
                 with ui.column().classes('text-center items-center w-full animate-fade-in'):
                     with ui.element('div').classes('p-3 rounded-2xl glass mb-4 hover-lift'):
-                        ui.icon('person_add', size='2.5rem').style(f'color: {MDS.ACCENT}')
+                        ui.icon('person_add', size='2.5rem').style('color: var(--accent)')
                     
                     company_info = connection.get_company_info()
                     company_name = company_info.get('company_name', 'ManagementOS') if company_info else 'ManagementOS'
@@ -62,7 +63,7 @@ class SignupPage:
 
                 # Custom Glass Signup Card
                 with ui.column().classes('card glass p-8 w-full animate-slide-in').style('border-radius: 2rem;'):
-                    ui.label('Create Account').style(f'color: {MDS.PRIMARY_DARK}; font-family: "Outfit", sans-serif;').classes('text-2xl font-black tracking-tight mb-6 text-center w-full')
+                    ui.label('Create Account').style('color: var(--primary-dark); font-family: "Outfit", sans-serif;').classes('text-2xl font-black tracking-tight mb-6 text-center w-full')
 
                     # Form inputs
                     with ui.column().classes('w-full gap-4'):
@@ -79,7 +80,7 @@ class SignupPage:
 
                         with ui.row().classes('w-full justify-center pt-6 border-t border-gray-100/10 mt-4'):
                             ui.label("Already have an enterprise portal?").classes('text-gray-400 text-xs font-medium mr-1')
-                            ui.link('Sign In', '/login').style(f'color: {MDS.SECONDARY}').classes('text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity cursor-pointer')
+                            ui.link('Sign In', '/login').style('color: var(--secondary)').classes('text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity cursor-pointer')
 
     def signup(self):
         username = self.username_input.value

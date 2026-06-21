@@ -23,8 +23,8 @@ class DatabaseManager:
     # Configuration - change these values to switch databases
     CONNECTION_CONFIG = {
         "driver": "SQL Server Native Client 11.0",
-        "server": "DESKTOP-Q7U1STD\\SQLEXPRESS02",
-        "database": "POSDb_2026",
+        "server": "DESKTOP-Q7U1STD\SQLEXPRESS02",
+        "database": "nour2026",
         "uid": "sa",
         "pwd": "nave2026",
         "trusted_connection": "yes"

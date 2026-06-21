@@ -15,6 +15,8 @@ class LoginPage:
     def build_ui(self):
         # Add global styles
         ui.add_head_html(MDS.get_global_styles())
+        # Add theme switcher
+        ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
         
         # Premium Background with Mesh-like Gradients
         ui.add_head_html('''
@@ -88,7 +90,7 @@ class LoginPage:
                 # Header Section
                 with ui.column().classes('text-center items-center w-full animate-fade-in'):
                     with ui.element('div').classes('os-logo-container p-4 rounded-3xl glass mb-4 hover-lift'):
-                        ui.icon('cloud_done', size='3.5rem').style(f'color: {MDS.ACCENT}')
+                        ui.icon('cloud_done', size='3.5rem').style('color: var(--accent)')
                     
                     company_info = connection.get_company_info()
                     company_name = company_info.get('company_name', 'ManagementOS') if company_info else 'ManagementOS'
@@ -105,16 +107,28 @@ class LoginPage:
                         ]
                         for icon, label in features:
                             with ui.element('div').classes('feature-pill'):
-                                ui.icon(icon, size='0.875rem').style(f'color: {MDS.ACCENT}')
+                                ui.icon(icon, size='0.875rem').style('color: var(--accent)')
                                 ui.label(label)
 
                 # Custom Glass Login Card
                 with ui.column().classes('card glass p-10 w-full animate-slide-in').style('border-radius: 2rem;'):
-                    ui.label('Welcome Back').style(f'color: {MDS.PRIMARY_DARK}; font-family: "Outfit", sans-serif;').classes('text-3xl font-black tracking-tight mb-2 text-center w-full')
+                    ui.label('Welcome Back').style('color: var(--primary-dark); font-family: "Outfit", sans-serif;').classes('text-3xl font-black tracking-tight mb-2 text-center w-full')
                     ui.label('Access your secure enterprise portal').classes('text-gray-500 mb-8 text-center w-full font-medium')
 
                     # Form inputs
                     with ui.column().classes('w-full gap-5'):
+                        # Theme Selector
+                        with ui.row().classes('w-full items-center justify-between mb-2'):
+                            ui.label('Interface Theme').classes('text-xs font-bold text-gray-500 uppercase tracking-widest')
+                            theme_select = ui.select(
+                                list(MDS.THEMES.keys()),
+                                value=list(MDS.THEMES.keys())[0]
+                            ).props('borderless dense dark').classes('w-40 bg-white/5 px-3 py-1 rounded-xl border border-white/10').on('change', lambda e: ui.run_javascript(f'''
+                                applyTheme("{e.value}");
+                                var darkThemes = ["Teal", "Dark Modern"];
+                                document.body.className = darkThemes.includes("{e.value}") ? "mesh-gradient" : "bg-gray-50";
+                            '''))
+                        
                         self.username_input = ModernInput('Username', placeholder='Enter your username', icon='person').classes('w-full')
                         self.password_input = ModernInput('Password', placeholder='••••••••', input_type='password', icon='lock').classes('w-full')
                         
@@ -131,13 +145,13 @@ class LoginPage:
                         
                         with ui.row().classes('w-full justify-between items-center px-1 mb-2'):
                             ui.checkbox('Secure Session').classes('text-xs text-gray-500 font-bold uppercase tracking-tight')
-                            ui.link('Trouble signing in?', '#').style(f'color: {MDS.SECONDARY}').classes('text-xs font-bold uppercase tracking-tight hover:opacity-70 transition-opacity')
+                            ui.link('Trouble signing in?', '#').style('color: var(--secondary)').classes('text-xs font-bold uppercase tracking-tight hover:opacity-70 transition-opacity')
 
                         ModernButton('Initialize Dashboard', icon='rocket_launch', variant='primary', size='lg', on_click=self.login).classes('w-full py-4 text-lg shadow-xl shadow-purple-500/20')
 
                         with ui.row().classes('w-full justify-center pt-6 border-t border-gray-100 mt-4'):
                             ui.label("New to ManagementOS?").classes('text-gray-400 text-xs font-medium mr-1')
-                            ui.link('Request Access', '/signup').style(f'color: {MDS.SECONDARY}').classes('text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity cursor-pointer')
+                            ui.link('Request Access', '/signup').style('color: var(--secondary)').classes('text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity cursor-pointer')
 
 
 
@@ -145,7 +159,7 @@ class LoginPage:
         """Fetch available years based on database names"""
         try:
             # Query sys.databases to find databases matching our pattern
-            sql = "SELECT name FROM sys.databases WHERE name LIKE 'POSDb%' OR name = 'ManagementV1'"
+            sql = "SELECT name FROM sys.databases WHERE name LIKE '%' OR name = 'ManagementV1'"
             rows = db_manager.execute_query(sql)
             
             years = {}

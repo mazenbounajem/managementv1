@@ -1,13 +1,10 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 import hashlib
 import datetime
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 @ui.page('/employees')
 def employee_page_route():
@@ -43,8 +40,9 @@ class EmployeeUI:
             else:
                 ref.value = ''
         if self.table:
-            self.table.classes(add='dimmed')
-            self.table.run_method('deselectAll')
+            self.table.selected = None
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new employee entry', color='info')
 
     def _load_last_row(self):
@@ -54,6 +52,8 @@ class EmployeeUI:
             connection.contogetrows("SELECT TOP 1 id FROM employees ORDER BY id DESC", data)
             if data:
                 self.load_employee_details(data[0][0])
+            if hasattr(self, 'action_bar'):
+                self.action_bar.enter_edit_mode()
         except Exception as e:
             print(f"Error loading last employee: {e}")
 
@@ -117,11 +117,27 @@ class EmployeeUI:
                 connection.create_user_account(vals['username'], password_hash, role_id)
 
             ui.notify('Employee saved', color='positive')
-            if self.table:
-                self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving: {str(e)}', color='negative')
+
+    def undo_changes(self):
+        for key, ref in self.input_refs.items():
+            if key == 'is_active':
+                ref.value = True
+            elif key == 'id':
+                ref.value = ''
+            elif key in ['hire_date', 'termination_date']:
+                ref.value = ''
+            else:
+                ref.value = ''
+        if self.table:
+            self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
+        ui.notify('Changes reverted', color='info')
 
     def delete_employee(self):
         id_val = self.input_refs['id'].value
@@ -149,8 +165,9 @@ class EmployeeUI:
                     'id': r[0], 'first_name': r[1], 'last_name': r[2], 'email': r[3],
                     'position': r[4], 'department': r[5], 'is_active': bool(r[6])
                 })
-            self.table.options['rowData'] = rows
+            self.table.rows = rows
             self.table.update()
+            self.row_data = rows
             # Load last entry into form and undim
             self._load_last_row()
         except Exception as e:
@@ -162,24 +179,36 @@ class EmployeeUI:
             with ui.column().classes('w-1/3 gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Employee Repository').classes('text-lg font-bold mb-4 text-white')
-                    self.table = ui.aggrid({
-                        'columnDefs': [
-                            {'headerName': 'ID', 'field': 'id', 'width': 70},
-                            {'headerName': 'Name', 'field': 'first_name', 'flex': 1},
-                            {'headerName': 'Position', 'field': 'position', 'width': 120},
-                            {'headerName': 'Dept', 'field': 'department', 'width': 100},
-                            {'headerName': 'Active', 'field': 'is_active', 'width': 80, 'cellRenderer': 'agCheckboxRenderer'}
-                        ],
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                        'rowSelection': 'single',
-                    }).classes('w-full h-[600px] ag-theme-quartz-dark')
-                    
+                    columns = [
+                        {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                        {'name': 'first_name', 'label': 'Name', 'field': 'first_name', 'align': 'left'},
+                        {'name': 'position', 'label': 'Position', 'field': 'position', 'align': 'left'},
+                        {'name': 'department', 'label': 'Dept', 'field': 'department', 'align': 'left'},
+                        {'name': 'is_active', 'label': 'Active', 'field': 'is_active', 'align': 'center'},
+                    ]
+
+                    self.table = ui.table(
+                        columns=columns,
+                        rows=[],
+                        row_key='id',
+                        selection='single',
+                    ).classes('w-full h-[600px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+
                     def on_row_click(e):
-                        selected = e.args.get('data', {})
-                        if selected and selected.get('id'):
-                            self.load_employee_details(selected['id'])
-                    self.table.on('cellClicked', on_row_click)
+                        try:
+                            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                            if not isinstance(row, dict):
+                                if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                    row = e.args[0]
+                            if not row or not row.get('id'):
+                                return
+                            self.load_employee_details(row['id'])
+                            if hasattr(self, 'action_bar'):
+                                self.action_bar.enter_edit_mode()
+                        except Exception as ex:
+                            ui.notify(f'Error selecting row: {str(ex)}', color='negative')
+
+                    self.table.on('rowClick', on_row_click)
 
             # Center Column: Details Form
             with ui.column().classes('flex-1 gap-4'):
@@ -224,14 +253,15 @@ class EmployeeUI:
             # Right Column: Action Bar
             with ui.column().classes('w-80px items-center'):
                 from modern_ui_components import ModernActionBar
-                ModernActionBar(
+                self.action_bar = ModernActionBar(
                     on_new=self.clear_input_fields,
                     on_save=self.save_employee,
-                    on_undo=lambda: ui.notify('Undo not implemented for employees'),
+                    on_undo=self.undo_changes,
                     on_delete=self.delete_employee,
                     on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                     on_refresh=self.refresh_table,
                     button_class='h-16',
+                    target_table=self.table,
                     classes=' '
                 ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 

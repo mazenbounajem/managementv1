@@ -1,8 +1,7 @@
 from nicegui import ui
 from connection import connection
-from modern_design_system import ModernDesignSystem as MDS
 from modern_page_layout import ModernPageLayout
-from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernTable, ModernActionBar
+from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernActionBar
 from session_storage import session_storage
 from datetime import datetime
 import datetime as dt
@@ -22,12 +21,14 @@ def stock_operations_page(standalone=False):
     history_data = []
     current_operation_items = []
     cost_diff_state = {'selected_operation_cost_diff': None}
+    action_bar = None
 
     def refresh_history():
         data = []
         sql = """SELECT so.id, so.operation_date, u.username, so.operation_type, so.total_items, so.reference_number
                  FROM stock_operations so
                  JOIN users u ON so.user_id = u.id
+                 WHERE so.operation_type != 'return'
                  ORDER BY so.id DESC"""
         connection.contogetrows(sql, data)
         rows = []
@@ -35,10 +36,13 @@ def stock_operations_page(standalone=False):
         for r in data:
             rows.append({cols[i]: r[i] for i in range(len(cols))})
         if history_grid:
-            history_grid.options['rowData'] = rows
-            history_grid.update()
+            history_grid.rows = rows
 
     def clear_form():
+        if action_bar:
+            action_bar.enter_new_mode()
+        if history_grid:
+            history_grid.classes('dimmed')
         for k, ref in input_refs.items():
             if k == 'quantity': ref.set_value(1)
             elif k == 'date': ref.set_value(datetime.now().strftime('%Y-%m-%dT%H:%M'))
@@ -47,8 +51,7 @@ def stock_operations_page(standalone=False):
         
         current_operation_items.clear()
         if items_grid:
-            items_grid.options['rowData'] = []
-            items_grid.update()
+            items_grid.rows = []
             
         try:
             update_saved_state()
@@ -79,11 +82,11 @@ def stock_operations_page(standalone=False):
             'product_name': p_name,
             'barcode': p_barcode,
             'quantity': qty,
-            'reason': reason
+            'reason': reason,
+            'action': '✕'
         })
         
-        items_grid.options['rowData'] = current_operation_items
-        items_grid.update()
+        items_grid.rows = current_operation_items
         
         # Clear item entry fields but keep operation detail
         input_refs['barcode'].set_value('')
@@ -152,6 +155,10 @@ def stock_operations_page(standalone=False):
                 connection.update_product("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?", (movement, item['product_id']))
                 
             ui.notify('Operation saved and stock updated successfully', color='positive')
+            if action_bar:
+                action_bar.reset_state()
+            if history_grid:
+                history_grid.classes(remove='dimmed')
             clear_form()
             refresh_history()
             
@@ -166,8 +173,8 @@ def stock_operations_page(standalone=False):
     
     try:
         with ui.row().classes('w-full gap-6 items-start animate-fade-in p-4'):
-            # Left Column: Active Operation / Inputs
-            with ui.column().classes('w-[360px] gap-4'):
+            # Left Column: Details & Entry
+            with ui.column().classes('w-[380px] gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Operation Detail').classes('text-[10px] font-black uppercase text-purple-400 tracking-widest mb-4')
                     with ui.column().classes('w-full gap-4'):
@@ -187,7 +194,7 @@ def stock_operations_page(standalone=False):
                     
                     def handle_product_selection(e, dialog):
                         try:
-                            row = e.args.get('data')
+                            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
                             if not row: return
                             input_refs['barcode'].set_value(row['barcode'])
                             input_refs['product_name'].set_value(row['product_name'])
@@ -207,25 +214,25 @@ def stock_operations_page(standalone=False):
                             def filter_products(val):
                                 searchTerm = str(val or '').lower()
                                 filtered = [r for r in product_rows if searchTerm in str(r['product_name']).lower() or searchTerm in str(r['barcode']).lower()]
-                                product_grid.options['rowData'] = filtered
-                                product_grid.update()
+                                product_grid.rows = filtered
 
                             with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-4'):
                                 ui.icon('search', size='1.25rem').classes('text-purple-400')
                                 ui.input(placeholder='Type to search name or barcode...').props('borderless dense dark').classes('flex-1 text-white').on_value_change(lambda e: filter_products(e.value))
                             
-                            product_grid = ui.aggrid({
-                                'columnDefs': [
-                                    {'headerName': 'Barcode', 'field': 'barcode', 'width': 150},
-                                    {'headerName': 'Product Name', 'field': 'product_name', 'flex': 1},
-                                    {'headerName': 'Store Stock', 'field': 'stock', 'width': 120},
-                                ],
-                                'rowData': product_rows,
-                                'rowSelection': 'single',
-                                'defaultColDef': MDS.get_ag_grid_default_def(),
-                            }).classes('w-full h-80 ag-theme-quartz-dark shadow-inner')
+                            product_columns = [
+                                {'name': 'barcode', 'label': 'Barcode', 'field': 'barcode', 'align': 'left'},
+                                {'name': 'product_name', 'label': 'Product Name', 'field': 'product_name', 'align': 'left'},
+                                {'name': 'stock', 'label': 'Store Stock', 'field': 'stock', 'align': 'center'},
+                            ]
+                            product_grid = ui.table(
+                                columns=product_columns,
+                                rows=product_rows,
+                                row_key='barcode',
+                                selection='single',
+                            ).classes('w-full h-80').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                             
-                            product_grid.on('cellClicked', lambda e: handle_product_selection(e, dialog))
+                            product_grid.on('rowClick', lambda e: handle_product_selection(e, dialog))
                             
                             with ui.row().classes('w-full justify-end mt-4'):
                                 ui.button('Cancel', on_click=dialog.close).props('flat color=white')
@@ -261,42 +268,40 @@ def stock_operations_page(standalone=False):
                         
                         ModernButton('Add to Operation', icon='playlist_add', on_click=add_item_to_op, variant='primary').classes('w-full h-12 mt-2')
 
-            # Center Column: Current Items + History
+            # Center Column: Grids (Current Items & History)
             with ui.column().classes('flex-1 gap-4'):
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Current Operation Items').classes('text-xl font-black mb-6 text-white uppercase tracking-widest')
                     
                     item_cols = [
-                        {'headerName': 'Barcode', 'field': 'barcode', 'width': 130},
-                        {'headerName': 'Product', 'field': 'product_name', 'flex': 1},
-                        {'headerName': 'Qty', 'field': 'quantity', 'width': 80, 'cellClass': 'font-bold text-sky-400'},
-                        {'headerName': 'Reason', 'field': 'reason', 'width': 150},
-                        {'headerName': '', 'field': 'remove', 'width': 60, 'cellRenderer': 'remove_btn_renderer'}
+                        {'name': 'barcode', 'label': 'Barcode', 'field': 'barcode', 'align': 'left'},
+                        {'name': 'product_name', 'label': 'Product', 'field': 'product_name', 'align': 'left'},
+                        {'name': 'quantity', 'label': 'Qty', 'field': 'quantity', 'align': 'center'},
+                        {'name': 'reason', 'label': 'Reason', 'field': 'reason', 'align': 'left'},
+                        {'name': 'action', 'label': '', 'field': 'action', 'align': 'center'},
                     ]
                     
-                    ui.add_body_html('''
-                    <script>
-                    window.remove_btn_renderer = (params) => {
-                        return '<button style="color:#ef4444; background:transparent; border:none; cursor:pointer; font-weight:bold;">✕</button>';
-                    };
-                    </script>
-                    ''')
-                    
                     def handle_item_click(e):
-                        if e.args.get('colId') == 'remove':
-                            idx = e.args.get('rowIndex')
-                            if idx is not None:
-                                current_operation_items.pop(idx)
-                                items_grid.options['rowData'] = current_operation_items
-                                items_grid.update()
-                                ui.notify('Item removed')
+                        try:
+                            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                            if not isinstance(row, dict): return
+                            barcode = row.get('barcode')
+                            if barcode:
+                                for i, item in enumerate(current_operation_items):
+                                    if item['barcode'] == barcode:
+                                        current_operation_items.pop(i)
+                                        items_grid.rows = current_operation_items
+                                        ui.notify('Item removed')
+                                        break
+                        except Exception as ex:
+                            print(f"Remove error: {ex}")
 
-                    items_grid = ui.aggrid({
-                        'columnDefs': item_cols,
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                    }).classes('w-full h-[280px] ag-theme-quartz-dark shadow-inner')
-                    items_grid.on('cellClicked', handle_item_click)
+                    items_grid = ui.table(
+                        columns=item_cols,
+                        rows=[],
+                        row_key='barcode',
+                    ).classes('w-full h-[280px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+                    items_grid.on('rowClick', handle_item_click)
 
                     # Cost difference after inventory for currently shown operation items
                     cost_diff_label = ui.label('Cost diff after inventory: —').classes(
@@ -306,19 +311,19 @@ def stock_operations_page(standalone=False):
                     ui.label('Operations Registry (History)').classes('text-sm font-black mb-4 text-white/50 uppercase tracking-widest')
                     
                     history_cols = [
-                        {'headerName': 'ID', 'field': 'id', 'width': 70},
-                        {'headerName': 'Date', 'field': 'date', 'flex': 1},
-                        {'headerName': 'Type', 'field': 'type', 'width': 130},
-                        {'headerName': 'Items', 'field': 'items', 'width': 80},
-                        {'headerName': 'Ref', 'field': 'ref', 'width': 120}
+                        {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                        {'name': 'date', 'label': 'Date', 'field': 'date', 'align': 'left'},
+                        {'name': 'type', 'label': 'Type', 'field': 'type', 'align': 'left'},
+                        {'name': 'items', 'label': 'Items', 'field': 'items', 'align': 'center'},
+                        {'name': 'ref', 'label': 'Ref', 'field': 'ref', 'align': 'left'},
                     ]
                     
-                    history_grid = ui.aggrid({
-                        'columnDefs': history_cols,
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                        'rowSelection': 'single',
-                    }).classes('w-full h-[300px] ag-theme-quartz-dark shadow-inner')
+                    history_grid = ui.table(
+                        columns=history_cols,
+                        rows=[],
+                        row_key='id',
+                        selection='single',
+                    ).classes('w-full h-[400px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
 
                     def load_history_operation(row):
                         """Load selected history operation items into current grid and compute cost diff."""
@@ -352,12 +357,11 @@ def stock_operations_page(standalone=False):
                                     'product_id': p_id,
                                     'product_name': p_name,
                                     'barcode': p_barcode,
-                                    # In the UI items_grid expects 'quantity'
                                     'quantity': adj_qty,
-                                    'reason': reason
+                                    'reason': reason,
+                                    'action': '✕'
                                 })
-                            items_grid.options['rowData'] = current_operation_items
-                            items_grid.update()
+                            items_grid.rows = current_operation_items
 
                             # Cost diff after inventory (option A):
                             # after_value - before_value = (prev_qty + adj_qty)*cost - prev_qty*cost
@@ -383,15 +387,18 @@ def stock_operations_page(standalone=False):
                             ui.notify(f"Load failed: {ex}", color='negative')
 
                     def handle_history_click(e):
-                        row = e.args.get('data')
-                        if not row:
-                            return
-                        load_history_operation(row)
+                        try:
+                            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                            if not isinstance(row, dict):
+                                return
+                            load_history_operation(row)
+                        except Exception as ex:
+                            print(f"History click error: {ex}")
 
-                    history_grid.on('cellClicked', handle_history_click)
+                    history_grid.on('rowClick', handle_history_click)
 
             # Right Column: Action Bar
-            with ui.column().classes('w-80px items-center'):
+            with ui.column().classes('w-60px items-center shrink-0'):
 
                 def _open_stock_print_special():
                     try:
@@ -413,16 +420,16 @@ def stock_operations_page(standalone=False):
                     except Exception as e:
                         ui.notify(f'Print Special failed: {e}', color='negative')
 
-                ModernActionBar(
+                action_bar = ModernActionBar(
                     on_new=clear_form,
                     on_save=save_operation,
-                    on_undo=lambda: ui.notify('Undo not applicable here', color='warning'),
+                    on_undo=lambda: (action_bar.reset_state() if action_bar else None, history_grid.classes(remove='dimmed') if history_grid else None, ui.notify('Operation reset', color='info')),
                     on_refresh=refresh_history,
                     on_print_special=_open_stock_print_special,
                     on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                    button_class='h-16',
+                    button_class='h-10',
                     classes=' '
-                ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                ).style('position: static; width: 60px; border-radius: 12px; margin-top: 0;')
 
         # Dirty state tracking for unsaved changes warning
         saved_state = {}
@@ -490,9 +497,11 @@ def stock_operations_page(standalone=False):
                 for k, v in state.items():
                     if k == 'items':
                         current_operation_items.clear()
-                        current_operation_items.extend(v)
-                        items_grid.options['rowData'] = current_operation_items
-                        items_grid.update()
+                        for item in v:
+                            if 'action' not in item:
+                                item['action'] = '✕'
+                            current_operation_items.append(item)
+                        items_grid.rows = current_operation_items
                     elif k in input_refs and hasattr(input_refs[k], 'set_value'):
                         input_refs[k].set_value(v)
                 update_saved_state()

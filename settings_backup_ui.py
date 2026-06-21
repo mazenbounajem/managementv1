@@ -103,7 +103,7 @@ class SettingsBackupUI:
                     self.auto_backup_switch = ui.switch('Enable Automatic Backups').classes('text-white text-lg mb-4')
                     
                     with ui.row().classes('w-full justify-end gap-4 mt-6'):
-                        ui.button('Save Settings', on_click=self.save_settings).classes('h-12 w-48 bg-[#08CB00] text-black font-bold uppercase tracking-wider rounded-xl hover:bg-white transition-all')
+                        ui.button('Save Settings', on_click=self.save_settings).classes('h-12 w-48 bg-[#80B9AD] text-black font-bold uppercase tracking-wider rounded-xl hover:bg-white transition-all')
                     
                     ui.separator().classes('my-6 opacity-30')
                     

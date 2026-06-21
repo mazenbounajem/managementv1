@@ -1,10 +1,7 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 def expensestype_content(standalone=False):
     """Content method for expense types that can be used in tabs"""
@@ -33,7 +30,7 @@ class ExpenseTypeUI:
         self.input_refs['description'].value = ''
         self.input_refs['id'].value = ''
         if self.table:
-            self.table.run_method('deselectAll')
+            self.table.selected = None
         if hasattr(self, 'action_bar'):
             self.action_bar.enter_new_mode()
         ui.notify('Ready for new category', color='info')
@@ -79,6 +76,8 @@ class ExpenseTypeUI:
             ui.notify('Expense category saved successfully', color='positive')
             if self.table:
                 self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving category: {str(e)}', color='negative')
@@ -89,6 +88,8 @@ class ExpenseTypeUI:
                 self.input_refs[field].value = self.initial_values[field]
         if self.table:
             self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
         ui.notify('Changes reverted', color='info')
 
     def delete_expense_type(self):
@@ -130,8 +131,7 @@ class ExpenseTypeUI:
                 })
             
             if self.table:
-                self.table.options['rowData'] = new_row_data
-                self.table.update()
+                self.table.rows = new_row_data
                 self.table.classes(remove='dimmed')
             
             self.row_data = new_row_data
@@ -158,37 +158,38 @@ class ExpenseTypeUI:
                             self.search_input = ui.input(placeholder='Search categories...').classes('w-48 glass-input text-white text-sm').props('dark rounded outlined dense')
                             self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
-                        column_defs = [
-                            {'headerName': 'ID', 'field': 'id', 'width': 70},
-                            {'headerName': 'Category Name', 'field': 'expense_type_name', 'flex': 1},
-                            {'headerName': 'Description', 'field': 'description', 'flex': 1.5},
+                        columns = [
+                            {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                            {'name': 'expense_type_name', 'label': 'Category Name', 'field': 'expense_type_name', 'align': 'left'},
+                            {'name': 'description', 'label': 'Description', 'field': 'description', 'align': 'left'},
                         ]
 
-                        self.table = ui.aggrid({
-                            'columnDefs': column_defs,
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[500px] ag-theme-quartz-dark')
+                        self.table = ui.table(
+                            columns=columns,
+                            rows=[],
+                            row_key='id',
+                            selection='single',
+                        ).classes('w-full h-[500px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                         
-                        async def on_row_click():
+                        def on_row_click(e):
                             try:
-                                selected_row = await self.table.get_selected_row()
-                                if selected_row:
-                                    self.input_refs['id'].value = str(selected_row['id'])
-                                    self.input_refs['expense_type_name'].value = selected_row['expense_type_name']
-                                    self.input_refs['description'].value = selected_row['description'] or ''
-                                    
-                                    self.initial_values = {
-                                        'expense_type_name': selected_row['expense_type_name'],
-                                        'description': selected_row['description'] or '',
-                                        'id': str(selected_row['id'])
-                                    }
-                                    ui.notify(f'Selected: {selected_row["expense_type_name"]}', color='info')
-                                    self.table.classes(remove='dimmed')
-                            except Exception as e:
-                                ui.notify(f'Error selecting category: {str(e)}', color='negative')
-                        self.table.on('cellClicked', on_row_click)
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    return
+                                self.input_refs['id'].value = str(row['id'])
+                                self.input_refs['expense_type_name'].value = row['expense_type_name']
+                                self.input_refs['description'].value = row['description'] or ''
+                                
+                                self.initial_values = {
+                                    'expense_type_name': row['expense_type_name'],
+                                    'description': row['description'] or '',
+                                    'id': str(row['id'])
+                                }
+                                ui.notify(f'Selected: {row["expense_type_name"]}', color='info')
+                                self.table.classes(remove='dimmed')
+                            except Exception as ex:
+                                ui.notify(f'Error selecting category: {str(ex)}', color='negative')
+                        self.table.on('rowClick', on_row_click)
 
                 # Center Column: Details Form
                 with ui.column().classes('flex-1 gap-4'):
@@ -224,9 +225,8 @@ class ExpenseTypeUI:
 
     def filter_rows(self, search_text):
         if not search_text:
-            self.table.options['rowData'] = self.row_data
+            self.table.rows = self.row_data
         else:
             search_text = search_text.lower()
             filtered = [row for row in self.row_data if any(search_text in str(v).lower() for v in row.values())]
-            self.table.options['rowData'] = filtered
-        self.table.update()
+            self.table.rows = filtered

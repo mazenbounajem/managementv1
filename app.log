@@ -52,3 +52,1007 @@
 2026-05-28 15:18:40,389 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
 2026-05-28 15:31:18,410 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
 2026-05-28 15:51:03,710 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 21:33:09,060 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 21:38:04,767 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 22:08:42,132 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 22:30:58,479 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:05:45,987 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:20:30,611 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:31:06,826 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:42:16,039 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:44:40,295 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:45:27,183 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-28 23:57:42,338 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-29 14:26:49,668 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-29 19:48:59,525 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-30 00:03:47,571 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-30 09:02:01,495 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-30 09:06:24,398 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-30 23:45:02,261 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 00:26:52,626 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 00:58:41,044 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 00:58:41,064 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 01:35:46,304 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 01:35:46,330 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 01:42:26,231 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 01:42:26,235 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 01:50:56,799 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 01:50:56,809 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 02:04:00,074 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 02:04:00,091 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 02:07:31,924 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 02:07:31,931 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 02:10:15,120 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 02:10:15,124 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 02:27:15,865 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 02:27:15,871 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 10:14:28,327 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 10:14:28,379 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 10:24:48,057 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 10:24:48,074 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 10:42:53,250 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 10:42:53,477 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 10:45:49,987 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 10:45:49,998 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 10:47:27,338 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 10:47:27,349 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 11:02:25,082 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 11:02:25,121 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 11:30:46,062 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 11:30:46,095 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 16:42:28,028 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 16:42:28,051 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 16:42:30,828 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 16:42:30,836 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 16:55:30,978 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 16:55:31,063 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 16:57:35,355 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 16:57:35,371 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 17:03:43,597 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 17:03:43,602 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 17:09:20,067 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 17:09:20,083 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 19:25:53,043 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 19:25:53,101 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 19:31:41,156 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 19:31:41,170 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 21:14:55,744 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 21:14:55,760 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 21:21:22,839 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 21:21:22,847 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-05-31 21:24:36,680 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-05-31 21:24:36,684 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 00:52:50,633 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 00:52:50,654 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 09:05:28,627 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 09:05:28,676 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 15:03:56,725 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 15:03:56,746 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 15:18:23,493 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 15:18:23,519 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 15:31:35,148 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 15:31:35,167 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 20:50:34,434 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 20:50:34,457 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 20:55:32,406 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 20:55:32,410 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 20:57:21,696 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 20:57:21,710 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 20:58:57,797 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 20:58:57,828 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:01:23,217 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:01:23,226 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:02:04,243 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:02:04,256 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:04:12,709 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:04:12,725 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:05:17,028 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:05:17,033 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:06:25,137 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:06:25,145 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:17:53,709 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:17:53,734 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:19:28,504 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:19:28,509 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 21:24:42,907 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 21:24:42,935 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 22:56:46,926 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 22:56:46,947 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-01 22:59:53,278 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-01 22:59:53,305 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 16:14:04,035 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 16:14:04,117 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 20:41:51,872 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 20:41:51,891 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 20:53:06,064 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 20:53:06,091 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 20:56:33,098 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 20:56:33,103 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 21:04:10,404 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 21:04:10,418 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:12:36,454 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:12:36,529 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:15:16,175 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:15:16,188 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:19:57,283 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:19:57,289 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:26:34,437 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:26:34,533 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:37:15,179 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:37:15,192 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:37:55,906 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:37:55,923 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:47:50,781 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:47:50,800 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:52:53,201 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:52:53,210 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:54:19,596 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:54:19,611 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 22:59:57,891 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 22:59:57,903 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 23:03:46,853 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 23:03:46,857 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 23:09:31,242 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 23:09:31,325 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 23:44:28,366 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 23:44:28,384 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-02 23:49:19,455 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-02 23:49:19,471 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 00:06:27,261 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 00:06:27,278 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 00:14:14,000 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 00:14:14,014 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 00:23:44,267 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 00:23:44,271 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 00:36:24,521 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 00:36:24,538 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 00:38:08,077 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 00:38:08,090 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 08:50:46,672 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 08:50:46,693 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 09:12:55,101 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 09:12:55,108 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 09:16:14,814 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 09:16:14,822 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 09:23:26,402 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-03 09:23:31,779 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 09:23:31,787 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:21:19,936 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:21:19,997 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:28:31,420 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:28:31,425 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:39:31,556 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:39:31,569 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:43:03,480 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:43:03,490 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:48:19,064 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:48:19,074 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 11:50:50,317 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 11:50:50,327 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 17:35:25,089 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 17:35:25,119 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 17:53:45,815 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 17:53:45,831 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 17:57:00,335 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 17:57:00,349 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 18:00:23,148 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 18:00:23,163 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-03 18:16:08,726 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-03 18:16:08,740 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 21:39:01,914 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 21:39:02,830 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:01:37,349 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:01:37,368 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:14:51,166 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:14:51,183 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:22:37,405 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:22:37,411 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:31:58,002 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:31:58,018 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:32:51,121 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:32:51,133 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:41:00,479 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:41:00,493 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:49:17,066 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:49:17,085 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 22:57:32,190 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 22:57:32,217 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:00:37,068 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:00:37,082 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:02:41,471 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:02:41,484 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:05:15,705 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:05:15,713 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:07:43,388 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:07:43,401 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:09:03,727 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:09:03,743 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:11:12,027 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:11:12,050 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-04 23:12:42,948 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-04 23:12:42,961 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-05 20:45:23,327 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-05 20:45:23,445 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-05 20:48:43,639 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-05 20:48:43,650 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-05 22:34:13,305 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-05 22:34:13,318 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-05 23:01:21,236 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-05 23:01:21,286 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 13:09:08,339 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 13:09:08,368 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 14:24:30,285 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 14:24:30,367 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 14:32:29,137 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 14:32:29,142 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 15:09:06,698 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 15:09:06,715 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 19:57:01,372 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 19:57:01,399 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:02:02,283 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:02:02,290 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:07:01,461 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:07:01,465 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:11:38,429 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:11:38,439 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:19:25,033 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:19:25,051 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:22:04,549 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:22:04,563 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:31:22,056 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:31:22,067 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 20:37:59,806 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 20:37:59,862 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 23:24:01,914 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 23:24:01,945 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 23:30:43,033 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 23:30:43,048 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 23:31:31,632 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 23:31:31,648 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-06 23:38:09,848 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-06 23:38:09,867 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 00:32:26,213 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 00:32:26,232 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 00:43:54,896 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 00:43:54,921 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 00:45:03,354 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 00:45:03,365 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 09:52:06,600 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 09:52:06,654 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 10:17:44,429 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 10:17:44,448 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 12:07:27,018 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 12:07:27,052 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 12:18:29,632 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 12:18:29,650 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 13:21:10,733 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 13:21:10,821 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 13:25:53,222 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 13:25:53,228 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 13:47:27,430 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 13:47:27,453 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 14:09:19,416 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 14:09:19,459 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 20:35:34,701 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 20:35:34,733 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 20:50:18,934 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 20:50:18,952 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:05:50,710 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:05:50,725 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:37:07,615 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:37:07,631 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:43:58,761 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:43:58,767 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:51:56,889 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:51:56,893 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:56:58,558 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-07 21:57:00,894 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-07 21:57:11,981 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:57:11,988 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 21:59:08,538 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 21:59:08,545 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:07:05,941 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:07:05,972 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:20:50,259 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:20:50,266 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:22:46,634 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:22:46,649 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:23:56,498 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:23:56,504 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:25:04,282 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:25:04,285 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:26:25,607 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:26:25,615 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:38:28,138 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:38:28,158 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:42:34,964 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-07 22:42:44,955 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:42:44,971 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:45:49,293 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:45:49,317 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:51:51,485 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:51:51,501 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 22:55:58,597 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 22:55:58,607 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-07 23:04:38,251 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-07 23:04:38,265 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-08 09:42:47,990 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-08 09:42:48,041 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-08 16:00:27,438 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-08 16:00:27,479 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-08 23:07:08,176 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-08 23:07:08,475 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-08 23:53:21,057 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-08 23:53:21,078 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-08 23:59:01,043 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-08 23:59:01,046 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 00:02:55,811 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 00:02:55,827 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 00:03:46,478 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 00:03:46,485 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 00:04:42,037 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 00:04:42,049 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 00:08:31,596 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 00:08:31,608 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 15:14:13,658 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 15:14:13,678 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 15:19:01,027 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 15:19:01,036 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 15:28:44,238 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 15:28:44,254 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 15:37:53,495 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 15:37:53,504 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 20:37:39,775 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 20:37:39,933 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 21:01:05,758 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 21:01:05,769 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-09 21:02:44,814 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-09 21:02:44,818 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 14:05:24,729 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 14:05:25,088 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 14:18:16,762 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 14:18:16,825 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 14:22:31,126 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 14:22:31,160 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 14:36:58,766 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 14:36:58,798 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 14:55:18,485 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 14:55:18,517 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 15:31:11,649 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 15:31:11,689 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 16:33:33,914 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 16:33:33,942 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 16:41:38,912 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 16:41:38,929 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 16:50:31,308 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 16:50:31,343 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 16:59:52,233 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 16:59:52,240 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:02:20,026 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:02:20,035 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:06:16,018 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:06:16,029 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:09:49,377 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:09:49,387 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:18:36,413 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:18:36,430 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:20:18,703 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:20:18,721 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:22:03,582 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:22:03,594 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:25:21,336 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:25:21,344 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:33:09,944 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:33:09,959 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:33:10,409 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:33:10,413 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:38:02,986 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:38:02,998 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:39:51,295 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:39:51,316 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 17:59:05,295 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 17:59:05,310 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 18:06:42,679 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 18:06:42,697 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 21:29:29,741 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 21:29:29,764 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 22:12:27,311 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 22:12:27,332 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 22:40:03,333 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 22:40:03,351 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 22:44:22,143 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-10 22:44:22,161 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-10 23:31:19,698 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'nour1'
+2026-06-10 23:31:19,711 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1021, details={'username': 'nour1'}
+2026-06-11 00:02:06,824 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 00:02:06,836 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 00:06:28,526 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 00:06:28,530 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 00:39:31,811 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 00:39:31,912 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 00:49:28,858 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 00:49:28,968 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 01:00:58,634 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 01:00:58,652 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:08:00,685 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:08:00,729 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:11:06,834 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:11:06,927 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:15:06,708 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:15:06,724 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:23:28,308 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:23:28,344 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:38:41,598 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:38:41,625 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:48:30,704 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:48:30,755 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 09:52:27,352 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 09:52:27,382 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 10:01:33,920 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 10:01:33,935 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 10:18:35,408 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 10:18:35,435 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 10:25:16,461 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 10:25:16,487 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 15:36:07,486 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 15:36:07,507 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 15:43:53,871 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 15:43:53,884 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 19:45:40,205 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 19:45:40,261 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 20:04:42,780 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 20:04:42,799 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 20:16:28,121 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 20:16:28,146 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 20:29:17,199 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 20:29:17,208 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 20:47:39,101 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 20:47:39,122 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 21:04:17,685 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 21:04:17,703 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 21:05:17,647 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 21:05:17,662 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 21:29:10,792 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 21:29:10,819 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 21:49:41,769 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 21:49:41,806 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 22:57:33,854 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 22:57:33,877 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 23:27:59,781 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 23:27:59,798 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-11 23:37:11,348 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-11 23:37:11,362 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 00:30:44,589 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 00:30:44,610 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 00:56:07,825 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 00:56:07,849 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 01:45:39,635 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 01:45:39,654 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 01:54:34,924 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 01:54:34,972 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 02:00:02,327 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 02:00:02,364 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 02:07:05,266 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 02:07:05,278 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 02:11:17,220 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 02:11:17,237 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 02:13:19,790 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 02:13:19,807 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 02:19:00,559 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 02:19:00,585 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 09:24:25,506 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 09:24:25,521 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 09:36:29,815 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 09:36:29,828 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 09:44:19,064 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 09:44:19,082 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 09:45:28,415 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 09:45:28,419 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 10:08:08,395 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 10:08:08,410 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 10:09:27,005 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 10:09:27,010 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 18:33:28,802 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 18:33:28,827 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-12 22:27:31,964 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-12 22:27:31,985 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 00:17:25,265 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 00:17:25,286 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 00:30:42,943 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 00:30:42,957 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 00:38:48,799 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 00:38:48,816 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 00:43:36,258 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 00:43:36,276 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 00:47:27,968 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 00:47:27,983 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:03:54,732 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:03:54,750 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:10:15,649 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:10:15,667 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:16:39,281 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:16:39,293 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:27:25,466 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:27:25,628 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:34:47,200 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:34:47,812 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:37:08,088 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:37:08,096 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:42:05,512 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:42:05,662 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 01:44:19,985 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 01:44:20,313 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 10:42:08,850 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 10:42:08,903 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 14:05:35,686 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-13 14:05:45,230 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 14:05:45,251 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 14:42:58,344 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 14:42:58,357 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 14:55:00,310 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 14:55:00,322 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:01:22,197 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:01:22,201 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:04:03,869 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:04:03,880 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:04:41,100 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:04:41,104 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:06:04,392 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:06:04,407 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:10:54,406 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:10:54,462 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:39:11,922 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:39:11,927 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 15:43:00,619 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 15:43:00,634 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 16:06:43,133 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 16:06:43,159 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 16:08:50,141 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 16:08:50,152 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 16:10:16,035 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 16:10:16,047 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 16:13:08,757 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 16:13:08,770 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 16:22:29,722 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 16:22:29,732 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 18:53:14,533 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 18:53:14,564 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 18:58:20,720 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-13 18:58:35,210 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 18:58:35,379 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 18:59:20,131 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 18:59:20,144 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:01:56,880 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:01:56,885 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:05:17,434 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:05:17,450 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:16:15,887 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:16:15,904 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:18:36,699 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:18:36,748 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:19:06,747 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:19:06,859 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:21:25,118 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:21:25,132 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:26:00,315 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:26:00,331 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:29:23,787 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:29:23,827 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 19:32:08,751 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 19:32:08,762 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:02:00,353 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:02:00,389 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:06:15,582 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-13 20:06:23,741 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:06:23,760 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:10:17,644 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:10:17,678 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:15:22,702 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:15:22,718 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:20:45,714 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:20:45,742 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:26:03,133 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:26:03,158 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 20:57:07,128 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 20:57:07,147 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 21:02:55,229 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 21:02:55,234 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 21:02:55,683 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 21:02:55,687 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 21:05:40,179 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 21:05:40,195 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 22:48:16,553 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 22:48:16,632 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:00:17,695 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:00:17,737 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:03:41,661 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:03:41,665 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:24:52,855 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:24:52,865 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:28:39,057 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:28:39,068 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:30:54,707 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:30:54,733 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:32:29,263 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:32:29,281 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:36:58,086 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:36:58,102 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:36:58,520 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:36:58,532 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:36:58,900 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:36:58,903 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-13 23:42:02,077 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-13 23:42:02,093 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:00:52,486 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:00:52,506 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:16:05,707 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:16:05,727 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:22:06,394 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:22:06,413 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:28:13,779 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:28:13,801 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:30:08,379 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:30:08,414 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:31:21,719 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:31:21,728 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:33:52,763 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:33:52,772 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:39:04,134 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:39:04,148 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:40:15,830 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:40:15,843 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 00:56:41,154 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 00:56:41,184 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 01:15:26,980 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-14 01:15:45,646 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 01:15:45,652 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 10:42:17,202 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 10:42:17,219 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 10:55:59,080 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 10:55:59,092 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 11:06:48,703 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 11:06:48,719 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 11:17:34,290 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 11:17:34,295 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 11:30:24,245 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 11:30:24,278 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 12:08:40,427 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 12:08:40,447 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 12:54:52,251 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 12:54:52,332 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 13:00:00,291 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 13:00:00,419 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-14 19:30:05,621 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-14 19:30:05,638 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 09:27:44,059 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 09:27:44,073 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 09:47:00,543 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 09:47:00,573 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 09:56:15,518 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 09:56:15,536 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 10:24:58,990 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 10:24:59,000 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 10:33:25,508 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 10:33:25,532 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 10:41:07,648 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 10:41:07,673 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 15:38:02,063 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 15:38:02,070 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 15:45:05,825 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 15:45:05,838 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 15:51:37,981 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 15:51:37,995 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 15:57:01,602 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 15:57:01,618 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 18:51:01,799 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 18:51:01,822 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 19:10:32,264 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 19:10:32,292 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 20:13:46,709 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 20:13:46,726 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 20:52:35,360 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 20:52:35,416 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 20:57:45,265 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 20:57:45,280 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:09:41,371 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:09:41,388 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:20:21,782 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:20:21,805 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:24:06,919 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:24:06,926 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:27:36,065 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:27:36,079 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:36:53,834 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:36:53,844 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:46:47,120 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:46:47,138 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 21:57:05,607 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 21:57:05,640 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 22:12:18,588 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 22:12:18,631 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 22:24:22,150 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 22:24:22,184 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 22:34:18,917 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 22:34:18,946 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 22:44:10,336 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 22:44:10,354 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-15 22:48:02,670 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-15 22:48:11,163 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-15 22:48:25,075 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-15 22:48:55,255 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-15 22:49:05,415 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-15 22:49:05,425 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 08:56:34,247 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 08:56:34,275 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 09:28:57,568 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 09:28:57,588 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 09:45:34,010 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 09:45:34,025 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 09:56:05,746 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 09:56:05,774 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 10:00:10,791 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 10:00:10,810 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 10:07:01,170 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 10:07:01,202 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 11:39:20,394 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 11:39:20,403 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 14:13:53,666 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 14:13:53,686 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 14:38:09,618 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 14:38:09,636 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 14:51:20,937 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 14:51:20,946 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:10:20,138 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:10:20,204 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:20:30,744 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:20:30,751 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:28:22,018 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:28:22,030 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:31:23,790 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:31:23,804 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:34:50,954 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:34:50,977 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:37:34,922 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:37:34,932 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:40:38,803 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:40:38,815 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:42:39,855 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:42:39,870 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:48:03,130 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:48:03,144 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:51:55,209 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:51:55,222 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 15:55:01,750 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 15:55:01,766 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:02:37,602 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:02:37,620 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:10:44,026 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:10:44,047 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:13:42,599 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:13:42,614 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:19:25,748 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:19:25,783 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:34:57,465 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:34:57,497 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 16:40:17,874 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 16:40:17,896 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 17:01:38,672 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 17:01:38,676 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 17:05:01,742 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 17:05:01,754 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 19:55:42,295 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 19:55:42,316 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 20:21:15,429 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 20:21:15,443 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 21:03:17,726 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 21:03:17,754 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-16 23:15:08,600 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-16 23:15:08,615 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:17:22,200 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:17:22,234 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:22:03,565 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:22:03,629 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:29:08,516 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:29:08,532 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:30:18,460 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:30:18,474 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:56:10,797 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:56:10,812 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 15:58:14,860 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 15:58:14,881 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 16:27:29,399 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 16:27:29,412 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 16:45:18,735 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 16:45:18,748 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 16:51:48,201 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 16:51:48,225 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 17:13:49,301 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 17:13:49,328 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 17:33:41,650 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 17:33:41,673 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 17:48:31,412 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 17:48:31,425 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 17:55:30,576 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 17:55:30,602 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 19:33:36,486 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 19:33:36,502 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 19:49:20,978 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 19:49:21,009 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 19:59:54,765 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 19:59:54,803 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 19:59:57,354 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 19:59:57,361 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 20:46:05,143 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 20:46:05,162 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:08:31,552 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:08:31,574 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:18:47,865 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:18:47,917 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:36:01,893 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:36:01,915 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:44:05,442 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:44:05,465 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:48:07,898 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:48:07,916 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 21:55:07,892 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 21:55:07,905 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:11:56,526 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:11:56,565 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:13:03,545 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:13:03,556 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:19:14,343 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:19:14,371 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:27:38,418 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:27:38,436 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:31:33,188 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:31:33,202 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:36:01,650 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:36:01,667 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 22:41:51,211 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 22:41:51,296 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:09:34,931 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:09:34,958 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:12:03,245 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:12:03,262 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:20:36,240 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'mazen', 'reason': 'invalid_credentials'}
+2026-06-17 23:20:43,320 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:20:43,335 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:29:40,003 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:29:40,059 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:36:27,541 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:36:27,566 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:41:35,567 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:41:35,597 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:43:04,837 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:43:04,851 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:50:51,394 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:50:51,509 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:53:51,109 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:53:51,126 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-17 23:59:31,957 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-17 23:59:31,976 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:08:59,843 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:08:59,862 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:17:28,913 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:17:28,959 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:23:35,978 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:23:35,999 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:30:31,686 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:30:31,702 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:33:17,688 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:33:17,707 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:38:23,630 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:38:23,644 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 00:45:06,636 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 00:45:06,651 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 09:30:22,469 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 09:30:22,571 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 09:35:28,598 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 09:35:28,683 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 09:38:35,829 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 09:38:35,840 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 09:42:11,228 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 09:42:11,241 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 09:47:29,444 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 09:47:29,464 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 10:24:18,398 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 10:24:18,461 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 10:34:26,828 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 10:34:26,859 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 10:58:25,593 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 10:58:25,627 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 14:28:08,789 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 14:28:08,809 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 15:09:06,299 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 15:09:06,318 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 15:20:04,230 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 15:20:04,246 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 15:26:42,675 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 15:26:42,681 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 15:36:00,993 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 15:36:01,022 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 16:08:42,850 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 16:08:42,864 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 20:26:30,793 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 20:26:30,821 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:04:39,029 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:04:39,057 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:07:51,078 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:07:51,085 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:15:28,474 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:15:28,480 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:32:09,828 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:32:09,839 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:42:25,935 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:42:25,951 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:49:48,214 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:49:48,229 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 21:56:18,466 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 21:56:18,486 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:05:39,647 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:05:39,664 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:10:01,099 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:10:01,111 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:13:56,718 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:13:56,731 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:21:42,372 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:21:42,388 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:36:42,765 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:36:42,785 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 22:54:44,867 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 22:54:44,880 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 23:06:10,568 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 23:06:10,590 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 23:16:45,092 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 23:16:45,108 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 23:19:42,491 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 23:19:42,559 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-18 23:22:22,001 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-18 23:22:22,161 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-19 22:08:29,224 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-19 22:08:29,263 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-19 22:13:12,570 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-19 22:13:12,584 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-19 22:29:46,951 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-19 22:29:46,969 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:03:39,977 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:03:40,007 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:11:32,842 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:11:32,858 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:20:44,924 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:20:44,944 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:23:26,223 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:23:26,236 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:25:18,207 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:25:18,220 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:34:29,864 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:34:29,888 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:35:55,252 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:35:55,266 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 00:37:47,964 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 00:37:47,982 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 09:38:32,675 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 09:38:32,703 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 09:59:43,201 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_FAILED, details={'username': 'maen', 'reason': 'user_not_found'}
+2026-06-20 09:59:54,157 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 09:59:54,171 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 13:00:07,021 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 13:00:07,038 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 13:03:54,083 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 13:03:54,097 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 13:55:11,027 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 13:55:11,042 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 13:55:54,426 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 13:55:54,435 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 14:02:59,312 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 14:02:59,348 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 22:59:26,219 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 22:59:26,233 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-20 23:56:12,405 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-20 23:56:12,421 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-21 11:18:52,934 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-21 11:18:52,987 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-21 12:44:01,359 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-21 12:44:01,377 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}
+2026-06-21 13:19:53,715 - pos_system - INFO - _upgrade_hash_if_needed:50 - Upgraded password hash to bcrypt for user 'mazen'
+2026-06-21 13:19:53,741 - pos_system - WARNING - log_security_event:90 - SECURITY: event=LOGIN_SUCCESS, user_id=1017, details={'username': 'mazen'}

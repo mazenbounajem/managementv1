@@ -1,9 +1,7 @@
 from nicegui import ui
 from connection import connection
-from navigation_improvements import EnhancedNavigation
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernStats
-from modern_design_system import ModernDesignSystem as MDS
 
 def accounting_finance_content(standalone=False):
     """Content method for accounting that can be used in tabs"""
@@ -58,17 +56,17 @@ class AccountingFinanceUI:
                         # Recent Transactions
                         with ModernCard(glass=True).classes('flex-1 p-6'):
                             ui.label('Recent Transactions').classes('text-xl font-black mb-6 text-white')
-                            self.transactions_table = ui.aggrid({
-                                'columnDefs': [
-                                    {'headerName': 'Date', 'field': 'date', 'width': 120},
-                                    {'headerName': 'Type', 'field': 'type', 'width': 100},
-                                    {'headerName': 'Description', 'field': 'description', 'width': 220},
-                                    {'headerName': 'Amount', 'field': 'amount', 'width': 120},
-                                    {'headerName': 'Status', 'field': 'status', 'width': 120, 'cellRenderer': 'params => `<span class="px-2 py-1 rounded-full text-xs ${params.value === "completed" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}">${params.value}</span>`'}
-                                ],
-                                'rowData': [],
-                                'defaultColDef': MDS.get_ag_grid_default_def(),
-                            }).classes('w-full h-[400px] ag-theme-quartz-dark')
+                            columns = [
+                                {'name': 'date', 'label': 'Date', 'field': 'date', 'align': 'left'},
+                                {'name': 'type', 'label': 'Type', 'field': 'type', 'align': 'left'},
+                                {'name': 'description', 'label': 'Description', 'field': 'description', 'align': 'left'},
+                                {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right'},
+                                {'name': 'status', 'label': 'Status', 'field': 'status', 'align': 'left'},
+                            ]
+                            self.transactions_table = ui.table(
+                                columns=columns,
+                                rows=[],
+                            ).classes('w-full h-[400px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
 
                         # Charts Placeholder/Section
                         with ui.column().classes('w-[400px] gap-8'):
@@ -148,8 +146,7 @@ class AccountingFinanceUI:
                 })
             
             transactions.sort(key=lambda x: x['date'], reverse=True)
-            self.transactions_table.options['rowData'] = transactions[:15]
-            self.transactions_table.update()
+            self.transactions_table.rows = transactions[:15]
             
         except Exception as e:
             ui.notify(f'Error loading transactions: {str(e)}', color='negative')

@@ -70,16 +70,10 @@ def _build(elements, landscape_mode=False):
 
 
 def _show(b64, title):
-    data_url = f"data:application/pdf;base64,{b64}"
-    with ui.dialog() as d:
-        with ui.card().classes("w-screen h-screen max-w-none max-h-none m-0 rounded-none"):
-            with ui.row().classes("w-full justify-between items-center p-3 bg-gray-900 border-b border-white/10"):
-                ui.label(title).classes("text-white font-bold text-lg")
-                ui.button("X Close", on_click=d.close).classes("bg-red-600 text-white px-4 py-1 rounded text-sm")
-            ui.html(
-                f'<iframe src="{data_url}" width="100%" height="100%" style="border:none; min-height:calc(100vh - 56px);"></iframe>'
-            ).classes("w-full flex-1")
-    d.open()
+    import base64
+    from pdf_viewer_helper import show_pdf_modal
+    pdf_bytes = base64.b64decode(b64.encode("utf-8"))
+    show_pdf_modal(pdf_bytes, filename=f'{title.replace(" ", "_")}.pdf', title=title)
 
 
 def _hdr(name, fd, td, accent="#8a2be2"):

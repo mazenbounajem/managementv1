@@ -2,12 +2,10 @@ from nicegui import ui
 from connection import connection
 from connection_cashdrawer import connection_cashdrawer
 from datetime import datetime
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from database_manager import db_manager
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernStats
-from modern_design_system import ModernDesignSystem as MDS
 
 def cash_drawer_content(standalone=False):
     """Content method for cash drawer that can be used in tabs"""
@@ -59,22 +57,21 @@ class CashDrawerUI:
                     # History Table
                     with ModernCard(glass=True).classes('w-full p-6'):
                         ui.label('Operation History').classes('text-xl font-black mb-6 text-white')
-                        
-                        column_defs = [
-                            {'headerName': 'ID', 'field': 'id', 'width': 80},
-                            {'headerName': 'Date', 'field': 'operation_date_date', 'width': 120},
-                            {'headerName': 'Time', 'field': 'operation_date_time', 'width': 100},
-                            {'headerName': 'Type', 'field': 'operation_type', 'width': 100, 'cellRenderer': 'params => `<span class="px-2 py-1 rounded-full text-xs ${params.value === "In" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}">${params.value}</span>`'},
-                            {'headerName': 'User', 'field': 'user_name', 'width': 120},
-                            {'headerName': 'Amount', 'field': 'amount', 'width': 120},
-                            {'headerName': 'Notes', 'field': 'notes', 'width': 250, 'flex': 1}
+
+                        columns = [
+                            {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                            {'name': 'operation_date_date', 'label': 'Date', 'field': 'operation_date_date', 'align': 'left'},
+                            {'name': 'operation_date_time', 'label': 'Time', 'field': 'operation_date_time', 'align': 'left'},
+                            {'name': 'operation_type', 'label': 'Type', 'field': 'operation_type', 'align': 'left'},
+                            {'name': 'user_name', 'label': 'User', 'field': 'user_name', 'align': 'left'},
+                            {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right'},
+                            {'name': 'notes', 'label': 'Notes', 'field': 'notes', 'align': 'left'},
                         ]
 
-                        self.history_table = ui.aggrid({
-                            'columnDefs': column_defs,
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                        }).classes('w-full h-96 ag-theme-quartz-dark')
+                        self.history_table = ui.table(
+                            columns=columns,
+                            rows=[],
+                        ).classes('w-full h-96').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                 
                 # Action Bar
                 with ui.column().classes('w-80px items-center'):
@@ -120,8 +117,7 @@ class CashDrawerUI:
                     'user_name': row[4] if row[4] else 'Unknown',
                     'notes': row[5] or ''
                 })
-            self.history_table.options['rowData'] = formatted_rows
-            self.history_table.update()
+            self.history_table.rows = formatted_rows
         except Exception as ex:
             ui.notify(f"Error loading cash drawer history: {str(ex)}", color='negative')
 

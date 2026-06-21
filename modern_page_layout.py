@@ -7,7 +7,7 @@ across the entire application.
 from nicegui import ui
 from connection import connection
 from modern_design_system import ModernDesignSystem as MDS
-from navigation_improvements import EnhancedNavigation
+#from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 
 class ModernPageLayout:
@@ -29,6 +29,7 @@ class ModernPageLayout:
         else:
             # Add global styles but skip navigation header/drawer
             ui.add_head_html(MDS.get_global_styles())
+            ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
         
         # Create content area
         # Use a simpler column if standalone to avoid layout conflicts
@@ -62,6 +63,7 @@ class ModernPageLayout:
         
         # Add global styles
         ui.add_head_html(MDS.get_global_styles())
+        ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
         
         # Get user permissions
         permissions = connection.get_user_permissions(user['role_id'])

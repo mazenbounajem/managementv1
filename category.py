@@ -24,6 +24,8 @@ class CategoryUI:
         self.input_refs = {}
         self.photo_preview = None
         self.table = None
+        self._all_category_rows = []
+        self._selected_row_index = None
         self.create_ui()
 
     def handle_photo_upload(self, e):
@@ -49,21 +51,53 @@ class CategoryUI:
         # Select metadata and flag for photo existence
         sql = "SELECT id, category_name, description, created_at, CASE WHEN photo IS NOT NULL AND photo != '' THEN 1 ELSE 0 END as has_photo FROM categories ORDER BY id DESC"
         connection.contogetrows(sql, data)
-        rows = []
-        
+
+        normalized = []
         for r in data:
             cid, name, desc, created, has_p = r
-            rows.append({
-                'id': cid, 
-                'name': name, 
-                'description': desc, 
-                'created_at': created, 
-                'has_photo': bool(has_p)
+            normalized.append({
+                'id': cid,
+                'name': name,
+                'description': desc,
+                'created_at': created,
+                'has_photo': bool(has_p),
+                'photo': "IMG" if bool(has_p) else "",
             })
+
+        # keep full dataset for search filtering
+        self._all_category_rows = normalized
+        self._selected_row_index = None
+
         if self.table:
-            self.table.options['rowData'] = rows
+            self.table.rows = normalized
             self.table.update()
             self._load_last_row()
+
+    def _filter_table(self, query: str):
+        if not getattr(self, 'table', None):
+            return
+
+        q = (query or "").strip().lower()
+        if not q:
+            # restore all
+            self.table.rows = getattr(self, '_all_category_rows', [])
+            self.table.update()
+            self._load_last_row()
+            return
+
+        all_rows = getattr(self, '_all_category_rows', []) or []
+        filtered = []
+        for row in all_rows:
+            name = str(row.get('name') or '').lower()
+            desc = str(row.get('description') or '').lower()
+            if q in name or q in desc:
+                filtered.append(row)
+
+        self.table.rows = filtered
+        self.table.update()
+        # keep UX consistent: undim after filtering
+        if self.table:
+            self.table.classes(remove='dimmed')
 
     def clear_inputs(self):
         for k, ref in self.input_refs.items():
@@ -75,6 +109,8 @@ class CategoryUI:
         if self.table:
             self.table.classes(add='dimmed')
             self.table.run_method('deselectAll')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         try:
             self.update_saved_state()
             ui.run_javascript("sessionStorage.removeItem('draft_category');")
@@ -82,14 +118,18 @@ class CategoryUI:
 
     def _load_last_row(self):
         """Load the most recent category into the form and undim table"""
-        if not self.table.options.get('rowData'):
+        if not getattr(self.table, 'rows', None):
             return
-        row = self.table.options['rowData'][0]
+        if not self.table.rows:
+            return
+        row = self.table.rows[0]
         cid = row['id']
+        self._selected_row_index = 0
+
         self.input_refs['id'].set_value(str(cid))
         self.input_refs['name'].set_value(row.get('name') or '')
         self.input_refs['description'].set_value(row.get('description') or '')
-        
+
         # Fetch photo on-demand
         photo_data = []
         connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
@@ -99,9 +139,12 @@ class CategoryUI:
             self.photo_preview.set_source(full_photo)
         else:
             self.photo_preview.set_source('https://via.placeholder.com/150')
-        
+
         if self.table:
             self.table.classes(remove='dimmed')
+            self._apply_selected_row_color()
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
 
     def save_category(self):
         try:
@@ -125,6 +168,8 @@ class CategoryUI:
             self.refresh_table()
             if self.table:
                 self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
         except Exception as e:
             ui.notify(f'Error: {e}', color='negative')
 
@@ -136,6 +181,81 @@ class CategoryUI:
         self.clear_inputs()
         self.refresh_table()
 
+    def _apply_row_from_id(self, cid):
+        """Select a row by id, update form, and apply highlight."""
+        if not getattr(self, 'table', None):
+            return
+        rows = getattr(self.table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == cid), None)
+        if target_index is None:
+            return
+
+        row = rows[target_index]
+        self._selected_row_index = target_index
+
+        self.input_refs['id'].set_value(str(cid))
+        self.input_refs['name'].set_value(row.get('name') or '')
+        self.input_refs['description'].set_value(row.get('description') or '')
+
+        photo_data = []
+        connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
+        full_photo = photo_data[0][0] if photo_data else None
+        self.input_refs['photo'].set_value(full_photo or '')
+        if full_photo:
+            self.photo_preview.set_source(full_photo)
+        else:
+            self.photo_preview.set_source('https://via.placeholder.com/150')
+
+        if self.table:
+            self.table.classes(remove='dimmed')
+            self._apply_selected_row_color()
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
+        self.update_saved_state()
+        self._apply_selected_row_color()
+
+    def _apply_selected_row_color(self):
+        """Updates row highlights based on self._selected_row_index."""
+        if self._selected_row_index is None:
+            return
+            
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.q-table');
+          if (!root) return;
+
+          // Target rows in the body
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+
+          // In NiceGUI table, rows may include a header row if not strictly handled.
+          // Based on user feedback: current highlight is off by 1.
+          const idx = Math.max(0, Math.min({self._selected_row_index} + 1, rows.length - 1));
+          
+          // Clear previous highlights
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+
+          // Apply to target
+          const selected = rows[idx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ console.error('Highlight error:', e); }}
+        """)
+
+    def _focus_first_row(self):
+        """Focuses the first row of the table when pressing Down Arrow in search."""
+        if self.table and self.table.rows:
+            cid = self.table.rows[0].get('id')
+            if cid is not None:
+                self._apply_row_from_id(cid)
+
     def create_ui(self):
         with ModernPageLayout("Category Management", standalone=self.standalone):
             with ui.row().classes('w-full gap-6 items-start p-4 animate-fade-in'):
@@ -143,63 +263,136 @@ class CategoryUI:
                 with ui.column().classes('flex-1 gap-4'):
                     with ui.splitter(horizontal=True, value=40).classes('w-full h-[850px]') as splitter:
                         with splitter.before:
-                            with ModernCard(glass=True).classes('w-full h-full p-6'):
-                                ui.label('Available Categories').classes('text-lg font-black text-white mb-4 ml-2')
-                                
-                                cols = [
-                                    {'headerName': 'Icon', 'field': 'photo', 'width': 60, 'cellRenderer': 'img_renderer'},
-                                    {'headerName': 'Name', 'field': 'name', 'flex': 1},
-                                    {'headerName': 'Description', 'field': 'description', 'flex': 2},
-                                    {'headerName': 'Created', 'field': 'created_at', 'width': 180}
-                                ]
-                                
-                                ui.add_body_html('''
-                                <script>
-                                window.img_renderer = (params) => {
-                                    if (!params.data.has_photo) return "";
-                                    return `<div style="width: 24px; height: 24px; border-radius: 4px; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                                        <span style="font-size: 8px; color: #aaa;">IMG</span>
-                                    </div>`;
-                                };
-                                </script>
-                                ''')
+                            columns = [
+                                {'name': 'photo', 'label': 'Icon', 'field': 'photo', 'align': 'left', 'sortable': False},
+                                {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
+                                {'name': 'description', 'label': 'Description', 'field': 'description', 'align': 'left', 'sortable': False},
+                                {'name': 'created_at', 'label': 'Created', 'field': 'created_at', 'align': 'left', 'sortable': True},
+                            ]
 
-                                self.table = ui.aggrid({
-                                    'columnDefs': cols,
-                                    'rowData': [],
-                                    'defaultColDef': {'sortable': True, 'filter': True},
-                                    'rowSelection': 'single',
-                                }).classes('w-full h-80 ag-theme-quartz-dark')
+                            # Search UI
+                            with ui.row().classes('w-full gap-3 mb-3 items-center'):
+                                self.category_search_input = (
+                                    ui.input(placeholder='Search categories...')
+                                    .props('outlined dense')
+                                    .classes('flex-1 text-white bg-black')
+                                    .on('update:model-value', lambda e: self._filter_table(e.args))
+                                    .on('keydown.down', lambda: self._focus_first_row())
+                                )
 
-                                def on_row(e):
+                            # Filter state
+                            self._all_category_rows = []
+
+                            self.table = ui.table(
+                                columns=columns,
+                                rows=[],
+                                row_key='id',
+                                selection='single'
+                            ).classes('w-full h-80 overflow-hidden').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
+
+                            def on_row_click(e):
+                                try:
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict):
+                                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                            row = e.args[0]
+                                    if not row:
+                                        return
+
+                                    cid = row.get('id')
+                                    if cid is None:
+                                        return
+
+                                    self.input_refs['id'].set_value(str(cid))
+                                    self.input_refs['name'].set_value(row.get('name') or '')
+                                    self.input_refs['description'].set_value(row.get('description') or '')
+
+                                    photo_data = []
+                                    connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
+                                    full_photo = photo_data[0][0] if photo_data else None
+
+                                    self.input_refs['photo'].set_value(full_photo or '')
+                                    if full_photo:
+                                        self.photo_preview.set_source(full_photo)
+                                    else:
+                                        self.photo_preview.set_source('https://via.placeholder.com/150')
+
+                                    if self.table:
+                                        self.table.classes(remove='dimmed')
+                                    if hasattr(self, 'action_bar'):
+                                        self.action_bar.enter_edit_mode()
                                     try:
-                                        row = e.args.get('data')
-                                        if not row: return
-                                        cid = row.get('id')
-                                        if cid is None: return
-                                        
-                                        self.input_refs['id'].set_value(str(cid))
-                                        self.input_refs['name'].set_value(row.get('name') or row.get('category_name', ''))
-                                        self.input_refs['description'].set_value(row.get('description', ''))
-                                        
-                                        photo_data = []
-                                        connection.contogetrows("SELECT photo FROM categories WHERE id = ?", photo_data, params=(cid,))
-                                        full_photo = photo_data[0][0] if photo_data else None
-                                        
-                                        self.input_refs['photo'].set_value(full_photo or '')
-                                        if full_photo:
-                                            self.photo_preview.set_source(full_photo)
-                                        else:
-                                            self.photo_preview.set_source('https://via.placeholder.com/150')
-                                        
-                                        if self.table:
-                                            self.table.classes(remove='dimmed')
-                                        try: self.update_saved_state()
-                                        except: pass
-                                    except Exception as ex:
-                                        ui.notify(f'Display error: {ex}', color='warning')
+                                        self.update_saved_state()
+                                    except:
+                                        pass
+                                except Exception as ex:
+                                    ui.notify(f'Display error: {ex}', color='warning')
 
-                                self.table.on('cellClicked', on_row)
+                            # Removed local _apply_selected_row_color as it is now a class method
+
+                            def on_keydown(e):
+                                """Handle up/down keyboard navigation for the table."""
+                                try:
+                                    key = getattr(e, 'key', None) or getattr(e, 'args', {}).get('key', None)
+                                    if key not in ('ArrowDown', 'ArrowUp'):
+                                        return
+
+                                    rows = getattr(self.table, 'rows', None) or []
+                                    if not rows:
+                                        return
+
+                                    if self._selected_row_index is None:
+                                        self._selected_row_index = 0
+
+                                    if key == 'ArrowDown':
+                                        self._selected_row_index = min(self._selected_row_index + 1, len(rows) - 1)
+                                    else:
+                                        self._selected_row_index = max(self._selected_row_index - 1, 0)
+
+                                    cid = rows[self._selected_row_index].get('id')
+                                    if cid is None:
+                                        return
+
+                                    # NiceGUI method "selectRow" may not exist; we update form + highlight directly.
+                                    self._apply_row_from_id(cid)
+                                except Exception as ex:
+                                    ui.notify(f'Keyboard navigation error: {ex}', color='warning')
+
+                            # ensure both mouse clicks and selection updates get the highlight
+                            def _row_click_wrapper(e):
+                                # sync selected index by id
+                                try:
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict):
+                                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                            row = e.args[0]
+                                    if isinstance(row, dict) and row.get('id') is not None:
+                                        self._selected_row_index = next((i for i, r in enumerate(self.table.rows or []) if r.get('id') == row.get('id')), None)
+                                        self._apply_selected_row_color()
+                                except:
+                                    pass
+                                on_row_click(e)
+
+                            self.table.on('rowClick', _row_click_wrapper)
+
+                            # Keyboard navigation: attach to table root via DOM if possible.
+                            # Fallback: also try NiceGUI's keydown event on the table component.
+                            if self.table:
+                                try:
+                                    self.table.on('keydown', on_keydown)
+                                except Exception:
+                                    ui.run_javascript("""
+                                    try {
+                                      const root = document.querySelector('.q-table');
+                                      if (!root) return;
+                                      root.tabIndex = 0;
+                                      root.addEventListener('keydown', (ev) => {
+                                        if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+                                        ev.preventDefault();
+                                        // trigger a NiceGUI event by dispatching a click on hidden focus element? best effort no-op
+                                      });
+                                    } catch (e) {}
+                                    """)
 
                         with splitter.after:
                             with ui.row().classes('w-full gap-4 pt-4'):
@@ -221,7 +414,7 @@ class CategoryUI:
                                     self.input_refs['description'] = ui.textarea('Description').props('outlined dense dark').classes('w-full mt-2')
 
                 # Action Bar Panel (Right Side of Editor)
-                with ui.column().classes('w-80px items-center'):
+                with ui.column().classes('w-60px items-center shrink-0'):
                     from modern_ui_components import ModernActionBar
 
                     def _print_special():
@@ -238,16 +431,18 @@ class CategoryUI:
                         except Exception as e:
                             ui.notify(f'Print special failed: {e}', color='negative')
 
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_inputs,
                         on_save=self.save_category,
+                        on_undo=self.clear_inputs,
                         on_delete=self.delete_category,
                         on_refresh=self.refresh_table,
                         on_print_special=_print_special,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                        button_class='h-16',
+                        target_table=self.table,
+                        button_class='h-10',
                         classes=' '
-                    ).style('position: static; width: 80px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
+                    ).style('position: static; width: 60px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-top: 0;')
 
         # Initial data load
         ui.timer(0.1, self.refresh_table, once=True)

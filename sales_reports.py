@@ -264,19 +264,10 @@ def _build_pdf(elements, landscape_mode=False):
 
 
 def _show_pdf(b64: str, title='Report'):
-    data_url = f"data:application/pdf;base64,{b64}"
-    with ui.dialog() as d:
-        with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-            with ui.row().classes('w-full justify-between items-center p-3'
-                                  ' bg-gray-900 border-b border-white/10'):
-                ui.label(title).classes('text-white font-bold text-lg')
-                ui.button('X Close', on_click=d.close).classes(
-                    'bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded text-sm')
-            ui.html(
-                f'<iframe src="{data_url}" width="100%" height="100%"'
-                ' style="border:none; min-height:calc(100vh - 56px);"></iframe>'
-            ).classes('w-full flex-1')
-    d.open()
+    import base64
+    from pdf_viewer_helper import show_pdf_modal
+    pdf_bytes = base64.b64decode(b64.encode('utf-8'))
+    show_pdf_modal(pdf_bytes, filename=f'{title.replace(" ", "_")}.pdf', title=title)
 
 
 def _total_row_style(ts, idx):
@@ -523,7 +514,7 @@ DESCRIPTIONS = {
 }
 
 
-def open_print_special_dialog():
+def open_print_special_dialog(customer_id=None, customer_name=None):
     """Open the full-screen Print Special report center.
 
     NOTE: This dialog is used by multiple screens.
@@ -536,9 +527,15 @@ def open_print_special_dialog():
         'report_key': 'daily_detail',
         'from_date':  first_of_month,
         'to_date':    today,
+        'customer_id': customer_id,
+        'customer_name': customer_name,
     }
     report_buttons = {}
     ui_refs        = {}
+    per_customer_key = None
+
+    if customer_id:
+        per_customer_key = f'single_stmt_{customer_id}'
 
     def select_report(key):
         state['report_key'] = key
@@ -548,9 +545,15 @@ def open_print_special_dialog():
             else:
                 b.style('background:rgba(255,255,255,0.04); border:none;')
         if 'name_label' in ui_refs:
-            ui_refs['name_label'].text = REPORTS[key][0]
+            if key == per_customer_key:
+                ui_refs['name_label'].text = f'Statement of Account — {customer_name}'
+            else:
+                ui_refs['name_label'].text = REPORTS[key][0]
         if 'desc_label' in ui_refs:
-            ui_refs['desc_label'].text = DESCRIPTIONS.get(key, '')
+            if key == per_customer_key:
+                ui_refs['desc_label'].text = f'All transactions for {customer_name}: invoices, returns, and receipts with running balance.'
+            else:
+                ui_refs['desc_label'].text = DESCRIPTIONS.get(key, '')
 
     with ui.dialog() as dlg:
         dlg.props('maximized persistent')
@@ -580,6 +583,13 @@ def open_print_special_dialog():
                         'border-right:1px solid rgba(255,255,255,0.08);'):
                     ui.label('SELECT REPORT').classes(
                         'text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2')
+                    if per_customer_key:
+                        b = ui.button(f'Statement — {customer_name}',
+                                      on_click=lambda: select_report(per_customer_key))\
+                               .classes('w-full px-4 py-3 rounded-xl text-sm font-bold text-white')\
+                               .style('background:rgba(139,92,246,0.25);border:1px solid rgba(139,92,246,0.5);'
+                                      ' text-align:left; justify-content:flex-start;')
+                        report_buttons[per_customer_key] = b
                     for k, (lbl, _fn) in REPORTS.items():
                         btn = ui.button(lbl, on_click=lambda k=k: select_report(k))\
                                  .classes('w-full px-4 py-3 rounded-xl text-sm font-bold'
@@ -621,9 +631,13 @@ def open_print_special_dialog():
                                 ui.notify('Select dates.', color='warning'); return
                             if f > t:
                                 ui.notify('From must be before To.', color='negative'); return
-                            _, fn = REPORTS[key]
                             try:
-                                fn(f, t)
+                                if per_customer_key and key == per_customer_key:
+                                    from customer_reports import report_single_customer_statement
+                                    report_single_customer_statement(f, t, state['customer_id'], state['customer_name'])
+                                else:
+                                    _, fn = REPORTS[key]
+                                    fn(f, t)
                             except Exception as ex:
                                 ui.notify(f'Error: {ex}', color='negative')
                                 import traceback; traceback.print_exc()

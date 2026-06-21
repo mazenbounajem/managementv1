@@ -18,7 +18,7 @@ class PurchaseService:
         if not purchase_header:
             raise ValueError(f'Purchase with ID {purchase_id} not found.')
 
-        supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id = purchase_header[0]
+        supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id, discount_amount = purchase_header[0]
         purchase_items = self.repository.get_purchase_items(purchase_id)
         
         # Get exchange rate for denormalization
@@ -51,6 +51,7 @@ class PurchaseService:
             'invoice_number': invoice_number,
             'purchase_date': purchase_date,
             'currency_id': currency_id,
+            'discount_amount': float(discount_amount) * exchange_rate if discount_amount else 0.0,
             'rows': rows
         }
 

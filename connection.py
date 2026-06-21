@@ -56,6 +56,7 @@ class connection:
                 print("Deleted successfully")
         except Exception as ex:
             print(f"Error deleting row: {str(ex)}")
+            raise
     
     @staticmethod
     def getid(sql='', name=''):

@@ -51,6 +51,8 @@ class LedgerUI:
         self.input_refs['name_ar'].value = ''
         self.input_refs['status'].value = 1
         self.input_refs['id'].value = ''
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new ledger entry', color='info')
 
     def _load_last_row(self):
@@ -176,6 +178,9 @@ class LedgerUI:
             self.mode = 'edit'
             self.selected_ledger_db_id = None
             self.selected_ledger_account_number = None
+            
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
 
             self.refresh_table()
         except Exception as e:
@@ -205,6 +210,8 @@ class LedgerUI:
                 self.input_refs[field].value = self.initial_values[field]
         # If user undoes while in add_child mode, go back to normal edit
         self.mode = 'edit'
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
         ui.notify('Changes reverted', color='info')
 
     def delete_ledger(self):
@@ -631,7 +638,7 @@ class LedgerUI:
                     ).props('dense flat color=white').classes('w-full')
 
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_ledger,
                         on_undo=self.undo_changes,

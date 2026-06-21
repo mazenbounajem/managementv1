@@ -12,11 +12,24 @@ from datetime import datetime
 import os
 from modern_design_system import ModernDesignSystem as MDS
 
-# Import switch_to_tab function for tab switching
-try:
-    from tabbed_dashboard import switch_to_tab
-except ImportError:
-    switch_to_tab = None
+ui.add_css("""
+.text-nav-accent { color: var(--nav-accent) !important; }
+.text-nav-accent-muted { color: color-mix(in srgb, var(--nav-accent) 70%, transparent) !important; }
+.text-nav-accent-dim { color: color-mix(in srgb, var(--nav-accent) 60%, transparent) !important; }
+.text-nav-accent-faded { color: color-mix(in srgb, var(--nav-accent) 30%, transparent) !important; }
+.hover-text-nav-accent:hover { color: var(--nav-accent) !important; }
+.hover-bg-nav-accent:hover { background-color: color-mix(in srgb, var(--nav-accent) 10%, transparent) !important; }
+.hover-border-nav-accent:hover { border-color: var(--nav-accent) !important; }
+.group:hover .group-hover-text-nav-accent { color: var(--nav-accent) !important; }
+.group:hover .group-hover-bg-nav-accent { background-color: color-mix(in srgb, var(--nav-accent) 10%, transparent) !important; }
+.group:hover .group-hover-border-nav-accent { border-color: color-mix(in srgb, var(--nav-accent) 20%, transparent) !important; }
+.border-nav-accent { border-color: color-mix(in srgb, var(--nav-accent) 50%, transparent) !important; }
+.badge-nav-accent { background-color: var(--nav-accent) !important; }
+.focus-within-border-nav-accent:focus-within { border-color: color-mix(in srgb, var(--nav-accent) 50%, transparent) !important; }
+""", shared=True)
+
+# NOTE: Avoid importing tabbed_dashboard at module import time to prevent circular imports.
+# If tab-switching helpers are ever needed, import them lazily inside the method that uses them.
 
 class EnhancedNavigation:
     def __init__(self, user_permissions, current_user):
@@ -187,7 +200,7 @@ class EnhancedNavigation:
                 # Left side - Logo & Path
                 with ui.row().classes('items-center gap-4'):
                     # Custom Hamburger Toggle
-                    self.toggle_button = ui.button(icon='menu').props('flat round').classes('text-[#08CB00] hover:bg-[#08CB00]/10 transition-all')
+                    self.toggle_button = ui.button(icon='menu').props('flat round').classes('text-nav-accent hover-bg-nav-accent transition-all')
                     self.toggle_button.on('click', self.toggle_navigation_drawer)
                     
                     with ui.row().classes('items-center gap-2'):
@@ -195,35 +208,30 @@ class EnhancedNavigation:
                 
                 # Dynamic Tabs in the Header
                 with ui.row().classes('flex-1 justify-center px-4'):
-                    self.tabs_ui = ui.tabs().classes('text-[#08CB00]/70')
+                    self.tabs_ui = ui.tabs().classes('text-nav-accent-muted')
                     self.tabs_ui.props('active-color=#ffffff indicator-color=transparent dense')
                 
                 # Right side - Actions & User (Search moved here for space)
                 with ui.row().classes('items-center gap-3'):
                     # Split View Toggle
                     if self.tabbed_mode:
-                        self.split_btn = ui.button(icon='vertical_split', on_click=self.toggle_split_view).props('flat round').classes('text-[#08CB00]/60 hover:text-[#08CB00]')
+                        self.split_btn = ui.button(icon='vertical_split', on_click=self.toggle_split_view).props('flat round').classes('text-nav-accent-dim hover-text-nav-accent')
                         self.split_btn.tooltip('Toggle Split View (Side-by-Side)')
                     
                     # Theme Switcher
                     def change_theme(e):
                         theme = e.value
-                        themes = {
-                            'Midnight': 'mesh-gradient',
-                            'Ocean': 'mesh-gradient',
-                            'Warm': 'mesh-gradient',
-                            'Modern Light': 'bg-gray-50'
-                        }
-                        cls = themes.get(theme, 'mesh-gradient')
-                        ui.run_javascript(f"document.body.className = '{cls}';")
+                        dark_themes = ['Teal', 'Dark Modern']
+                        cls = 'mesh-gradient' if theme in dark_themes else 'bg-gray-50'
+                        ui.run_javascript(f"applyTheme('{theme}'); document.body.className = '{cls}';")
                         ui.notify(f'Theme changed to {theme}', color='info')
 
-                    ui.select(['Midnight', 'Ocean', 'Warm', 'Modern Light'], value='Midnight', on_change=change_theme).props('flat dense options-dark').classes('w-32 glass p-1 rounded-lg text-xs')
+                    ui.select(list(MDS.THEMES.keys()), value=list(MDS.THEMES.keys())[0], on_change=change_theme).props('flat dense options-dark').classes('w-36 glass p-1 rounded-lg text-xs')
 
-                    ui.button(icon='notifications').props('flat round').classes('text-[#08CB00]/60 hover:text-[#08CB00]')
+                    ui.button(icon='notifications').props('flat round').classes('text-nav-accent-dim hover-text-nav-accent')
                     
                     # User Menu (existing)
-                    with ui.button().props('flat round').classes('p-0 overflow-hidden border-2 border-green-100 hover:border-[#08CB00] transition-all'):
+                    with ui.button().props('flat round').classes('p-0 overflow-hidden border-2 border-blue-100 hover-border-nav-accent transition-all'):
                         ui.image('https://ui-avatars.com/api/?name=' + self.current_user.get("username", "U") + '&background=08CB00&color=fff').classes('w-8 h-8 rounded-full')
                         with ui.menu().classes('glass p-2 rounded-xl border border-white/50 shadow-2xl'):
                             ui.menu_item('My Account', lambda: self.navigate_to_page('profile', new_instance=True)).classes('rounded-lg font-bold text-sm')
@@ -239,7 +247,7 @@ class EnhancedNavigation:
             self.cmd_dialog = dialog
             with ui.card().classes('w-[600px] h-[400px] p-0 flex flex-col bg-white overflow-hidden').style('border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);'):
                 with ui.row().classes('w-full items-center p-4 border-b border-gray-100 bg-gray-50/50'):
-                    ui.icon('search', size='1.5rem').classes('text-[#08CB00] mr-3')
+                    ui.icon('search', size='1.5rem').classes('text-nav-accent mr-3')
                     self.cmd_input = ui.input(placeholder='Search modules, actions...').props('borderless autofocus').classes('flex-1 text-lg font-medium')
                     self.cmd_input.on('input', lambda e: self.update_cmd_results(e.value))
                     ui.label('ESC').classes('text-[10px] font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded cursor-pointer').on('click', dialog.close).tooltip('Close')
@@ -283,17 +291,17 @@ class EnhancedNavigation:
                     self.render_cmd_result(r['key'], r['label'], r['icon'], r['category'])
 
     def render_cmd_result(self, key, label, icon, category):
-        with ui.row().classes('w-full items-center justify-between p-3 hover:bg-[#08CB00]/10 rounded-xl cursor-pointer transition-all group').on('click', lambda: self.execute_cmd(key)):
+        with ui.row().classes('w-full items-center justify-between p-3 hover-bg-nav-accent rounded-xl cursor-pointer transition-all group').on('click', lambda: self.execute_cmd(key)):
             with ui.row().classes('items-center gap-4'):
-                with ui.element('div').classes('w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#08CB00]/10 group-hover:text-[#08CB00] border border-gray-100 group-hover:border-[#08CB00]/20 transition-colors'):
-                    ui.icon(icon, size='1.2rem').classes('text-gray-500 group-hover:text-[#08CB00] transition-colors')
+                with ui.element('div').classes('w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover-bg-nav-accent group-hover-text-nav-accent border border-gray-100 group-hover-border-nav-accent transition-colors'):
+                    ui.icon(icon, size='1.2rem').classes('text-gray-500 group-hover-text-nav-accent transition-colors')
                 with ui.row().classes('items-baseline gap-2'):
                     ui.label(label).classes('font-bold text-gray-800 text-sm')
                     ui.label(category).classes('text-[9px] text-gray-400 uppercase tracking-wider')
             
             with ui.row().classes('items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'):
-                ui.label('Open in Tab').classes('text-xs font-bold text-[#08CB00]')
-                ui.icon('keyboard_return', size='1rem').classes('text-[#08CB00]')
+                ui.label('Open in Tab').classes('text-xs font-bold text-nav-accent')
+                ui.icon('keyboard_return', size='1rem').classes('text-nav-accent')
 
     def execute_cmd(self, page_key):
         self.cmd_dialog.close()
@@ -321,7 +329,7 @@ class EnhancedNavigation:
                     pass
 
                 # Search in drawer
-                with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all focus-within:border-[#08CB00]/50'):
+                with ui.row().classes('w-full items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all focus-within-border-nav-accent'):
                     ui.icon('search', size='1rem').classes('text-gray-500')
                     
                     def handle_search(e):
@@ -365,7 +373,7 @@ class EnhancedNavigation:
 
     def render_search_results(self, query, allowed_pages):
         """Render search results across modules and open tabs"""
-        ui.label('Search Results').classes('text-[10px] font-black uppercase text-[#08CB00] mb-4 px-4')
+        ui.label('Search Results').classes('text-[10px] font-black uppercase text-nav-accent mb-4 px-4')
         
         # 1. Matching Modules (Tabs that can be opened)
         matches = []
@@ -384,20 +392,20 @@ class EnhancedNavigation:
                     with ui.row().classes('items-baseline gap-2 flex-1'):
                         ui.label(page_data['label']).classes('drawer-button-label text-white')
                         ui.label(f"({category})").classes('text-[8px] text-gray-500 uppercase tracking-tighter')
-                    ui.icon('add_circle', size='xs').classes('text-[#08CB00]/30 hover:text-[#08CB00]')
+                    ui.icon('add_circle', size='xs').classes('text-nav-accent-faded hover-text-nav-accent')
         
         # 2. Matching Open Tabs (Currently running instances)
         if self.tabbed_mode:
             tab_matches = [k for k in self.open_tabs.keys() if query in k.lower()]
             if tab_matches:
                 if matches: ui.separator().classes('my-4 opacity-10')
-                ui.label('Open Tab Instances').classes('text-[9px] font-bold text-[#08CB00] mb-2 px-4 uppercase')
+                ui.label('Open Tab Instances').classes('text-[9px] font-bold text-nav-accent mb-2 px-4 uppercase')
                 for tab_key in tab_matches:
                     with ui.row().classes('drawer-button w-full items-center gap-3 py-2 px-3 rounded-lg hover:cursor-pointer animate-fade-in mb-1')\
                         .on('click', lambda k=tab_key: self.navigate_to_page(k, new_instance=False)):
-                        ui.icon('tab').classes('drawer-button-icon text-[#08CB00]')
+                        ui.icon('tab').classes('drawer-button-icon text-nav-accent')
                         ui.label(tab_key.replace('_', ' #').title()).classes('drawer-button-label flex-1 text-white')
-                        ui.badge('Active', color='#08CB00').props('text-color=black size=xs')
+                        ui.badge('Active').props('text-color=black size=xs').classes('badge-nav-accent')
 
         if not matches and (not self.tabbed_mode or not tab_matches):
             with ui.column().classes('w-full items-center justify-center p-8 opacity-40'):
@@ -484,8 +492,8 @@ class EnhancedNavigation:
         """Toggle split view mode via callback"""
         if self.split_view_callback:
             is_split = self.split_view_callback()
-            self.split_btn.props(f'color={"#08CB00" if is_split else "gray-500"}')
-            self.split_btn.classes(add='text-[#08CB00]' if is_split else 'text-gray-500', remove='text-gray-500' if is_split else 'text-[#08CB00]')
+            self.split_btn.props(f'color={"primary" if is_split else "gray-500"}')
+            self.split_btn.classes(add='text-nav-accent' if is_split else 'text-gray-500', remove='text-gray-500' if is_split else 'text-nav-accent')
 
     def navigate_to_page(self, page_key, new_instance=False):
         """Navigate to a page and update breadcrumbs/recent pages"""

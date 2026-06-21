@@ -3,13 +3,9 @@ from pathlib import Path
 from datetime import date as dt
 from connection import connection
 from datetime import datetime
-from decimal import Decimal
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput, ModernStats
-from modern_design_system import ModernDesignSystem as MDS
 
 def expenses_content(standalone=False):
     """Content method for expenses that can be used in tabs"""
@@ -29,21 +25,22 @@ class ExpensesUI:
         self.standalone = standalone
         # --- Global Variables ---
         self.columns = [
-            {'headerName': 'Date', 'field': 'expense_date', 'width': 80, 'headerClass': 'blue-header'},
-            {'headerName': 'Type', 'field': 'expense_type', 'width': 100, 'headerClass': 'blue-header'},
-            {'headerName': 'Description', 'field': 'description', 'width': 150, 'headerClass': 'blue-header'},
-            {'headerName': 'Amount', 'field': 'amount', 'width': 80,  'headerClass': 'blue-header'},
-            {'headerName': 'Payment', 'field': 'payment_method', 'width': 80,  'headerClass': 'blue-header'},
-            {'headerName': 'Status', 'field': 'payment_status', 'width': 80,  'headerClass': 'blue-header'},
-            {'headerName': 'Invoice', 'field': 'invoice_number', 'width': 100,  'headerClass': 'blue-header'},
-            {'headerName': 'Auxiliary', 'field': 'auxiliary_id', 'width': 80, 'headerClass': 'blue-header'}
+            {'name': 'expense_date', 'label': 'Date', 'field': 'expense_date', 'align': 'left'},
+            {'name': 'expense_type', 'label': 'Type', 'field': 'expense_type', 'align': 'left'},
+            {'name': 'description', 'label': 'Description', 'field': 'description', 'align': 'left'},
+            {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right'},
+            {'name': 'payment_method', 'label': 'Payment', 'field': 'payment_method', 'align': 'left'},
+            {'name': 'payment_status', 'label': 'Status', 'field': 'payment_status', 'align': 'left'},
+            {'name': 'invoice_number', 'label': 'Invoice', 'field': 'invoice_number', 'align': 'left'},
+            {'name': 'auxiliary_id', 'label': 'Auxiliary', 'field': 'auxiliary_id', 'align': 'left'},
         ]
         self.rows = []
         self.total_amount = 0
         self.current_expense_id = None
         self.new_mode = True
         self.aggrid = None
-        self.expenses_aggrid = None
+        self.history_grid = None
+        self.all_history_rows = []
         self.total_label = None
         self.auxiliary_input = None
         self.selected_auxiliary_id = None
@@ -99,8 +96,7 @@ class ExpensesUI:
             self.total_amount = sum(row['amount'] for row in self.rows)
             self.total_label.set_text(f"${self.total_amount:,.2f}")
 
-            self.aggrid.options['rowData'] = self.rows
-            self.aggrid.update()
+            self.aggrid.rows = self.rows
 
             # Clear input fields
             self.amount_input.value = 0.0
@@ -116,16 +112,15 @@ class ExpensesUI:
         self.rows.clear()
         self.total_amount = 0
         self.total_label.set_text("$0.00")
-        self.aggrid.options['rowData'] = self.rows
-        self.aggrid.update()
+        self.aggrid.rows = self.rows
         self.amount_input.value = 0.0
         self.description_input.value = ''
         self.invoice_input.value = ''
         self.payment_method.value = 'Cash'
         self.current_expense_id = None
         self.new_mode = True
-        if self.expenses_aggrid:
-            self.expenses_aggrid.classes(add='dimmed')
+        if self.history_grid:
+            self.history_grid.classes(add='dimmed')
         if hasattr(self, 'action_bar'):
             self.action_bar.enter_new_mode()
         ui.notify('New expense entry ready', color='info')
@@ -232,7 +227,7 @@ class ExpensesUI:
             ui.label('Select Auxiliary Account').classes('text-2xl font-black mb-6 text-white').style('font-family: "Outfit", sans-serif;')
             
             with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-6 shadow-inner'):
-                ui.icon('search', size='1.25rem').classes('text-[#08CB00]')
+                ui.icon('search', size='1.25rem').classes('text-[#80B9AD]')
                 search_input = ui.input(placeholder='Search by account name or number...').props('borderless dense').classes('flex-1 text-white font-bold text-sm').on('input', lambda e: self.filter_auxiliary_rows(e.value))
             
             data = []
@@ -250,24 +245,24 @@ class ExpensesUI:
                     'number': row[3]
                 })
             
-            columns = [
-                {'headerName': 'ID', 'field': 'id', 'width': 70},
-                {'headerName': 'Aux Code', 'field': 'auxiliary_id', 'width': 100},
-                {'headerName': 'Account Number', 'field': 'number', 'width': 150},
-                {'headerName': 'Account Name', 'field': 'account_name', 'flex': 1}
+            aux_columns = [
+                {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                {'name': 'auxiliary_id', 'label': 'Aux Code', 'field': 'auxiliary_id', 'align': 'left'},
+                {'name': 'number', 'label': 'Account Number', 'field': 'number', 'align': 'left'},
+                {'name': 'account_name', 'label': 'Account Name', 'field': 'account_name', 'align': 'left'},
             ]
             
-            self.auxiliary_grid = ui.aggrid({
-                'columnDefs': columns,
-                'rowData': self.auxiliary_rows,
-                'rowSelection': 'single',
-                'domLayout': 'normal',
-                'defaultColDef': MDS.get_ag_grid_default_def()
-            }).classes('w-full h-80 ag-theme-quartz-dark shadow-inner').style('background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;')
+            self.auxiliary_grid = ui.table(
+                columns=aux_columns,
+                rows=self.auxiliary_rows,
+                row_key='id',
+                selection='single',
+            ).classes('w-full h-80').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
             
             def handle_click(e):
                 try:
-                    row = e.args['data']
+                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                    if not isinstance(row, dict): return
                     self.selected_auxiliary_id = row['id']
                     self.auxiliary_input.value = f"{row['number']} - {row['account_name']}"
                     dialog.close()
@@ -275,7 +270,7 @@ class ExpensesUI:
                 except Exception as ex:
                     ui.notify(f"Selection error: {ex}", color='negative')
             
-            self.auxiliary_grid.on('cellClicked', handle_click)
+            self.auxiliary_grid.on('rowClick', handle_click)
             
             with ui.row().classes('w-full justify-end mt-6'):
                 ui.button('Dismiss', on_click=dialog.close).props('flat text-color=white').classes('px-6 rounded-xl hover:bg-white/5 font-black text-xs uppercase tracking-widest')
@@ -290,8 +285,7 @@ class ExpensesUI:
             search_text = search_text.lower()
             filtered_rows = [row for row in self.auxiliary_rows if any(search_text in str(value).lower() for value in row.values())]
         if hasattr(self, 'auxiliary_grid'):
-            self.auxiliary_grid.options['rowData'] = filtered_rows
-            self.auxiliary_grid.update()
+            self.auxiliary_grid.rows = filtered_rows
 
     def open_edit_dialog(self, row):
         with ui.dialog() as dialog, ModernCard().classes('w-96 p-6'):
@@ -314,9 +308,7 @@ class ExpensesUI:
         self.total_amount = sum(r['amount'] for r in self.rows)
         self.total_label.set_text(f"${self.total_amount:,.2f}")
         
-        # Refresh table
-        self.aggrid.options['rowData'] = self.rows
-        self.aggrid.update()
+        self.aggrid.rows = self.rows
         
         dialog.close()
         ui.notify('Expense item updated', color='positive')
@@ -330,27 +322,37 @@ class ExpensesUI:
             
             rows = []
             for row in data:
+                amt = float(row[3]) if row[3] else 0
                 rows.append({
                     'id': row[0],
                     'expense_date': str(row[1]) if row[1] else '',
                     'expense_type': row[2],
-                    'amount': float(row[3]) if row[3] else 0,
+                    'amount': f"${amt:,.2f}",
                     'payment_status': row[4],
                     'invoice_number': row[5],
                     'auxiliary_id': row[6]
                 })
             
-            if hasattr(self, 'history_aggrid') and self.history_aggrid:
-                self.history_aggrid.options['rowData'] = rows
-                self.history_aggrid.update()
+            self.all_history_rows = rows
+            if hasattr(self, 'history_grid') and self.history_grid:
+                self.history_grid.rows = rows
         except Exception as e:
             print(f"Error refreshing history: {e}")
+
+    def filter_history(self, search_text):
+        if not hasattr(self, 'all_history_rows'):
+            return
+        if not search_text:
+            self.history_grid.rows = self.all_history_rows
+        else:
+            st = search_text.lower()
+            self.history_grid.rows = [r for r in self.all_history_rows if any(st in str(v).lower() for v in r.values())]
 
     def load_history_entry(self, e):
         """Loads a record from history into the entry form for review or re-editing"""
         try:
-            row = e.args.get('data', {})
-            if not row:
+            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+            if not isinstance(row, dict):
                 return
             
             expense_id = row['id']
@@ -407,27 +409,24 @@ class ExpensesUI:
                                     ui.button(icon='refresh', on_click=self.refresh_expenses_table).props('flat round text-color=white')
                                 
                                 history_columns = [
-                                    {'headerName': 'ID', 'field': 'id', 'width': 60},
-                                    {'headerName': 'Date', 'field': 'expense_date', 'width': 100},
-                                    {'headerName': 'Type', 'field': 'expense_type', 'width': 120},
-                                    {'headerName': 'Amount', 'field': 'amount', 'width': 100, 'valueFormatter': "'$' + x.toLocaleString()"},
-                                    {'headerName': 'Auxiliary', 'field': 'auxiliary_id', 'width': 100},
-                                    {'headerName': 'Invoice #', 'field': 'invoice_number', 'width': 120},
+                                    {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                                    {'name': 'expense_date', 'label': 'Date', 'field': 'expense_date', 'align': 'left'},
+                                    {'name': 'expense_type', 'label': 'Type', 'field': 'expense_type', 'align': 'left'},
+                                    {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right'},
+                                    {'name': 'auxiliary_id', 'label': 'Auxiliary', 'field': 'auxiliary_id', 'align': 'left'},
+                                    {'name': 'invoice_number', 'label': 'Invoice #', 'field': 'invoice_number', 'align': 'left'},
                                 ]
 
-                                self.history_aggrid = ui.aggrid({
-                                    'columnDefs': history_columns,
-                                    'rowData': [],
-                                    'defaultColDef': MDS.get_ag_grid_default_def(),
-                                    'rowSelection': 'single',
-                                }).classes('w-full h-48 ag-theme-quartz-dark')
+                                self.history_grid = ui.table(
+                                    columns=history_columns,
+                                    rows=[],
+                                    row_key='id',
+                                    selection='single',
+                                ).classes('w-full h-48').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                                 
-                                self.search_input.on('update:model-value', lambda e: (
-                                    self.history_aggrid.options.update({'quickFilterText': e.sender.value}),
-                                    self.history_aggrid.update()
-                                ))
+                                self.search_input.on('update:model-value', lambda e: self.filter_history(e.sender.value))
                                 
-                                self.history_aggrid.on('cellClicked', self.load_history_entry)
+                                self.history_grid.on('rowClick', self.load_history_entry)
 
                         with splitter.after:
                             with ui.column().classes('w-full gap-4 pt-4'):
@@ -464,21 +463,21 @@ class ExpensesUI:
                                                 ui.label('Total').classes('text-[10px] font-black uppercase text-green-400 tracking-wider')
                                                 self.total_label = ui.label('$0.00').classes('text-2xl font-black text-white')
 
-                                        self.aggrid = ui.aggrid({
-                                            'columnDefs': self.columns,
-                                            'rowData': self.rows,
-                                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                                            'rowSelection': 'single',
-                                        }).classes('w-full h-64 ag-theme-quartz-dark shadow-inner')
+                                        self.aggrid = ui.table(
+                                            columns=self.columns,
+                                            rows=self.rows,
+                                            row_key='invoice_number',
+                                            selection='single',
+                                        ).classes('w-full h-64').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                                         
-                                        async def handle_aggrid_click():
+                                        def handle_aggrid_click(e):
                                             try:
-                                                selected_row = await self.aggrid.get_selected_row()
-                                                if selected_row:
-                                                    self.open_edit_dialog(selected_row)
+                                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                                if isinstance(row, dict):
+                                                    self.open_edit_dialog(row)
                                             except Exception as ex:
                                                 ui.notify(f'Error: {str(ex)}', color='negative')
-                                        self.aggrid.on('cellClicked', handle_aggrid_click)
+                                        self.aggrid.on('rowClick', handle_aggrid_click)
 
                                 # Internal Notes
                                 with ModernCard(glass=True).classes('w-full p-4'):
@@ -494,7 +493,7 @@ class ExpensesUI:
                         on_refresh=self.refresh_expenses_table,
                         on_print_special=lambda: __import__('expense_reports').open_print_special_dialog(),
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
-                        target_table=self.history_aggrid,
+                        target_table=self.history_grid,
                         button_class='h-16',
                         classes=' '
                     )

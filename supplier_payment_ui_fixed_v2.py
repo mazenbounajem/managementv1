@@ -8,8 +8,6 @@ from datetime import datetime
 import datetime as dt
 import asyncio
 import accounting_helpers
-from color_palette import ColorPalette
-from uiaggridtheme import uiAggridTheme
 from navigation_improvements import EnhancedNavigation
 from loading_indicator import loading_indicator
 
@@ -29,11 +27,19 @@ class SupplierPaymentUI:
             navigation.create_navigation_drawer()
             navigation.create_navigation_header()
 
+        # Ensure reference column exists
+        try:
+            connection.insertingtodatabase("ALTER TABLE supplier_payment ADD reference NVARCHAR(100) NULL")
+        except Exception:
+            pass
+
         # State
         self.selected_supplier = None
         self.unpaid_invoices = []
         self.selected_invoices = []
         self.payment_data = []
+        self._selected_row_index = None
+        self._all_payment_data = []
         self.new_mode = False
         self.draft_payment_id = None
         self.draft_amount = 0.0
@@ -96,7 +102,7 @@ class SupplierPaymentUI:
     async def refresh_history(self):
         async with loading_indicator.show_loading('refresh_payments', 'Refreshing payments...', overlay=True):
             data = []
-            sql = """SELECT sp.id, sp.payment_date, s.name, sp.amount, sp.payment_method, s.id as supplier_id 
+            sql = """SELECT sp.id, sp.payment_date, s.name, sp.amount, sp.payment_method, s.id as supplier_id, ISNULL(sp.reference, '') as reference 
                      FROM supplier_payment sp
                      JOIN suppliers s ON sp.supplier_id = s.id
                      ORDER BY sp.id DESC"""
@@ -110,14 +116,16 @@ class SupplierPaymentUI:
                     'amount': self.to_float(r[3]),
                     'method': r[4],
                     'supplier_id': r[5],
+                    'reference': r[6],
                 })
-            self.all_data = rows
-            self.history_grid.options['rowData'] = rows
-            self.history_grid.update()
+            self._all_payment_data = rows
+            self.history_table.rows = rows
+            self.history_table.update()
             await self.load_last_payment()
 
     def clear_form(self, reset_supplier=True):
         self.supplier_input.value = ''
+        self.reference_input.value = ''
         self.balance_usd_input.value = 0
         self.balance_ll_input.value = 0
         self.amount_input.value = 0
@@ -132,7 +140,9 @@ class SupplierPaymentUI:
     def exit_new_mode(self):
         self.new_mode = False
         self.history_overlay.set_visibility(False)
-        self.history_grid.classes(remove='dimmed')
+        self.history_table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
 
     def allocate_payment_to_invoices(self, selected_rows, pay_amount):
         allocations = []
@@ -167,54 +177,251 @@ class SupplierPaymentUI:
         return allocations
 
     def select_supplier(self):
-        with ui.dialog() as d, ModernCard().classes('w-full max-w-3xl p-6'):
-            ui.label('Select Supplier').classes('text-xl font-black mb-4 text-white')
-            s_data = []
-            connection.contogetrows("SELECT id, name, balance, balance_usd FROM suppliers ORDER BY name", s_data)
-            s_rows = [{'id': r[0], 'name': r[1], 'balance_ll': self.to_float(r[2]), 'balance_usd': self.to_float(r[3])} for r in s_data]
-            search_query_input = ui.input('Search Supplier (name/id)').props('clearable autofocus').classes('w-full mb-3 text-white')
+        s_data = []
+        connection.contogetrows("SELECT id, name, balance, balance_usd FROM suppliers ORDER BY name", s_data)
+        all_supplier_rows = [
+            {'id': r[0], 'name': r[1], 'balance_ll': self.to_float(r[2]), 'balance_usd': self.to_float(r[3])}
+            for r in s_data
+        ]
 
-            grid = ui.aggrid({
-                'columnDefs': [
-                    {'headerName': 'Name', 'field': 'name', 'flex': 1, 'filter': 'agTextColumnFilter', 'headerClass': 'orange-header'},
-                    {'headerName': 'Balance LL', 'field': 'balance_ll', 'width': 120, 'valueFormatter': '"L.L. " + Number(params.value || 0).toLocaleString()', 'headerClass': 'orange-header'},
-                    {'headerName': 'Balance USD', 'field': 'balance_usd', 'width': 120, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()', 'headerClass': 'orange-header'},
-                ],
-                'rowData': s_rows,
-                'rowSelection': 'single',
-                'defaultColDef': MDS.get_ag_grid_default_def(),
-            }).classes('w-full h-80 ag-theme-quartz-dark')
+        _selected_row = None
+        state = {'selected_idx': 0}
+
+        with ui.dialog() as d, ModernCard().classes('w-full max-w-2xl p-6'):
+            ui.label('Select Supplier').classes('text-xl font-black mb-4 text-white')
+
+            with ui.row().classes('w-full items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 mb-4'):
+                ui.icon('search', size='1.25rem').classes('text-orange-400')
+                search_query_input = ui.input(placeholder='Search by name or id...').props('borderless dense').classes('flex-1 text-white text-sm')
+
+            with ui.element('div').classes('w-full h-80 overflow-hidden flex flex-col'):
+                with ui.element('div').classes('flex-1 overflow-auto min-h-0'):
+                    supplier_table = ui.table(
+                        columns=[
+                            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
+                            {'name': 'balance_ll', 'label': 'Balance LL', 'field': 'balance_ll', 'align': 'right'},
+                            {'name': 'balance_usd', 'label': 'Balance USD', 'field': 'balance_usd', 'align': 'right'},
+                        ],
+                        rows=all_supplier_rows,
+                        row_key='id',
+                        selection='single',
+                    ).classes('w-full h-full bg-transparent overflow-hidden').props('virtual-scroll flat bordered dense hide-pagination')
+
+            def apply_highlight_js():
+                idx = state['selected_idx']
+                ui.run_javascript(f"""
+                    try {{
+                      const root = document.getElementById('{getattr(supplier_table, "id", "")}') || document.querySelector('.q-table');
+                      if (!root) return;
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      const target = Math.max(0, Math.min({idx} + 1, rows.length - 1));
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+
+                      const selected = rows[target];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+                    }} catch (e) {{ console.error('Highlight error:', e); }}
+                """)
+
+            def select_and_scroll():
+                if not supplier_table.rows:
+                    return
+                state['selected_idx'] = max(0, min(state['selected_idx'], len(supplier_table.rows) - 1))
+                row = supplier_table.rows[state['selected_idx']]
+                supplier_table.selected = [row]
+                supplier_table.update()
+                supplier_table.run_method('scrollTo', state['selected_idx'])
+                apply_highlight_js()
+
+            def confirm_with_row(row_data):
+                self.selected_supplier = row_data
+                self.supplier_input.value = row_data['name']
+                self.balance_usd_input.value = row_data['balance_usd']
+                self.balance_ll_input.value = row_data['balance_ll']
+                self.amount_input.value = '0.00'
+                self.selected_invoices = []
+                self.total_display_input.value = '0.00'
+
+                ui.run_javascript('window.__supplier_dialog_active = false;')
+                d.close()
+                ui.notify('Supplier selected', color='positive')
+
+            def on_click_row(e):
+                nonlocal _selected_row
+                try:
+                    args = e.args if hasattr(e, 'args') else e
+                    row_data = None
+                    if isinstance(args, (list, tuple)):
+                        for candidate in args:
+                            if isinstance(candidate, dict) and 'name' in candidate:
+                                row_data = candidate
+                                break
+                        if row_data is None and len(args) > 1 and isinstance(args[1], dict):
+                            row_data = args[1]
+                    elif isinstance(args, dict):
+                        row_data = args.get('row') or args.get('data') or (args if 'name' in args else None)
+
+                    if not isinstance(row_data, dict):
+                        return
+
+                    if supplier_table.rows:
+                        for i, r in enumerate(supplier_table.rows):
+                            if r.get('id') == row_data.get('id'):
+                                state['selected_idx'] = i
+                                break
+                        apply_highlight_js()
+
+                    _selected_row = row_data
+                    confirm_with_row(row_data)
+                except Exception as ex:
+                    ui.notify(f'Row selection error: {ex}', color='negative')
+
+            supplier_table.on('row-click', on_click_row)
+
+            ui.timer(0.05, select_and_scroll, once=True)
+
+            grid_id = getattr(supplier_table, 'id', '')
+            search_id = getattr(search_query_input, 'id', '')
+            ui.run_javascript(f"""
+                window.__supplier_dialog_active = true;
+                try {{
+                  const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                  if (root) {{
+                    root.tabIndex = 0;
+                    try {{ root.style.outline = 'none'; }} catch(e) {{}}
+                    try {{ root.style.caretColor = 'transparent'; }} catch(e) {{}}
+
+                    try {{ root.dataset.selIdx = '-1'; }} catch(e) {{}}
+
+                    root.addEventListener('keydown', (ev) => {{
+                      if (!window.__supplier_dialog_active) return;
+                      if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp' && ev.key !== 'PageDown' && ev.key !== 'PageUp' && ev.key !== 'Enter') return;
+
+                      const rows = root.querySelectorAll('tbody tr');
+                      if (!rows || rows.length === 0) return;
+
+                      let cur = parseInt(root.dataset.selIdx || '-1', 10);
+                      if (isNaN(cur)) cur = -1;
+
+                      if (ev.key === 'ArrowUp' && cur === 0) {{
+                        ev.preventDefault();
+                        const searchEl = document.getElementById('{search_id}');
+                        const input = searchEl ? searchEl.querySelector('input') : null;
+                        if (input) {{
+                          input.focus();
+                          return;
+                        }}
+                      }}
+
+                      ev.preventDefault();
+
+                      const pageStep = 10;
+
+                      if (ev.key === 'ArrowDown') cur = Math.min((cur < 0 ? -1 : cur) + 1, rows.length - 1);
+                      if (ev.key === 'ArrowUp') cur = Math.max((cur < 0 ? 0 : cur) - 1, 0);
+                      if (ev.key === 'PageDown') cur = Math.min((cur < 0 ? 0 : cur) + pageStep, rows.length - 1);
+                      if (ev.key === 'PageUp') cur = Math.max((cur < 0 ? 0 : cur) - pageStep, 0);
+
+                      if (ev.key === 'Enter') {{
+                        if (cur < 0) cur = 0;
+                      }}
+
+                      root.dataset.selIdx = cur;
+
+                      rows.forEach(el => {{
+                        el.style.backgroundColor = '';
+                        el.style.color = '';
+                        el.classList.remove('selected-highlight');
+                      }});
+                      const selected = rows[cur];
+                      if (selected) {{
+                        selected.style.backgroundColor = '#facc15';
+                        selected.style.color = 'black';
+                        selected.classList.add('selected-highlight');
+                      }}
+
+                      if (ev.key === 'Enter') {{
+                        selected && selected.click();
+                      }}
+                    }});
+                  }}
+                }} catch (e) {{}}
+
+                try {{
+                  const searchEl = document.getElementById('{search_id}');
+                  const input = searchEl ? searchEl.querySelector('input') : null;
+                  if (input) {{
+                    input.addEventListener('keydown', (ev) => {{
+                      if (!window.__supplier_dialog_active) return;
+                      if (ev.key === 'ArrowDown') {{
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                        if (root) {{
+                          root.dataset.selIdx = '-1';
+                          root.focus();
+                          setTimeout(() => {{
+                            root.dispatchEvent(new KeyboardEvent('keydown', {{key: 'ArrowDown', bubbles: true, cancelable: true}}));
+                          }}, 0);
+                        }}
+                      }} else if (ev.key === 'Enter') {{
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                        if (root) {{
+                          const rows = root.querySelectorAll('tbody tr');
+                          let cur = parseInt(root.dataset.selIdx || '0', 10);
+                          if (cur < 0) cur = 0;
+                          const selected = rows[cur];
+                          if (selected) {{
+                            selected.click();
+                          }}
+                        }}
+                      }}
+                    }});
+                  }}
+                }} catch (e) {{}}
+            """)
 
             def apply_search(e=None):
+                nonlocal _selected_row
                 q = str(search_query_input.value or '').strip().lower()
                 if not q:
-                    grid.options['rowData'] = s_rows
+                    supplier_table.rows = all_supplier_rows
                 else:
-                    grid.options['rowData'] = [
-                        r for r in s_rows
+                    supplier_table.rows = [
+                        r for r in all_supplier_rows
                         if q in str(r.get('name', '')).lower()
                         or q in str(r.get('id', '')).lower()
                     ]
-                grid.update()
+                _selected_row = None
+                supplier_table.selected = []
+                supplier_table.update()
+                try:
+                    ui.run_javascript(f"""
+                        try {{
+                          const root = document.getElementById('{grid_id}') || document.querySelector('.q-table');
+                          if (!root) return;
+                          root.dataset.selIdx = '-1';
+                        }} catch(e) {{}}
+                    """)
+                except Exception:
+                    pass
 
             search_query_input.on_value_change(apply_search)
 
-            async def confirm():
-                row = await grid.get_selected_row()
-                if row:
-                    self.selected_supplier = row
-                    self.supplier_input.value = row['name']
-                    self.balance_usd_input.value = row['balance_usd']
-                    self.balance_ll_input.value = row['balance_ll']
-                    self.amount_input.value = '0.00'
-                    self.selected_invoices = []
-                    self.total_display_input.value = '0.00'
-                    d.close()
-                    ui.notify('Supplier selected', color='positive')
-
             with ui.row().classes('w-full justify-end mt-4 gap-2'):
-                ModernButton('Cancel', on_click=d.close, variant='secondary')
-                ModernButton('Select', on_click=confirm)
+                ModernButton('Cancel', on_click=lambda: (ui.run_javascript('window.__supplier_dialog_active=false;'), d.close()), variant='secondary')
         d.open()
 
     def open_settlement_dialog(self):
@@ -263,38 +470,35 @@ class SupplierPaymentUI:
         with ui.dialog() as settlement_dialog, ModernCard().classes('w-full max-w-5xl p-8'):
             ui.label(f'Pending: {supplier["name"]}').classes('text-2xl font-black mb-2 text-white')
             pending_usd = self.calculate_supplier_pending(supplier["id"])
-            ui.label(f'Total Due: ${pending_usd:.2f}').classes('text-lg mb-4 text-orange-400 font-bold')
+            ui.label(f'Total Due: ${pending_usd:,.2f}').classes('text-lg mb-4 text-orange-400 font-bold')
 
-            invoice_grid = ui.aggrid({
-                'columnDefs': [
-                    {'headerName': 'Select', 'checkboxSelection': True, 'headerCheckboxSelection': True, 'width': 80, 'headerClass': 'orange-header'},
-                    {'headerName': 'Type', 'field': 'type', 'width': 100, 'headerClass': 'orange-header', 'cellClassRules': {'text-red-400': 'params.value === "Return"', 'text-orange-400': 'params.value === "Purchase"'}},
-                    {'headerName': 'Ref #', 'field': 'display_number', 'flex': 1, 'headerClass': 'orange-header'},
-                    {'headerName': 'Date', 'field': 'date', 'width': 130, 'headerClass': 'orange-header'},
-                    {'headerName': 'Amount', 'field': 'amount', 'width': 130, 'valueFormatter': '"$" + Number(params.value || 0).toLocaleString()', 'headerClass': 'orange-header'},
+            invoice_table = ui.table(
+                columns=[
+                    {'name': 'type', 'label': 'Type', 'field': 'type', 'align': 'left', 'sortable': True},
+                    {'name': 'display_number', 'label': 'Ref #', 'field': 'display_number', 'align': 'left', 'sortable': True},
+                    {'name': 'date', 'label': 'Date', 'field': 'date', 'align': 'left', 'sortable': True},
+                    {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right', 'sortable': True},
                 ],
-                'rowData': rows,
-                'rowSelection': 'multiple',
-                'suppressRowClickSelection': True,
-                'defaultColDef': MDS.get_ag_grid_default_def(),
-            }).classes('w-full h-80 ag-theme-quartz-dark mb-6')
+                rows=rows,
+                row_key='id',
+                selection='multiple',
+            ).classes('w-full h-80 mb-6')
 
             with ui.row().classes('items-center gap-4 mb-4'):
                 pay_amount_input = ui.number('Payment Amount', value=sum(r['amount'] for r in rows)).classes('w-40')
                 method_input = ui.select(['Cash', 'Card', 'Visa', 'OMT'], value=self.method_select.value).classes('w-40')
 
             async def confirm_settlement():
-                selected_rows = await invoice_grid.get_selected_rows()
+                selected_rows = invoice_table.selected
                 if not selected_rows: return ui.notify('Select at least one record', color='warning')
                 pay_amount = self.to_float(pay_amount_input.value)
-                # Net amount could be 0 if fully offset by return
                 if pay_amount < 0: return ui.notify('Net amount cannot be negative', color='warning')
                 
                 allocations = self.allocate_payment_to_invoices(selected_rows, pay_amount)
                 self.selected_invoices = allocations
                 self.draft_amount = pay_amount
-                self.amount_input.value = f'{pay_amount:.2f}'
-                self.total_display_input.value = f'{pay_amount:.2f}'
+                self.amount_input.value = f'{pay_amount:,.2f}'
+                self.total_display_input.value = f'{pay_amount:,.2f}'
                 self.method_select.value = method_input.value
                 settlement_dialog.close()
 
@@ -331,15 +535,16 @@ class SupplierPaymentUI:
                 )
 
                 # Standardized INSERT with auxiliary, user, currency, and balance column info
+                reference = self.reference_input.value or ''
                 sql_payment = """
                     INSERT INTO supplier_payment 
-                    (supplier_id, amount, total_amount, payment_date, payment_method, auxiliary_number, user_id, currency_id, status, balance_column, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, GETDATE())
+                    (supplier_id, amount, total_amount, payment_date, payment_method, auxiliary_number, user_id, currency_id, status, balance_column, created_at, reference) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, GETDATE(), ?)
                 """
                 connection.insertingtodatabase(sql_payment, (
                     self.selected_supplier['id'], normalized_amount, pay_amount, 
                     payment_date, self.method_select.value, supp_aux, user_id, selected_currency_id,
-                    self.pay_currency_select.value
+                    self.pay_currency_select.value, reference
                 ))
                 
                 payment_id = connection.getid("SELECT MAX(id) FROM supplier_payment", [])
@@ -410,12 +615,74 @@ class SupplierPaymentUI:
                 
                 connection.update_cash_drawer_balance(normalized_amount, 'Out', user_id, f"Payment #{payment_id}")
 
-                ui.notify(f'Saved: {self.get_current_currency_symbol()}{pay_amount:.2f} (Normalized: ${normalized_amount:.2f})', color='positive')
+                ui.notify(f'Saved: {self.get_current_currency_symbol()}{pay_amount:,.2f} (Normalized: ${normalized_amount:,.2f})', color='positive')
                 await self.refresh_history()
                 self.exit_new_mode()
+                await self.show_payment_print_dialog(payment_id, self.selected_supplier['name'], pay_amount, self.method_select.value, self.selected_supplier['id'])
             except Exception as e:
                 ui.notify(f'Error: {e}', color='negative')
                 print(f"ERROR: {e}")
+
+    async def show_payment_print_dialog(self, payment_id, supplier_name, amount, method, supplier_id):
+        remaining = self.calculate_supplier_pending(supplier_id)
+        from print_helper import print_dialog_content
+
+        # Fetch settlement details
+        alloc_data = []
+        connection.contogetrows("""
+            SELECT d.source_type, d.settlement_amount,
+                   p.invoice_number AS pur_inv, r.invoice_number AS ret_inv
+            FROM supplier_payment_details d
+            LEFT JOIN purchases p ON d.source_type = 'Purchase' AND p.id = d.source_id
+            LEFT JOIN purchase_returns r ON d.source_type = 'Return' AND r.id = d.source_id
+            WHERE d.payment_id = ?
+            ORDER BY d.id ASC
+        """, alloc_data, (payment_id,))
+        alloc_rows = []
+        for src_type, s_amt, p_inv, r_inv in alloc_data:
+            alloc_rows.append({
+                'type': src_type,
+                'invoice': p_inv if src_type == 'Purchase' else r_inv,
+                'amount': self.to_float(s_amt),
+            })
+
+        ui.add_head_html('<style> @media print { .q-dialog__inner > div { max-width: none !important; width: 100% !important; background: white !important; color: black !important; } .hide-on-print { display: none !important; } .text-white, .text-gray-400, .text-red-400, .text-orange-400, .text-green-400 { color: black !important; } [class*="bg-"] { background: white !important; } } </style>')
+        with ui.dialog() as d, ModernCard().classes('w-full max-w-lg p-8'):
+            with ui.column().classes('w-full items-center gap-6'):
+                with ui.column().classes('w-full items-center gap-1'):
+                    ui.label('PAYMENT VOUCHER').classes('text-[10px] font-black tracking-[0.3em] text-orange-400')
+                    ui.label(f'#{payment_id}').classes('text-4xl font-black text-white')
+
+                with ui.column().classes('w-full bg-white/5 rounded-2xl p-6 gap-4 border border-white/10'):
+                    with ui.row().classes('w-full justify-between'):
+                        ui.label('Supplier').classes('text-sm text-gray-400')
+                        ui.label(supplier_name).classes('text-sm text-white font-bold')
+                    with ui.row().classes('w-full justify-between'):
+                        ui.label('Date').classes('text-sm text-gray-400')
+                        ui.label(datetime.now().strftime('%Y-%m-%d %H:%M')).classes('text-sm text-white font-bold')
+                    with ui.row().classes('w-full justify-between'):
+                        ui.label('Amount Paid').classes('text-sm text-gray-400')
+                        ui.label(f'${amount:,.2f}').classes('text-lg text-red-400 font-black')
+                    with ui.row().classes('w-full justify-between'):
+                        ui.label('Method').classes('text-sm text-gray-400')
+                        ui.label(method).classes('text-sm text-white font-bold')
+
+                    if alloc_rows:
+                        ui.element('div').classes('w-full h-px bg-white/20 my-1')
+                        ui.label('SETTLEMENT DETAILS').classes('text-[8px] font-black text-orange-400/60 uppercase tracking-widest')
+                        for ar in alloc_rows:
+                            with ui.row().classes('w-full justify-between'):
+                                ui.label(f"{ar['type']} #{ar['invoice']}").classes('text-xs text-gray-400')
+                                ui.label(f"${ar['amount']:,.2f}").classes('text-xs text-white font-bold')
+
+                    with ui.row().classes('w-full justify-between pt-3 border-t border-white/10'):
+                        ui.label('Remaining Balance').classes('text-sm text-gray-400')
+                        ui.label(f'${remaining:,.2f}').classes('text-lg text-orange-400 font-black' if remaining > 0 else 'text-lg text-green-400 font-black')
+
+                with ui.row().classes('w-full justify-center gap-4 hide-on-print'):
+                    ui.button('PRINT', icon='print', on_click=lambda: ui.run_javascript(print_dialog_content())).props('flat color=orange-400').classes('font-black')
+                    ui.button('CLOSE', icon='close', on_click=d.close).props('flat color=red').classes('font-black')
+        d.open()
 
     async def delete_payment(self):
         if not self.draft_payment_id or self.new_mode:
@@ -475,17 +742,20 @@ class SupplierPaymentUI:
 
     async def load_last_payment(self):
         await asyncio.sleep(0.1)
-        if self.history_grid.options.get('rowData'):
-            await self.perform_load_row(self.history_grid.options['rowData'][0])
+        if self.history_table.rows:
+            await self.perform_load_row(self.history_table.rows[0])
 
     async def perform_load_row(self, row_data):
         self.exit_new_mode()
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_edit_mode()
         self.draft_payment_id = row_data['id']
         self.selected_supplier = {'id': row_data['supplier_id'], 'name': row_data['supplier']}
         self.supplier_input.value = row_data['supplier']
-        self.amount_input.value = f'{row_data["amount"]:.2f}'
+        self.amount_input.value = f'{row_data["amount"]:,.2f}'
         self.method_select.value = row_data['method']
-        self.total_display_input.value = f'{row_data["amount"]:.2f}'
+        self.total_display_input.value = f'{row_data["amount"]:,.2f}'
+        self.reference_input.value = row_data.get('reference', '')
         
         # Load up-to-date balances
         s_res = []
@@ -554,14 +824,67 @@ class SupplierPaymentUI:
 
     def filter_history_table(self, query):
         target_query = str(query or "").lower()
+        all_rows = getattr(self, '_all_payment_data', [])
         if not target_query:
-            self.history_grid.options['rowData'] = getattr(self, 'all_data', [])
+            self.history_table.rows = all_rows
         else:
-            self.history_grid.options['rowData'] = [r for r in getattr(self, 'all_data', []) if target_query in str(r['supplier']).lower() or target_query in str(r['id']).lower()]
-        self.history_grid.update()
+            self.history_table.rows = [r for r in all_rows if target_query in str(r['supplier']).lower() or target_query in str(r['id']).lower()]
+        self.history_table.update()
+        self._selected_row_index = None
+        ui.run_javascript("""
+        try {
+          const root = document.querySelector('.history-q-table');
+          if (!root) return;
+          const rows = root.querySelectorAll('tbody tr');
+          rows.forEach(el => { el.style.backgroundColor = ''; el.style.color = ''; el.classList.remove('selected-highlight'); });
+        } catch (e) {}
+        """)
+
+    async def _apply_row_from_id(self, cid):
+        if not getattr(self, 'history_table', None):
+            return
+        rows = getattr(self.history_table, 'rows', None) or []
+        target_index = next((i for i, r in enumerate(rows) if r.get('id') == cid), None)
+        if target_index is None:
+            return
+        row = rows[target_index]
+        self._selected_row_index = target_index
+        await self.perform_load_row(row)
+        self._apply_selected_row_color()
+
+    def _apply_selected_row_color(self):
+        if self._selected_row_index is None:
+            return
+        ui.run_javascript(f"""
+        try {{
+          const root = document.querySelector('.history-q-table');
+          if (!root) return;
+          const rows = root.querySelectorAll('tbody tr');
+          if (!rows || rows.length === 0) return;
+          const idx = Math.max(0, Math.min({self._selected_row_index} + 1, rows.length - 1));
+          rows.forEach(el => {{
+            el.style.backgroundColor = '';
+            el.style.color = '';
+            el.classList.remove('selected-highlight');
+          }});
+          const selected = rows[idx];
+          if (selected) {{
+            selected.style.backgroundColor = '#facc15';
+            selected.style.color = 'black';
+            selected.classList.add('selected-highlight');
+          }}
+        }} catch (e) {{ console.error('Highlight error:', e); }}
+        """)
+
+    async def _focus_first_row(self, *args):
+        if self.history_table and self.history_table.rows:
+            cid = self.history_table.rows[0].get('id')
+            if cid is not None:
+                await self._apply_row_from_id(cid)
 
     def create_ui(self):
         ui.add_head_html(MDS.get_global_styles())
+        ui.add_head_html(f'<script>{MDS.get_theme_switcher_js()}</script>')
         
         with ui.element('div').classes('w-full mesh-gradient h-[calc(100vh-64px)] p-0 overflow-hidden'):
             with ui.row().classes('w-full h-full gap-0 overflow-hidden'):
@@ -576,27 +899,72 @@ class SupplierPaymentUI:
                             with ui.column().classes('w-full h-full glass p-3 rounded-3xl border border-white/10'):
                                 with ui.row().classes('w-full items-center gap-3 glass p-3 rounded-2xl border border-white/10 hover:bg-white/5 mb-2'):
                                     ui.icon('history', size='1.25rem').classes('text-orange-400 ml-1')
-                                    self.history_search = ui.input(placeholder='Search vendors...').props('borderless dense clearable dark').classes('flex-1 text-white font-bold').on_value_change(lambda e: self.filter_history_table(e.value))
+                                    self.history_search = ui.input(placeholder='Search vendors...').props('borderless dense clearable dark').classes('flex-1 text-white font-bold').on_value_change(lambda e: self.filter_history_table(e.value)).on('keydown.down', self._focus_first_row)
                                 
-                                self.history_grid = ui.aggrid({
-                                    'columnDefs': [
-                                        {'headerName': 'ID', 'field': 'id', 'width': 70, 'headerClass': 'orange-header'},
-                                        {'headerName': 'Date', 'field': 'date', 'width': 110, 'headerClass': 'orange-header'},
-                                        {'headerName': 'Vendor', 'field': 'supplier', 'flex': 1, 'headerClass': 'orange-header'},
-                                        {'headerName': 'Amount', 'field': 'amount', 'width': 100, 'headerClass': 'orange-header'},
+                                self.history_table = ui.table(
+                                    columns=[
+                                        {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left', 'sortable': True},
+                                        {'name': 'date', 'label': 'Date', 'field': 'date', 'align': 'left', 'sortable': True},
+                                        {'name': 'supplier', 'label': 'Vendor', 'field': 'supplier', 'align': 'left', 'sortable': True},
+                                        {'name': 'amount', 'label': 'Amount', 'field': 'amount', 'align': 'right', 'sortable': True},
                                     ],
-                                    'rowData': [],
-                                    'rowSelection': 'single',
-                                    'pagination': True,
-                                    'paginationPageSize': 15,
-                                    'domLayout': 'normal',
-                                }).classes('w-full flex-1 ag-theme-quartz-dark shadow-inner').style('background: transparent; border: none;')
+                                    rows=[],
+                                    row_key='id',
+                                    selection='single',
+                                ).classes('w-full flex-1 overflow-hidden history-q-table').props('virtual-scroll flat bordered dense hide-pagination')
                                 
-                                self.history_grid.on('cellClicked', lambda e: self.perform_load_row(e.args['data']))
+                                async def on_keydown(e):
+                                    try:
+                                        key = getattr(e, 'key', None) or getattr(e, 'args', {}).get('key', None)
+                                        if key not in ('ArrowDown', 'ArrowUp'):
+                                            return
+                                        rows = getattr(self.history_table, 'rows', None) or []
+                                        if not rows:
+                                            return
+                                        if self._selected_row_index is None:
+                                            self._selected_row_index = 0
+                                        if key == 'ArrowDown':
+                                            self._selected_row_index = min(self._selected_row_index + 1, len(rows) - 1)
+                                        else:
+                                            self._selected_row_index = max(self._selected_row_index - 1, 0)
+                                        cid = rows[self._selected_row_index].get('id')
+                                        if cid is None:
+                                            return
+                                        await self._apply_row_from_id(cid)
+                                    except Exception as ex:
+                                        ui.notify(f'Keyboard navigation error: {ex}', color='warning')
+
+                                async def on_history_row_click(e):
+                                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                    if not isinstance(row, dict):
+                                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                            row = e.args[0]
+                                    if row:
+                                        self._selected_row_index = next((i for i, r in enumerate(self.history_table.rows or []) if r.get('id') == row.get('id')), None)
+                                        self._apply_selected_row_color()
+                                        await self.perform_load_row(row)
+                                        ui.run_javascript("try { const el = document.querySelector('.history-q-table'); if (el) el.focus(); } catch(e) {}")
+
+                                self.history_table.on('row-click', on_history_row_click)
+                                self.history_table.on('keydown', on_keydown)
+                                ui.run_javascript("""
+                                try {
+                                  const el = document.querySelector('.history-q-table');
+                                  if (el) {
+                                    el.setAttribute('tabindex', '0');
+                                    el.addEventListener('keydown', function(ev) {
+                                      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                                        ev.preventDefault();
+                                      }
+                                    });
+                                    el.addEventListener('focus', function() { this.style.outline = 'none'; });
+                                  }
+                                } catch(e) {}
+                                """)
 
                                 self.history_overlay = ui.element('div').classes('absolute inset-0 bg-black/60 flex items-center justify-center z-20 text-white text-center p-6').style('backdrop-filter: blur(4px); pointer-events: none;')
                                 with self.history_overlay:
-                                    ui.label('🆕 NEW PAYMENT MODE\nClick Vendor, then Amount to allocate invoices').classes('font-black text-xl whitespace-pre-wrap')
+                                    ui.label('NEW PAYMENT MODE\nClick Vendor, then Amount to allocate invoices').classes('font-black text-xl whitespace-pre-wrap')
                                 self.history_overlay.set_visibility(False)
 
                         # RIGHT: Editor
@@ -622,6 +990,12 @@ class SupplierPaymentUI:
                                         with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full hover:bg-white/10 transition-all cursor-pointer shadow-inner'):
                                             ui.icon('business', size='1.5rem').classes('text-orange-400')
                                             self.supplier_input = ui.input(placeholder='Select Supplier Entity...').props('borderless dense dark readonly').classes('flex-1 text-white font-black text-lg').on('click', self.select_supplier)
+                                    
+                                    with ui.row().classes('w-full gap-1'):
+                                        ui.label('Reference/Notes').classes('text-[9px] font-black text-orange-400 uppercase tracking-widest ml-4')
+                                    with ui.row().classes('items-center gap-3 bg-white/5 px-5 py-3 rounded-2xl border border-white/10 w-full'):
+                                        ui.icon('description', size='1.5rem').classes('text-orange-400')
+                                        self.reference_input = ui.input(placeholder='Manual reference...').props('borderless dense dark').classes('flex-1 text-white font-black')
                                     
                                     with ui.row().classes('w-full gap-4'):
                                         with ui.column().classes('flex-1 gap-1'):
@@ -660,14 +1034,30 @@ class SupplierPaymentUI:
                         self.clear_form()
                         self.new_mode = True
                         self.history_overlay.set_visibility(True)
-                        self.history_grid.classes('dimmed')
+                        self.history_table.classes('dimmed')
                         ui.notify('New Payment Mode', color='warning')
+                        if hasattr(self, 'action_bar'):
+                            self.action_bar.enter_new_mode()
 
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=handle_new,
                         on_save=self.save_payment,
                         on_undo=lambda: [self.clear_form(), self.exit_new_mode()],
                         on_delete=self.delete_payment,
+                        on_print=lambda: self.show_payment_print_dialog(
+                            self.draft_payment_id,
+                            self.selected_supplier.get('name', '') if self.selected_supplier else '',
+                            self.to_float(self.amount_input.value),
+                            self.method_select.value,
+                            self.selected_supplier.get('id') if self.selected_supplier else None
+                        ) if self.draft_payment_id else ui.notify('No payment selected'),
+                        on_print_special=lambda: self.show_payment_print_dialog(
+                            self.draft_payment_id,
+                            self.selected_supplier.get('name', '') if self.selected_supplier else '',
+                            self.to_float(self.amount_input.value),
+                            self.method_select.value,
+                            self.selected_supplier.get('id') if self.selected_supplier else None
+                        ) if self.draft_payment_id else ui.notify('No payment selected'),
                         on_refresh=self.refresh_history,
                         on_chatgpt=lambda: ui.run_javascript('window.open("https://chatgpt.com", "_blank");'),
                         on_view_transaction=lambda: accounting_helpers.show_transactions_dialog('Payment', str(self.draft_payment_id)) if self.draft_payment_id else ui.notify('No payment selected'),

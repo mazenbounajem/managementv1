@@ -1,11 +1,8 @@
 from nicegui import ui
 from connection import connection
-from uiaggridtheme import uiAggridTheme
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 def voucher_subtype_content(standalone=False):
     """Content method for voucher subtypes that can be used in tabs"""
@@ -36,7 +33,9 @@ class VoucherSubtypeUI:
         self.input_refs['id'].value = ''
         if self.table:
             self.table.classes(add='dimmed')
-            self.table.run_method('deselectAll')
+            self.table.selected = None
+        if hasattr(self, 'action_bar'):
+            self.action_bar.enter_new_mode()
         ui.notify('Ready for new entry', color='info')
 
     def _load_last_row(self):
@@ -79,6 +78,8 @@ class VoucherSubtypeUI:
             ui.notify('Saved successfully', color='positive')
             if self.table:
                 self.table.classes(remove='dimmed')
+            if hasattr(self, 'action_bar'):
+                self.action_bar.reset_state()
             self.refresh_table()
         except Exception as e:
             ui.notify(f'Error saving: {str(e)}', color='negative')
@@ -90,6 +91,8 @@ class VoucherSubtypeUI:
                 self.input_refs[field].value = self.initial_values[field]
         if self.table:
             self.table.classes(remove='dimmed')
+        if hasattr(self, 'action_bar'):
+            self.action_bar.reset_state()
         ui.notify('Changes reverted', color='info')
 
     def delete_voucher_subtype(self):
@@ -132,8 +135,8 @@ class VoucherSubtypeUI:
                 })
 
             if self.table:
-                self.table.options['rowData'] = new_row_data
-                self.table.update()
+                self.table.rows = new_row_data
+                self.table.classes(remove='dimmed')
 
             self.row_data = new_row_data
             # Load last entry into form and undim
@@ -167,45 +170,49 @@ class VoucherSubtypeUI:
                             self.search_input = ui.input(placeholder='Search subtypes...').classes('w-64 glass-input text-white text-sm').props('dark rounded outlined dense')
                             self.search_input.on('input', lambda e: self.filter_rows(e.value))
 
-                        column_defs = [
-                            {'headerName': 'ID', 'field': 'id', 'width': 80},
-                            {'headerName': 'Code', 'field': 'code', 'width': 120},
-                            {'headerName': 'Name', 'field': 'name', 'width': 220, 'flex': 1},
-                            {'headerName': 'Sequence', 'field': 'sequence', 'width': 100},
+                        columns = [
+                            {'name': 'id', 'label': 'ID', 'field': 'id', 'align': 'left'},
+                            {'name': 'code', 'label': 'Code', 'field': 'code', 'align': 'left'},
+                            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left'},
+                            {'name': 'sequence', 'label': 'Sequence', 'field': 'sequence', 'align': 'right'},
                         ]
 
-                        self.table = ui.aggrid({
-                            'columnDefs': column_defs,
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'rowSelection': 'single',
-                        }).classes('w-full h-[600px] ag-theme-quartz-dark')
+                        self.table = ui.table(
+                            columns=columns,
+                            rows=[],
+                            row_key='id',
+                            selection='single',
+                        ).classes('w-full h-[600px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
                         
                         def on_row_click(e):
                             try:
-                                selected_row = e.args.get('data', {})
-                                if selected_row:
-                                    self.input_refs['id'].value = str(selected_row['id'])
-                                    self.input_refs['code'].value = selected_row['code'] or ''
-                                    self.input_refs['name'].value = selected_row['name'] or ''
-                                    self.input_refs['sequence'].value = selected_row['sequence'] or 0
-                                    self.initial_values = {
-                                        'code': selected_row['code'] or '',
-                                        'name': selected_row['name'] or '',
-                                        'sequence': selected_row['sequence'] or 0,
-                                        'id': str(selected_row['id'])
-                                    }
-                                    if self.table:
-                                        self.table.classes(remove='dimmed')
-                            except Exception as e:
-                                ui.notify(f'Error selecting row: {str(e)}', color='negative')
+                                row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                                if not isinstance(row, dict):
+                                    if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                                        row = e.args[0]
+                                if not row:
+                                    return
+                                self.input_refs['id'].value = str(row['id'])
+                                self.input_refs['code'].value = row.get('code') or ''
+                                self.input_refs['name'].value = row.get('name') or ''
+                                self.input_refs['sequence'].value = row.get('sequence') or 0
+                                self.initial_values = {
+                                    'code': row.get('code') or '',
+                                    'name': row.get('name') or '',
+                                    'sequence': row.get('sequence') or 0,
+                                    'id': str(row['id'])
+                                }
+                                if self.table:
+                                    self.table.classes(remove='dimmed')
+                            except Exception as ex:
+                                ui.notify(f'Error selecting row: {str(ex)}', color='negative')
 
-                        self.table.on('cellClicked', on_row_click)
+                        self.table.on('rowClick', on_row_click)
 
                 # Right Column: Action Bar
                 with ui.column().classes('w-80px items-center'):
                     from modern_ui_components import ModernActionBar
-                    ModernActionBar(
+                    self.action_bar = ModernActionBar(
                         on_new=self.clear_input_fields,
                         on_save=self.save_voucher_subtype,
                         on_undo=self.undo_changes,
@@ -223,9 +230,8 @@ class VoucherSubtypeUI:
 
     def filter_rows(self, search_text):
         if not search_text:
-            self.table.options['rowData'] = self.row_data
+            self.table.rows = self.row_data
         else:
             search_text = search_text.lower()
             filtered = [row for row in self.row_data if any(search_text in str(v).lower() for v in row.values())]
-            self.table.options['rowData'] = filtered
-        self.table.update()
+            self.table.rows = filtered

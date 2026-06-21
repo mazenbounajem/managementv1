@@ -4,7 +4,6 @@ from datetime import datetime, date
 from connection import connection
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 
 def vat_close_content(standalone: bool = False):
@@ -168,18 +167,16 @@ class VATCloseUI:
 **Delete/Rollback:** removes the JV and all lines, restoring pre-close balances.
                         ''')
 
-                        self._preview_grid = ui.aggrid({
-                            'columnDefs': [
-                                {'headerName': 'Period', 'field': 'period', 'flex': 1},
-                                {'headerName': 'Sales VAT (44270 Credit)', 'field': 'customer_vat', 'width': 200},
-                                {'headerName': 'Purchase VAT (44210 Debit)', 'field': 'supplier_vat', 'width': 220},
-                                {'headerName': 'Net VAT', 'field': 'net_vat', 'width': 140},
-                                {'headerName': 'Clearing Account', 'field': 'clearing', 'width': 160},
+                        self._preview_grid = ui.table(
+                            columns=[
+                                {'name': 'period', 'label': 'Period', 'field': 'period', 'align': 'left'},
+                                {'name': 'customer_vat', 'label': 'Sales VAT (44270 Credit)', 'field': 'customer_vat', 'align': 'right'},
+                                {'name': 'supplier_vat', 'label': 'Purchase VAT (44210 Debit)', 'field': 'supplier_vat', 'align': 'right'},
+                                {'name': 'net_vat', 'label': 'Net VAT', 'field': 'net_vat', 'align': 'right'},
+                                {'name': 'clearing', 'label': 'Clearing Account', 'field': 'clearing', 'align': 'left'},
                             ],
-                            'rowData': [],
-                            'defaultColDef': MDS.get_ag_grid_default_def(),
-                            'pagination': False,
-                        }).classes('w-full h-[220px] ag-theme-quartz-dark')
+                            rows=[],
+                        ).classes('w-full h-[220px]').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"')
 
         finally:
             if self.standalone:
@@ -336,14 +333,13 @@ class VATCloseUI:
                 f'Post will zero all 44210/44270 children. {clearing_info}'
             )
 
-            self._preview_grid.options['rowData'] = [{
+            self._preview_grid.rows = [{
                 'period': f'{from_date} to {to_date}',
                 'customer_vat': f'${self.customer_vat_total:,.2f}',
                 'supplier_vat': f'${self.supplier_vat_total:,.2f}',
                 'net_vat': f'${self.net_vat:,.2f}',
                 'clearing': '44250' if self.net_vat > 0 else ('44260' if self.net_vat < 0 else 'None'),
             }]
-            self._preview_grid.update()
 
         except Exception as e:
             ui.notify(f'Error calculating VAT totals: {e}', color='negative')

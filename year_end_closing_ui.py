@@ -7,7 +7,6 @@ import asyncio
 from database_manager import db_manager
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 from year_end_closing_service import YearEndClosingService
 
 def year_end_closing_content(standalone: bool = False):
@@ -75,23 +74,29 @@ class YearEndClosingUI:
                 with ModernCard(glass=True).classes('w-full p-6'):
                     ui.label('Opening Balances Preview').classes('text-lg font-black text-white mb-4')
                     
-                    self.grid = ui.aggrid({
-                        'columnDefs': [
-                            {'headerName': 'Account', 'field': 'account', 'width': 150},
-                            {'headerName': 'Name', 'field': 'name', 'flex': 1},
-                            {'headerName': 'Debit', 'field': 'debit', 'width': 120, 'valueFormatter': 'Math.abs(x).toLocaleString()'},
-                            {'headerName': 'Credit', 'field': 'credit', 'width': 120, 'valueFormatter': 'Math.abs(x).toLocaleString()'},
+                    self.grid = ui.table(
+                        columns=[
+                            {'name': 'account', 'label': 'Account', 'field': 'account', 'align': 'left'},
+                            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left'},
+                            {'name': 'debit', 'label': 'Debit', 'field': 'debit', 'align': 'right'},
+                            {'name': 'credit', 'label': 'Credit', 'field': 'credit', 'align': 'right'},
                         ],
-                        'rowData': [],
-                        'defaultColDef': MDS.get_ag_grid_default_def(),
-                    }).classes('w-full h-[500px] ag-theme-quartz-dark')
+                        rows=[],
+                    ).classes('w-full').props('virtual-scroll flat bordered dense hide-pagination :pagination="{rowsPerPage: 0}"').style('height: 500px;')
 
     def calculate_balances(self):
         try:
             ui.notify('Calculating balances...', color='info')
             self.balances, self.stock_value = YearEndClosingService.get_opening_balances()
             
-            self.grid.options['rowData'] = self.balances
+            self.grid.rows = [
+                {
+                    'account': r['account'],
+                    'name': r['name'],
+                    'debit': f"${float(r.get('debit', 0)):,.2f}",
+                    'credit': f"${float(r.get('credit', 0)):,.2f}",
+                } for r in self.balances
+            ]
             self.grid.update()
             
             self.summary_label.set_text(f'Status: {len(self.balances)} accounts calculated.')
@@ -125,7 +130,7 @@ class YearEndClosingUI:
                 ui.label('Fiscal Year Rollover in Progress').classes('text-xl font-bold')
                 
                 with ui.column().classes('w-full border p-4 rounded bg-black/5'):
-                    self.status_label = ui.label('Initializing...').classes('font-medium text-[#08CB00] text-lg')
+                    self.status_label = ui.label('Initializing...').classes('font-medium text-[#80B9AD] text-lg')
                     self.progress_bar = ui.linear_progress(value=0, show_value=False).classes('w-full rounded h-2 mt-2')
                 
                 ui.label('Process Logs').classes('w-full text-xs font-bold uppercase tracking-tight text-gray-400 mt-4')

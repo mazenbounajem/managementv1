@@ -5,6 +5,9 @@ nicegui==3.11.1
 pandas==3.0.2
 plotly==6.3.0
 pyodbc==5.2.0
-python_bcrypt==0.3.2
+bcrypt
 reportlab==4.4.3
 pycairo==1.29.0
+python-barcode==0.14.0
+arabic-reshaper 
+python-bidi

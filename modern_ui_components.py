@@ -499,7 +499,7 @@ class ModernActionBar(ui.column):
         with self:
             # New Button - Green
             self.new_btn = self._create_btn('add_circle', 'New', on_new, 'primary', size=size, extra_class=button_class)
-            self.new_btn.style('background: #08CB00 !important; color: white !important;')
+            self.new_btn.style('background: #2E7D32 !important; color: white !important; font-weight: 700 !important; box-shadow: 0 4px 15px rgba(46, 125, 50, 0.4) !important;')
             
             # Save Button - Blue
             self.save_btn = self._create_btn('save', 'Save', on_save, 'info', size=size, extra_class=button_class)
@@ -530,6 +530,10 @@ class ModernActionBar(ui.column):
             self.jv_lines_btn = self._create_btn('account_tree', 'JV Lines', on_view_jv_lines, 'accent', size=size, extra_class=button_class)
             self.refresh_btn = self._create_btn('refresh', 'Refresh', on_refresh, 'info', size=size, extra_class=button_class)
 
+        # Enforce initial button states (New active, Save/Undo inactive, others active)
+        # Avoid running synchronously with rendering if target_table is not yet mounted to the DOM.
+        ui.timer(0.01, self.reset_state, once=True)
+
 
     def enter_new_mode(self):
         """Standard state when creating a new record"""
@@ -538,13 +542,15 @@ class ModernActionBar(ui.column):
             self.target_table.classes(add='dimmed')
             
         # Highlight New button, enable Save/Undo
-        self.new_btn.classes(remove='opacity-30 grayscale', add='scale-110 shadow-lg')
-        self.save_btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
-        self.undo_btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
-        self.delete_btn.classes(add='opacity-30 grayscale').props(add='disabled') # Usually can't delete unsaved new
-        
-        # Dim others
-        for btn in [self.print_btn, self.print_special_btn, self.chatgpt_btn, self.view_tx_btn, self.refresh_btn]:
+        self.new_btn.classes(remove='scale-110 shadow-lg', add='opacity-30 grayscale').props(add='disabled')
+        if getattr(self.save_btn, '_has_callback', True):
+            self.save_btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
+        if getattr(self.undo_btn, '_has_callback', True):
+            self.undo_btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
+            
+        # Disable all others
+        self.delete_btn.classes(add='opacity-30 grayscale').props(add='disabled')
+        for btn in [self.print_btn, self.print_special_btn, self.chatgpt_btn, self.view_tx_btn, self.refresh_btn, self.order_btn, self.jv_lines_btn]:
              btn.classes(add='opacity-30 grayscale').props(add='disabled')
 
     def enter_edit_mode(self):
@@ -553,26 +559,34 @@ class ModernActionBar(ui.column):
         if self.target_table:
             self.target_table.classes(remove='dimmed')
             
-        # Normal state for buttons
+        # Normal state for buttons (only if they have callbacks)
         for btn in [self.new_btn, self.save_btn, self.undo_btn, self.delete_btn, 
                     self.print_btn, self.print_special_btn, self.chatgpt_btn,
-                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn]:
-             btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
+                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn, self.order_btn]:
+             if getattr(btn, '_has_callback', True):
+                 btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
 
     def reset_state(self):
         """Reset to default state (e.g. after save/undo)"""
         if self.target_table:
             self.target_table.classes(remove='dimmed')
         
-        # New is always active, others depend on context
-        self.new_btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
+        # New is always active
+        if getattr(self.new_btn, '_has_callback', True):
+            self.new_btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
+            
+        # Save and Undo are inactive
         self.save_btn.classes(add='opacity-30 grayscale').props(add='disabled')
         self.undo_btn.classes(add='opacity-30 grayscale').props(add='disabled')
-        self.delete_btn.classes(add='opacity-30 grayscale').props(add='disabled')
+        
+        # Make all other buttons active
+        if getattr(self.delete_btn, '_has_callback', True):
+            self.delete_btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
         
         for btn in [self.print_btn, self.print_special_btn, self.chatgpt_btn,
-                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn]:
-             btn.classes(remove='opacity-30 grayscale').props(remove='disabled')
+                    self.view_tx_btn, self.jv_lines_btn, self.refresh_btn, self.order_btn]:
+             if getattr(btn, '_has_callback', True):
+                 btn.classes(remove='opacity-30 grayscale scale-110 shadow-lg').props(remove='disabled')
 
     def _create_btn(self, icon: str, tooltip: str, callback: Optional[Callable], variant: str, size: str = 'lg', extra_class: str = ''):
         btn = ModernButton("", icon=icon, variant=variant, on_click=callback).props(f'flat round size={size}')
@@ -586,6 +600,8 @@ class ModernActionBar(ui.column):
         if 'h-' in extra_class:
             btn.classes(extra_class)
         btn.tooltip(tooltip)
+        
+        btn._has_callback = bool(callback)
         if not callback:
             btn.props('disabled')
             btn.classes('opacity-30 grayscale')

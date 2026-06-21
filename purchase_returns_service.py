@@ -16,7 +16,7 @@ class PurchaseReturnService:
         if not purchase_header:
             raise ValueError(f'Purchase with ID {purchase_id} not found.')
 
-        supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id = purchase_header[0]
+        supplier_name, phone, payment_status, invoice_number, purchase_date, currency_id, discount_amount = purchase_header[0]
         purchase_items = self.repository.get_purchase_items(purchase_id)
         
         # Get exchange rate for denormalization
@@ -49,6 +49,7 @@ class PurchaseReturnService:
             'invoice_number': invoice_number,
             'purchase_date': purchase_date,
             'currency_id': currency_id,
+            'discount_amount': float(discount_amount) * exchange_rate if discount_amount else 0.0,
             'rows': rows
         }
 
@@ -203,26 +204,23 @@ class PurchaseReturnService:
             data.get('total_vat', 0) / exchange_rate
         )
 
-        # Get ledger id for purchases (6011)
-        ledger_data = self.repository.get_ledger_id_by_account('6011')
-        if ledger_data:
-            ledger_id = ledger_data[0][0]
-
-            # Get next subnumber for auxiliary
-            next_sub = last_purchase_id
-            account_number = f"6011.{next_sub:05d}"
-
-            # Create auxiliary
-            self.repository.create_auxiliary(ledger_id, account_number, invoice_number)
-
-            # Get auxiliary id
-            aux_id_data = self.repository.get_last_auxiliary_id()
-            aux_id = aux_id_data[0][0]
-
-            # Update purchase with auxiliary_number
-            self.repository.update_purchase_auxiliary_number(last_purchase_id, f"{next_sub:05d}")
+        # No longer create individual auxiliary suffixes per purchase return.
+        # All returns map directly to the base ledger account 6011.
 
         self._process_purchase_items(last_purchase_id, data['created_at'], data['user'], data['session_id'], rows, currency_id, exchange_rate)
+
+        # Accounting JVs
+        self._record_purchase_return_accounting(
+            purchase_id=last_purchase_id,
+            supplier_id=data['supplier_id'],
+            rows=rows,
+            exchange_rate=exchange_rate,
+            normalized_total=data['final_total'] / exchange_rate,
+            normalized_subtotal=data['subtotal'] / exchange_rate,
+            normalized_vat=data.get('total_vat', 0) / exchange_rate,
+            payment_method=data.get('payment_method', 'Cash'),
+            invoice_number=invoice_number,
+        )
 
         self._handle_payment_logic(
             purchase_id=last_purchase_id,
@@ -257,6 +255,92 @@ class PurchaseReturnService:
             is_update=True,
             **data
         )
+
+        # Accounting JVs (re-created; old ones auto-cleaned by save_accounting_transaction)
+        invoice_number = self.repository.get_invoice_number(purchase_id) or data.get('invoice_number', '')
+        self._record_purchase_return_accounting(
+            purchase_id=purchase_id,
+            supplier_id=data['supplier_id'],
+            rows=rows,
+            exchange_rate=exchange_rate,
+            normalized_total=data['final_total'] / exchange_rate,
+            normalized_subtotal=data['subtotal'] / exchange_rate,
+            normalized_vat=data.get('total_vat', 0) / exchange_rate,
+            payment_method=data.get('payment_method', 'Cash'),
+            invoice_number=invoice_number,
+        )
+
+    def _record_purchase_return_accounting(self, purchase_id, supplier_id, rows,
+                                            exchange_rate, normalized_total,
+                                            normalized_subtotal, normalized_vat,
+                                            payment_method, invoice_number):
+        """
+        Record double-entry accounting JVs for a purchase return (reversed entry):
+          Purchase Return JV:  Credit expense (6xxx) + Credit VAT (44210.x) / Debit supplier (401x)
+          Payment JV:          Debit supplier (401x) / Credit caisse (5300.x)  [if cash]
+        """
+        try:
+            import accounting_helpers
+            import business_track_settings
+
+            # Resolve supplier auxiliary
+            sup_res = []
+            from connection import connection
+            connection.contogetrows(
+                "SELECT id, name, auxiliary_number FROM suppliers WHERE id = ?",
+                sup_res, (supplier_id,)
+            )
+            supplier_name = sup_res[0][1] if sup_res else f"Supplier {supplier_id}"
+            supplier_account = sup_res[0][2] if sup_res and sup_res[0][2] else None
+            if not supplier_account:
+                supplier_account = accounting_helpers.ensure_supplier_auxiliary(
+                    supplier_id, supplier_name=supplier_name, fallback_account_number='4011'
+                )
+
+            # VAT auxiliary for supplier
+            vat_account = accounting_helpers.ensure_vat_auxiliary(
+                'Supplier', supplier_id, supplier_name, supplier_account
+            )
+
+            # Expense account base (6011)
+            expense_base_ledger = '6011'
+
+            # Discount auxiliary (6019)
+            discount_aux_number = "6019"
+
+            # ── Purchase Return JV (Reversed) ──────────────────────────────
+            # For a return: Credit expense, Credit VAT, Debit supplier
+            jv_lines = [
+                {'account': expense_base_ledger, 'debit': 0,                   'credit': normalized_subtotal},
+                {'account': vat_account,          'debit': 0,                   'credit': normalized_vat},
+                {'account': supplier_account,     'debit': normalized_total,    'credit': 0},
+            ]
+
+            # Filter out zero-amount lines
+            jv_lines = [l for l in jv_lines if l['debit'] > 0.005 or l['credit'] > 0.005]
+
+            accounting_helpers.save_accounting_transaction(
+                'Purchase Return', purchase_id, jv_lines,
+                description=f"Purchase Return {invoice_number}"
+            )
+
+            # ── Purchase Return Payment JV (cash only) ─────────────────────
+            if payment_method and payment_method.lower() != 'on account':
+                caisse_account = business_track_settings.get_payment_account(payment_method)
+                accounting_helpers.ensure_caisse_auxiliary(caisse_account)
+
+                # Cash return settlement: Debit caisse, Credit supplier
+                payment_jv = [
+                    {'account': caisse_account,    'debit': normalized_total, 'credit': 0},
+                    {'account': '4011',            'debit': 0,                'credit': normalized_total},
+                ]
+                accounting_helpers.save_accounting_transaction(
+                    'Purchase Return Payment', purchase_id, payment_jv,
+                    description=f"{payment_method} Payment for Purchase Return {invoice_number}"
+                )
+
+        except Exception as e:
+            print(f"Error recording purchase return accounting for ID {purchase_id}: {e}")
 
     def _process_purchase_items(self, purchase_id, created_at, user, session_id, rows, purchase_currency_id, exchange_rate):
         for row in rows:

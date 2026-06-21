@@ -1,127 +1,108 @@
-#/* AG Grid Custom Theme - New Color Palette */
-#/* Colors: #d3cae2 #e6c17a #f6ede3 #404041 */
-
 from nicegui import ui
-from color_palette import ColorPalette
+
 
 class uiAggridTheme:
+    ROW_HEIGHT = 20
+    CELL_PADDING = 6
+    CELL_LINE_HEIGHT = 20
+
+    @staticmethod
     def addingtheme():
-        # Add CSS variables first
-        ui.add_css(ColorPalette.get_css_variables())
-        
-        ui.add_css(f'''
-        .ag-theme-quartz-custom {{
-            /* Base colors using new palette */
-            --ag-foreground-color: {ColorPalette.MAIN_TEXT};
-            --ag-background-color: {ColorPalette.MAIN_BG};
-            --ag-header-background-color: {ColorPalette.HEADER_BG};
-            --ag-header-foreground-color: {ColorPalette.HEADER_TEXT};
-            --ag-header-cell-hover-background-color: {ColorPalette.HOVER_BG};
-            --ag-header-cell-moving-background-color: {ColorPalette.ACCENT};
-            
-            /* Row colors */
-            --ag-odd-row-background-color: {ColorPalette.ROW_ODD};
-            --ag-even-row-background-color: {ColorPalette.ROW_EVEN};
-            --ag-row-hover-color: {ColorPalette.HOVER_BG};
-            --ag-row-border-color: {ColorPalette.BORDER_LIGHT};
-            
-            /* Selection colors */
-            --ag-selected-row-background-color: {ColorPalette.SELECTION_BG};
-            --ag-range-selection-background-color: rgba(230, 193, 122, 0.4);
-            
-            /* Border colors */
-            --ag-border-color: {ColorPalette.BORDER_LIGHT};
-            --ag-secondary-border-color: {ColorPalette.BORDER};
-            
-            /* Input colors */
-            --ag-input-focus-border-color: {ColorPalette.ACCENT};
-            
-            /* Checkbox colors */
-            --ag-checkbox-background-color: {ColorPalette.MAIN_BG};
-            --ag-checkbox-checked-color: {ColorPalette.ACCENT};
-            
-            /* Menu colors */
-            --ag-menu-background-color: {ColorPalette.MAIN_BG};
-            --ag-menu-border-color: {ColorPalette.BORDER_LIGHT};
-        }}
+        ui.add_css("""
+        .ag-theme-quartz-dark {
+            --ag-row-height: 20px;
+            --ag-cell-horizontal-padding: 6px;
+            --ag-cell-vertical-padding: 1px;
+            --ag-line-height: 20px;
 
-        /* Header styling */
-        .ag-theme-quartz-custom .ag-header {{
-            background-color: {ColorPalette.HEADER_BG} !important;
-            color: {ColorPalette.HEADER_TEXT} !important;
-            font-weight: bold;
-            border-bottom: 2px solid {ColorPalette.BORDER};
-        }}
+            --ag-foreground-color: #f1f5f9;
+            --ag-background-color: rgba(15, 15, 25, 0.6);
 
-        .ag-theme-quartz-custom .ag-header-cell {{
-            background-color: {ColorPalette.HEADER_BG} !important;
-            color: {ColorPalette.HEADER_TEXT} !important;
-            border-right: 1px solid {ColorPalette.BORDER};
-        }}
+            --ag-header-background-color: rgba(46, 125, 50, 0.95);
+            --ag-header-foreground-color: #ffffff;
+            --ag-header-cell-hover-background-color: rgba(56, 142, 60, 0.8);
+            --ag-header-cell-moving-background-color: rgba(76, 175, 80, 0.6);
 
-        .ag-theme-quartz-custom .ag-header-cell:hover {{
-            background-color: {ColorPalette.HOVER_BG} !important;
-            color: {ColorPalette.HOVER_TEXT} !important;
-        }}
+            --ag-odd-row-background-color: rgba(20, 20, 35, 0.5);
+            --ag-even-row-background-color: rgba(25, 25, 40, 0.5);
+            --ag-row-hover-color: rgba(76, 175, 80, 0.25);
+            --ag-row-border-color: rgba(255, 255, 255, 0.08);
 
-        /* Row styling */
-        .ag-theme-quartz-custom .ag-row {{
-            background-color: {ColorPalette.ROW_EVEN} !important;
-            color: {ColorPalette.MAIN_TEXT} !important;
-            border-bottom: 1px solid {ColorPalette.BORDER_LIGHT};
-        }}
+            --ag-selected-row-background-color: rgba(76, 175, 80, 0.25);
+            --ag-range-selection-background-color: rgba(56, 142, 60, 0.2);
 
-        .ag-theme-quartz-custom .ag-row-odd {{
-            background-color: {ColorPalette.ROW_ODD} !important;
-        }}
+            --ag-border-color: rgba(255, 255, 255, 0.12);
+            --ag-secondary-border-color: rgba(255, 255, 255, 0.08);
+            --ag-input-focus-border-color: rgba(76, 175, 80, 0.8);
+            --ag-checkbox-background-color: rgba(30, 30, 50, 0.8);
+            --ag-checkbox-checked-color: rgba(76, 175, 80, 0.9);
+            --ag-menu-background-color: rgba(20, 20, 35, 0.95);
+            --ag-menu-border-color: rgba(255, 255, 255, 0.12);
+        }
 
-        .ag-theme-quartz-custom .ag-row-even {{
-            background-color: {ColorPalette.ROW_EVEN} !important;
-        }}
+        .ag-theme-quartz-dark .ag-header {
+            background-color: rgba(46, 125, 50, 0.95) !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 12px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
 
-        .ag-theme-quartz-custom .ag-row:hover {{
-            background-color: {ColorPalette.HOVER_BG} !important;
-            color: {ColorPalette.HOVER_TEXT} !important;
-        }}
+        .ag-theme-quartz-dark .ag-header-cell {
+            background-color: rgba(46, 125, 50, 0.95) !important;
+            color: #ffffff !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+        }
 
-        /* Selected row styling */
-        .ag-theme-quartz-custom .ag-row-selected {{
-            background-color: {ColorPalette.SELECTION_BG} !important;
-            color: {ColorPalette.SELECTION_TEXT} !important;
-            border: 2px solid {ColorPalette.BORDER} !important;
-        }}
+        .ag-theme-quartz-dark .ag-header-cell:hover {
+            background-color: rgba(56, 142, 60, 0.7) !important;
+            color: #ffffff !important;
+        }
 
-        /* Cell styling */
-        .ag-theme-quartz-custom .ag-cell {{
-            color: {ColorPalette.MAIN_TEXT} !important;
-        }}
+        .ag-theme-quartz-dark .ag-header-cell-label {
+            display: flex;
+            align-items: center;
+        }
 
-        /* Custom header classes */
-        .blue-header {{
-            background-color: {ColorPalette.HEADER_BG} !important;
-            color: {ColorPalette.HEADER_TEXT} !important;
-            font-weight: bold !important;
-        }}
-        
-        .green-header {{
-            background-color: {ColorPalette.HEADER_BG} !important;
-            color: {ColorPalette.HEADER_TEXT} !important;
-            font-weight: bold !important;
-        }}
-        
-        .highlighted-row {{
-            background-color: {ColorPalette.ACCENT} !important;
-            color: {ColorPalette.MAIN_TEXT} !important;
-            border: 2px solid {ColorPalette.BORDER} !important;
-        }}
-        
-        /* Additional styling for better visual hierarchy */
-        .ag-theme-quartz-custom .ag-cell-focus {{
-            border: 2px solid {ColorPalette.ACCENT} !important;
-        }}
-        
-        .ag-theme-quartz-custom .ag-cell-range-selected {{
-            background-color: rgba(230, 193, 122, 0.3) !important;
-        }}
-        '''
-        )
+        .ag-theme-quartz-dark .ag-row {
+            color: #f1f5f9 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            font-size: 13px !important;
+        }
+
+        .ag-theme-quartz-dark .ag-row-odd {
+            background-color: rgba(20, 20, 35, 0.5) !important;
+        }
+
+        .ag-theme-quartz-dark .ag-row-even {
+            background-color: rgba(25, 25, 40, 0.5) !important;
+        }
+
+        .ag-theme-quartz-dark .ag-row:hover {
+            background-color: rgba(76, 175, 80, 0.15) !important;
+            color: #ffffff !important;
+        }
+
+        .ag-theme-quartz-dark .ag-row-selected {
+            background-color: rgba(76, 175, 80, 0.25) !important;
+            color: #ffffff !important;
+        }
+
+        .ag-theme-quartz-dark .ag-cell {
+            color: #f1f5f9 !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
+            align-items: center !important;
+        }
+
+        .ag-theme-quartz-dark .ag-cell-focus {
+            outline: 1px solid rgba(76, 175, 80, 0.6) !important;
+            outline-offset: -1px;
+        }
+
+        .ag-theme-quartz-dark .ag-cell-range-selected {
+            background-color: rgba(56, 142, 60, 0.15) !important;
+        }
+        """)

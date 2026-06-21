@@ -1,4 +1,4 @@
-from nicegui import ui
+from nicegui import ui, app
 from reports_ui import reports_page_route
 from connection import connection
 import datetime
@@ -6,6 +6,15 @@ import os
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+
+# Intercept Chrome DevTools to silence nicegui 'not found' warning
+@app.get('/.well-known/appspecific/com.chrome.devtools.json')
+def chrome_devtools():
+    return {}
+
+# Setup Arabic PDF support globally for all ReportLab PDFs
+from pdf_arabic_support import setup_arabic_support
+setup_arabic_support()
 
 # Import new modules
 from config import config
@@ -60,6 +69,133 @@ from trial_hierarchy_ui import trial_hierarchy_page_route
 
 # Import modern design system pages
 from modern_sales_ui import modern_sales_page
+
+# Global ag-Grid helper: store APIs and trigger layout when hidden grids become visible
+ui.add_head_html('''
+<script>
+window.__aggrid_store = window.__aggrid_store || {};
+window.__aggrid_triggerLayout = function(name) {
+  try {
+    const api = window.__aggrid_store[name];
+    if (api && api._gridRef) {
+      const el = api._gridRef;
+      // Check if grid is visible before triggering layout
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        api.sizeColumnsToFit && api.sizeColumnsToFit();
+        api.doLayout && api.doLayout();
+        api.refreshHeader && api.refreshHeader();
+      }
+    }
+  } catch(e) { console.error('aggrid triggerLayout error', e); }
+};
+
+// Safely trigger layout only for visible grids (not hidden or in dialogs)
+window.__aggrid_triggerVisible = function(){
+  try {
+    document.querySelectorAll('.ag-root').forEach(el => {
+      try {
+        // Skip if grid is hidden or inside a hidden dialog/modal
+        let parent = el.parentElement;
+        let isHidden = false;
+
+        // Walk up the DOM tree to check for hidden states
+        while (parent && parent !== document.body) {
+          const style = window.getComputedStyle(parent);
+          const display = style.getPropertyValue('display');
+          const visibility = style.getPropertyValue('visibility');
+
+          if (display === 'none' || visibility === 'hidden') {
+            isHidden = true;
+            break;
+          }
+
+          // Check for NiceGUI dialog hidden attribute
+          if (parent.hasAttribute('hidden') || parent.classList.contains('hidden')) {
+            isHidden = true;
+            break;
+          }
+
+          parent = parent.parentElement;
+        }
+
+        if (isHidden) return;
+
+        // Check if element itself is visible
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        // Attempt to get API from multiple possible locations
+        const api = el.__vue__?.component?.exposed?.grid_api || 
+                    el.gridOptions?.api || 
+                    el.api || 
+                    el.agGrid?.api ||
+                    window.__aggrid_store[Object.keys(window.__aggrid_store).find(k => window.__aggrid_store[k]?._gridRef === el)];
+
+        if (api) {
+          api.sizeColumnsToFit && api.sizeColumnsToFit();
+          api.doLayout && api.doLayout();
+          api.refreshHeader && api.refreshHeader();
+        }
+      } catch (e) { 
+        console.error('aggrid visible trigger error for element', e); 
+      }
+    });
+  } catch (e) { console.error('aggrid triggerVisible error', e); }
+};
+
+// Debounced resize observer for grid layout recalculation
+const gridResizeObserver = new ResizeObserver(function(entries) {
+  entries.forEach(entry => {
+    if (entry.target.classList.contains('ag-root')) {
+      setTimeout(() => {
+        try {
+          const api = entry.target.gridOptions?.api || entry.target.api;
+          if (api) {
+            api.sizeColumnsToFit && api.sizeColumnsToFit();
+            api.doLayout && api.doLayout();
+          }
+        } catch (e) { console.error('resize observer error', e); }
+      }, 50);
+    }
+  });
+});
+
+// Auto-trigger layout when new DOM nodes are added (e.g., new grids or tab content appears)
+const observer = new MutationObserver(function(mutations) {
+  mutations.forEach(mutation => {
+    if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+      for (let node of mutation.addedNodes) {
+        // Check if this is a grid or contains a grid
+        if (node.classList && node.classList.contains('ag-root')) {
+          gridResizeObserver.observe(node);
+          setTimeout(() => window.__aggrid_triggerVisible && window.__aggrid_triggerVisible(), 150);
+          break;
+        } else if (node.querySelector && node.querySelector('.ag-root')) {
+          const grids = node.querySelectorAll('.ag-root');
+          grids.forEach(g => gridResizeObserver.observe(g));
+          setTimeout(() => window.__aggrid_triggerVisible && window.__aggrid_triggerVisible(), 150);
+          break;
+        }
+      }
+    }
+  });
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Trigger on tab clicks (only after tab animation completes)
+document.addEventListener('click', function(e){
+  const t = e.target.closest('[role="tab"], .q-tab, .tab');
+  if (!t) return;
+  setTimeout(()=>{ window.__aggrid_triggerVisible && window.__aggrid_triggerVisible(); }, 200);
+});
+
+// Trigger when dialogs open
+document.addEventListener('dialogopen', () => {
+  setTimeout(()=>{ window.__aggrid_triggerVisible && window.__aggrid_triggerVisible(); }, 150);
+}, true);
+</script>
+''', shared=True)
 
 
 # Import accounting transactions UI to register route

@@ -162,9 +162,9 @@ class TrialHierarchyUI:
             }
             .node-code { color: #aaa; font-family: monospace; }
             .node-name { font-weight: bold; }
-            .node-debit { color: #4ade80; text-align: right; width: 100px; font-family: monospace; }
+            .node-debit { color: #80B9AD; text-align: right; width: 100px; font-family: monospace; }
             .node-credit { color: #f87171; text-align: right; width: 100px; font-family: monospace; }
-            .header-cell { font-size: 10px; font-weight: black; color: #4ade80; text-transform: uppercase; letter-spacing: 0.1em; }
+            .header-cell { font-size: 10px; font-weight: black; color: #80B9AD; text-transform: uppercase; letter-spacing: 0.1em; }
         </style>
         ''')
 

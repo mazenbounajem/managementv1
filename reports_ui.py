@@ -1,12 +1,10 @@
 from nicegui import ui
 from reports import Reports
 from datetime import datetime, date, timedelta
-from navigation_improvements import EnhancedNavigation
 from session_storage import session_storage
 from connection import connection
 from modern_page_layout import ModernPageLayout
 from modern_ui_components import ModernCard, ModernButton, ModernInput
-from modern_design_system import ModernDesignSystem as MDS
 
 
 def reports_content(standalone=False):
@@ -23,28 +21,20 @@ def reports_page_route():
     reports_content(standalone=True)
 
 
-def _build_ag_columns(headers_list, money_fields=None, pct_fields=None):
-    """Build ag-grid column definitions from a list of header names"""
+def _build_table_columns(headers_list, money_fields=None, pct_fields=None):
+    """Build ui.table column definitions from a list of header names"""
     money_fields = money_fields or []
     pct_fields = pct_fields or []
     cols = []
     for h in headers_list:
         label = h.replace('_', ' ').title()
-        col = {'headerName': label, 'field': h, 'sortable': True, 'filter': True}
+        col = {'name': h, 'label': label, 'field': h, 'align': 'left', 'sortable': True}
         if h in money_fields:
-            col['valueFormatter'] = '"$" + Number(params.value || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})'
-            col['width'] = 130
+            col['align'] = 'right'
         elif h in pct_fields:
-            col['valueFormatter'] = 'Number(params.value || 0).toFixed(2) + "%"'
-            col['width'] = 110
+            col['align'] = 'right'
         elif h in ('rank',):
-            col['width'] = 70
-        elif h in ('barcode',):
-            col['width'] = 110
-        elif h in ('product_name',):
-            col['flex'] = 2
-        else:
-            col['flex'] = 1
+            col['align'] = 'center'
         cols.append(col)
     return cols
 
@@ -167,21 +157,20 @@ class ReportsUI:
         money = ['total_revenue', 'total_cost', 'total_profit']
         pct = ['profit_margin_pct']
         headers = ['product_name', 'barcode', 'total_qty_sold', 'total_revenue', 'total_cost', 'total_profit', 'profit_margin_pct']
-        cols = _build_ag_columns(headers, money_fields=money, pct_fields=pct)
+        cols = _build_table_columns(headers, money_fields=money, pct_fields=pct)
 
         with ui.column().classes('w-full gap-3 p-2'):
             with ui.row().classes('w-full items-center justify-between mb-1'):
                 ui.label('Sales by Item').classes('text-xl font-black text-gray-900')
                 self._sales_item_count = ui.label('').classes('text-xs text-gray-500')
 
-            grid = ui.aggrid({
-                'columnDefs': cols,
-                'rowData': [],
-                'rowSelection': 'single',
-                'defaultColDef': {'resizable': True, 'sortable': True},
-                'pagination': True,
-                'paginationPageSize': 20,
-            }).classes('w-full ag-theme-quartz-custom').style('height: 380px;')
+            grid = ui.table(
+                columns=cols,
+                rows=[],
+                row_key='_rowid',
+                selection='single',
+                pagination={'rowsPerPage': 20},
+            ).classes('w-full').props('flat bordered dense')
             self._grids['sales_item'] = grid
 
             # Detail panel
@@ -196,11 +185,14 @@ class ReportsUI:
                     self._si_profit = self._detail_field('Profit')
                     self._si_margin = self._detail_field('Margin %')
 
-            grid.on('cellClicked', self._on_sales_item_row_click)
+            grid.on('rowClick', self._on_sales_item_row_click)
 
     def _on_sales_item_row_click(self, e):
         try:
-            row = e.args.get('data', {})
+            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+            if not isinstance(row, dict):
+                if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                    row = e.args[0]
             if not row:
                 return
             self._si_product.set_value(str(row.get('product_name', '')))
@@ -216,17 +208,20 @@ class ReportsUI:
     def _load_sales_by_item(self):
         try:
             data = Reports.fetch_sales_by_item(self.from_input.value, self.to_input.value)
+            serialized = [self._serialize(r) for r in data]
+            for i, row in enumerate(serialized):
+                row['_rowid'] = str(i)
+            self._format_report_rows(serialized,
+                money_fields=['total_revenue', 'total_cost', 'total_profit'],
+                pct_fields=['profit_margin_pct'])
             grid = self._grids.get('sales_item')
             if grid:
-                grid.options['rowData'] = [self._serialize(r) for r in data]
+                grid.rows = serialized
                 grid.update()
             if hasattr(self, '_sales_item_count'):
                 self._sales_item_count.set_text(f'{len(data)} items')
-            # Load last row into detail
-            if data:
-                class FakeEvent:
-                    args = {'data': data[0]}
-                self._on_sales_item_row_click(FakeEvent())
+            if serialized:
+                self._on_sales_item_row_click(type('FakeEvent', (), {'args': [None, serialized[0]]})())
         except Exception as ex:
             ui.notify(f'Error loading sales by item: {ex}', color='red')
 
@@ -250,14 +245,14 @@ class ReportsUI:
             # Grid container
             self._pp_grid_container = ui.column().classes('w-full')
             with self._pp_grid_container:
-                self._pp_grid = ui.aggrid({
-                    'columnDefs': [],
-                    'rowData': [],
-                    'rowSelection': 'single',
-                    'defaultColDef': {'resizable': True, 'sortable': True},
-                    'pagination': True,
-                    'paginationPageSize': 20,
-                }).classes('w-full ag-theme-quartz-custom').style('height: 350px;')
+                self._pp_grid = ui.table(
+                    columns=[],
+                    rows=[],
+                    row_key='_rowid',
+                    selection='single',
+                    pagination={'rowsPerPage': 20},
+                ).classes('w-full').props('flat bordered dense')
+                self._grids['profit_period'] = self._pp_grid
 
             # Detail panel
             with ModernCard(glass=True).classes('w-full p-5 mt-2'):
@@ -269,7 +264,7 @@ class ReportsUI:
                     self._pp_profit = self._detail_field('Profit')
                     self._pp_orders = self._detail_field('Orders')
 
-            self._pp_grid.on('cellClicked', self._on_profit_period_row_click)
+            self._pp_grid.on('rowClick', self._on_profit_period_row_click)
             ui.timer(0.2, lambda: self._load_profit_period(), once=True)
 
     def _style_period_buttons(self, active):
@@ -312,24 +307,29 @@ class ReportsUI:
                 headers = []
                 money = []
 
-            cols = _build_ag_columns(headers, money_fields=money,
-                                     pct_fields=['profit_margin_pct'])
-            self._pp_grid.options['columnDefs'] = cols
-            self._pp_grid.options['rowData'] = [self._serialize(r) for r in data]
+            cols = _build_table_columns(headers, money_fields=money,
+                                        pct_fields=['profit_margin_pct'])
+            serialized = [self._serialize(r) for r in data]
+            for i, row in enumerate(serialized):
+                row['_rowid'] = str(i)
+            self._format_report_rows(serialized, money_fields=money, pct_fields=['profit_margin_pct'])
+            self._pp_grid.columns = cols
+            self._pp_grid.rows = serialized
             self._pp_grid.update()
 
-            # Load first row into detail
-            if data:
-                class FakeEvent:
-                    args = {'data': data[0]}
-                self._on_profit_period_row_click(FakeEvent())
+            if serialized:
+                self._on_profit_period_row_click(type('FakeEvent', (), {'args': [None, serialized[0]]})())
         except Exception as ex:
             ui.notify(f'Error loading profit by {period}: {ex}', color='red')
 
     def _on_profit_period_row_click(self, e):
         try:
-            row = e.args.get('data', {})
-            # Determine period label
+            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+            if not isinstance(row, dict):
+                if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                    row = e.args[0]
+            if not row:
+                return
             period = self._pp_active
             if period == 'day':
                 period_val = str(row.get('sale_day', ''))
@@ -364,14 +364,14 @@ class ReportsUI:
                 ).props('unelevated').classes('px-5 rounded-xl text-sm font-bold bg-white/10')
                 self._mp_mode = 'amount'
 
-            self._mp_grid = ui.aggrid({
-                'columnDefs': [],
-                'rowData': [],
-                'rowSelection': 'single',
-                'defaultColDef': {'resizable': True, 'sortable': True},
-                'pagination': True,
-                'paginationPageSize': 20,
-            }).classes('w-full ag-theme-quartz-custom').style('height: 350px;')
+            self._mp_grid = ui.table(
+                columns=[],
+                rows=[],
+                row_key='_rowid',
+                selection='single',
+                pagination={'rowsPerPage': 20},
+            ).classes('w-full').props('flat bordered dense')
+            self._grids['most_profitable'] = self._mp_grid
 
             with ModernCard(glass=True).classes('w-full p-5 mt-2'):
                 ui.label('Selected Item').classes('text-xs font-black uppercase tracking-widest text-gray-500 mb-3')
@@ -385,7 +385,7 @@ class ReportsUI:
                     self._mp_profit = self._detail_field('Profit')
                     self._mp_margin = self._detail_field('Margin %')
 
-            self._mp_grid.on('cellClicked', self._on_most_profitable_row_click)
+            self._mp_grid.on('rowClick', self._on_most_profitable_row_click)
             ui.timer(0.25, lambda: self._load_most_profitable(), once=True)
 
     def _switch_most_profitable(self, mode):
@@ -413,21 +413,28 @@ class ReportsUI:
                 money = ['total_revenue', 'total_cost', 'total_profit']
                 pct = ['profit_margin_pct']
 
-            cols = _build_ag_columns(headers, money_fields=money, pct_fields=pct)
-            self._mp_grid.options['columnDefs'] = cols
-            self._mp_grid.options['rowData'] = [self._serialize(r) for r in data]
+            cols = _build_table_columns(headers, money_fields=money, pct_fields=pct)
+            serialized = [self._serialize(r) for r in data]
+            for i, row in enumerate(serialized):
+                row['_rowid'] = str(i)
+            self._format_report_rows(serialized, money_fields=money, pct_fields=pct)
+            self._mp_grid.columns = cols
+            self._mp_grid.rows = serialized
             self._mp_grid.update()
 
-            if data:
-                class FakeEvent:
-                    args = {'data': data[0]}
-                self._on_most_profitable_row_click(FakeEvent())
+            if serialized:
+                self._on_most_profitable_row_click(type('FakeEvent', (), {'args': [None, serialized[0]]})())
         except Exception as ex:
             ui.notify(f'Error loading most profitable: {ex}', color='red')
 
     def _on_most_profitable_row_click(self, e):
         try:
-            row = e.args.get('data', {})
+            row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+            if not isinstance(row, dict):
+                if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                    row = e.args[0]
+            if not row:
+                return
             self._mp_rank.set_value(str(row.get('rank', '')))
             self._mp_product.set_value(str(row.get('product_name', '')))
             self._mp_barcode.set_value(str(row.get('barcode', '')))
@@ -444,7 +451,7 @@ class ReportsUI:
     def _build_fast_slow_tab(self, key, title, icon, subtitle, fetch_fn):
         headers = ['rank', 'product_name', 'barcode', 'total_qty_sold', 'total_revenue', 'num_transactions', 'last_sale_date']
         money = ['total_revenue']
-        cols = _build_ag_columns(headers, money_fields=money)
+        cols = _build_table_columns(headers, money_fields=money)
 
         with ui.column().classes('w-full gap-3 p-2'):
             with ui.row().classes('w-full items-center gap-3 mb-1'):
@@ -454,14 +461,13 @@ class ReportsUI:
                     ui.label(subtitle).classes('text-xs text-gray-500')
                 self._grids[key + '_count'] = ui.label('').classes('text-xs text-gray-500 ml-auto')
 
-            grid = ui.aggrid({
-                'columnDefs': cols,
-                'rowData': [],
-                'rowSelection': 'single',
-                'defaultColDef': {'resizable': True, 'sortable': True},
-                'pagination': True,
-                'paginationPageSize': 20,
-            }).classes('w-full ag-theme-quartz-custom').style('height: 350px;')
+            grid = ui.table(
+                columns=cols,
+                rows=[],
+                row_key='_rowid',
+                selection='single',
+                pagination={'rowsPerPage': 20},
+            ).classes('w-full').props('flat bordered dense')
             self._grids[key] = grid
 
             # Detail panel
@@ -481,7 +487,12 @@ class ReportsUI:
 
             def on_row(e, k=key, money_f=money):
                 try:
-                    row = e.args.get('data', {})
+                    row = e.args[1] if isinstance(e.args, (list, tuple)) and len(e.args) > 1 else None
+                    if not isinstance(row, dict):
+                        if isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                            row = e.args[0]
+                    if not row:
+                        return
                     det = self._detail_containers.get(k, {})
                     for fld, ref in det.items():
                         val = row.get(fld, '')
@@ -492,26 +503,27 @@ class ReportsUI:
                 except Exception as ex:
                     print(f"Detail error ({k}): {ex}")
 
-            grid.on('cellClicked', on_row)
-            # Load on tab switch (via refresh current)
-            self._grids[key + '_fetch'] = fetch_fn
-            self._grids[key + '_on_row'] = on_row
+            grid.on('rowClick', on_row)
 
     def _load_fast_slow(self, key, fetch_fn):
         try:
             data = fetch_fn(self.from_input.value, self.to_input.value)
+            serialized = [self._serialize(r) for r in data]
+            for i, row in enumerate(serialized):
+                row['_rowid'] = str(i)
+            self._format_report_rows(serialized, money_fields=['total_revenue'])
             grid = self._grids.get(key)
             if grid:
-                grid.options['rowData'] = [self._serialize(r) for r in data]
+                grid.rows = serialized
                 grid.update()
             count_lbl = self._grids.get(key + '_count')
             if count_lbl:
                 count_lbl.set_text(f'{len(data)} items')
-            if data:
+            if serialized:
                 det = self._detail_containers.get(key, {})
                 money = ['total_revenue']
                 for fld, ref in det.items():
-                    val = data[0].get(fld, '')
+                    val = serialized[0].get(fld, '')
                     if fld in money:
                         ref.set_value(f"${float(val or 0):,.2f}")
                     else:
@@ -521,26 +533,44 @@ class ReportsUI:
 
     # ──────────────────── Helpers ────────────────────
 
+    def _format_report_rows(self, rows, money_fields=None, pct_fields=None):
+        """Pre-format money and percentage values as display strings (avoids JSON-serialization of lambdas)"""
+        money_fields = money_fields or []
+        pct_fields = pct_fields or []
+        for row in rows:
+            for f in money_fields:
+                if f in row:
+                    row[f] = f"${float(row.get(f, 0) or 0):,.2f}"
+            for f in pct_fields:
+                if f in row:
+                    row[f] = f"{float(row.get(f, 0) or 0):,.2f}%"
+        return rows
+
     def _detail_field(self, label):
         """Create a read-only detail display field"""
         inp = ui.input(label).props('readonly outlined dense').classes('w-full')
         return inp
 
     def _export_pdf(self):
-        """Export current tab data as PDF"""
+        """Export current tab data as PDF and show in modal"""
         try:
             grid = self._grids.get(self._active_tab)
-            if not grid or not grid.options['rowData']:
+            if not grid or not grid.rows:
                 ui.notify('No data to export', color='warning')
                 return
             
-            headers = [col['headerName'] for col in grid.options['columnDefs']]
-            data = grid.options['rowData']
+            headers = [col['label'] for col in grid.columns]
+            data = grid.rows
             
-            pdf_gen = ReportPDFGenerator(f'{self._active_tab.replace("_", " ").title()} Report')
-            pdf_data = pdf_gen.generate(headers, data)
-            ui.download(pdf_data, f'report_{self._active_tab}_{datetime.now().strftime("%Y%m%d")}.pdf')
-            ui.notify('PDF exported successfully', color='green')
+            title = f'{self._active_tab.replace("_", " ").title()} Report'
+            pdf_data = Reports.generate_pdf(title, headers, data)
+            
+            # Show in modal instead of downloading
+            from pdf_viewer_helper import show_pdf_modal
+            filename = f'report_{self._active_tab}_{datetime.now().strftime("%Y%m%d")}.pdf'
+            show_pdf_modal(pdf_data, filename=filename, title=title)
+            
+            ui.notify('PDF generated successfully', color='green')
         except Exception as e:
             ui.notify(f'PDF export failed: {e}', color='red')
 
@@ -548,14 +578,14 @@ class ReportsUI:
         """Export current tab data as CSV (Excel compatible)"""
         try:
             grid = self._grids.get(self._active_tab)
-            if not grid or not grid.options['rowData']:
+            if not grid or not grid.rows:
                 ui.notify('No data to export', color='warning')
                 return
             
-            headers = [col['headerName'] for col in grid.options['columnDefs']]
-            data = grid.options['rowData']
+            headers = [col['label'] for col in grid.columns]
+            data = grid.rows
             
-            csv_data = export_csv(data, headers)
+            csv_data = Reports.export_csv(data, headers)
             ui.download(csv_data, f'report_{self._active_tab}_{datetime.now().strftime("%Y%m%d")}.csv')
             ui.notify('Excel/CSV exported successfully', color='green')
         except Exception as e:

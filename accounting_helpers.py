@@ -877,19 +877,8 @@ def print_account_statement(account_number, from_date=None, to_date=None):
 
         pdf_bytes  = buffer.getvalue()
         buffer.close()
-        pdf_b64    = base64.b64encode(pdf_bytes).decode('utf-8')
-        pdf_url    = f"data:application/pdf;base64,{pdf_b64}"
-
-        with ui.dialog() as pdf_dialog:
-            with ui.card().classes('w-screen h-screen max-w-none max-h-none m-0 rounded-none'):
-                with ui.row().classes('w-full justify-between items-center p-4 bg-gray-100 border-b'):
-                    ui.label(f'Statement: {account_number}').classes('text-xl font-bold')
-                    ui.button('✕ Close', on_click=pdf_dialog.close).classes('bg-red-500 text-white px-4 py-2 rounded')
-                ui.html(
-                    f'<iframe src="{pdf_url}" width="100%" height="100%" '
-                    f'style="border:none;min-height:calc(100vh - 80px);"></iframe>'
-                ).classes('w-full flex-1')
-        pdf_dialog.open()
+        from pdf_viewer_helper import show_pdf_modal
+        show_pdf_modal(pdf_bytes, filename=f'Statement_{account_number}.pdf', title=f'Statement: {account_number}')
 
     except Exception as e:
         from nicegui import ui
@@ -1012,16 +1001,8 @@ def print_trial_balance(from_date=None, to_date=None):
         doc.build(elements)
         pdf_bytes = buffer.getvalue()
         buffer.close()
-        pdf_b64 = base64.b64encode(pdf_bytes).decode()
-        pdf_url = f"data:application/pdf;base64,{pdf_b64}"
-
-        with ui.dialog() as pdf_dialog:
-            with ui.card().classes('w-screen h-screen p-0 m-0'):
-                with ui.row().classes('p-4 bg-primary'):
-                    ui.label("Trial Balance PDF").classes('text-white text-xl font-bold')
-                    ui.button('Close', on_click=pdf_dialog.close, icon='close').classes('ml-auto text-white')
-                ui.html(f'<iframe src="{pdf_url}" style="width:100%;height:calc(100vh-80px);border:none;"></iframe>')
-        pdf_dialog.open()
+        from pdf_viewer_helper import show_pdf_modal
+        show_pdf_modal(pdf_bytes, filename='Trial_Balance.pdf', title='Trial Balance PDF')
     except Exception as e:
         ui.notify(f"PDF Error: {e}", color='negative')
 
@@ -1126,16 +1107,8 @@ def print_hierarchical_trial_balance_pdf(ledger_prefix, from_date=None, to_date=
         pdf_bytes = buffer.getvalue()
         buffer.close()
         
-        pdf_b64 = base64.b64encode(pdf_bytes).decode()
-        pdf_url = f"data:application/pdf;base64,{pdf_b64}"
-
-        with ui.dialog() as dialog:
-            with ui.card().classes('w-screen h-screen max-w-none max-h-none rounded-none p-0'):
-                with ui.row().classes('p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white justify-between items-center'):
-                    ui.label(f"Hierarchical Trial Balance - {ledger_prefix}").classes('text-xl font-bold flex-1')
-                    ui.button(icon='close', on_click=dialog.close, color='white')
-                ui.html(f'<iframe src="{pdf_url}" style="border:none; width:100%; height:calc(100vh - 64px);"></iframe>')
-        dialog.open()
+        from pdf_viewer_helper import show_pdf_modal
+        show_pdf_modal(pdf_bytes, filename=f'Hierarchical_Trial_Balance_{ledger_prefix}.pdf', title=f"Hierarchical Trial Balance - {ledger_prefix}")
 
     except Exception as e:
         ui.notify(f"Error generating PDF: {str(e)}", color='negative')
